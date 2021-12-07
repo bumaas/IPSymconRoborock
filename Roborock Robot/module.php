@@ -803,11 +803,10 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         if (method_exists($this, $callback)) {
             $this->_debug('receive', $callback . ': ' . json_encode($buffer));
             return call_user_func([$this, $callback], $buffer);
-        } else {
-            $this->_debug('receive', json_encode($buffer));
         }
 
         // return original buffer, when no callback was found
+        $this->_debug('receive', json_encode($buffer));
         return $buffer;
     }
 
@@ -831,11 +830,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         }
 
         // return true, when token length is 32 byte
-        if (strlen($token) == 32) {
-            return true;
-        }
-
-        return false;
+        return strlen($token) === 32;
     }
 
     /**
@@ -3416,6 +3411,7 @@ EOF;
         $total_cleaning_time = null;
         $area_cleaned = null;
         $cleanups = null;
+        $clean_records = null;
 
         if (isset($data['result'][0])) {
             $total_cleaning_time = $this->_convertToUnixtime((int)$data['result'][0]); // sec
