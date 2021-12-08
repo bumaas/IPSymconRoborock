@@ -2117,10 +2117,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
                         'caption' => 'Push Notifications',
                         'items'   => [
                             [
-                                'type'  => 'Label',
-                                'label' => 'Push Notifications'
-                            ],
-                            [
                                 'name'    => 'notification_instance',
                                 'type'    => 'SelectInstance',
                                 'caption' => 'Webfront Configurator'
@@ -2257,10 +2253,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
                         'type'    => 'ExpansionPanel',
                         'caption' => 'Enabled options',
                         'items'   => [
-                            [
-                                'type'  => 'Label',
-                                'label' => 'Enabled options'
-                            ],
                             [
                                 'name'    => self::PROPERTY_FAN_POWER,
                                 'type'    => 'CheckBox',
@@ -2514,10 +2506,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     {
         $setup_scripts = $this->ReadPropertyBoolean('setup_scripts');
         $form = [
-            [
-                'type'  => 'Label',
-                'label' => 'Install scripts'
-            ],
             [
                 'name'    => 'setup_scripts',
                 'type'    => 'CheckBox',
@@ -3413,23 +3401,51 @@ EOF;
         $cleanups = null;
         $clean_records = null;
 
+        //clean_time
         if (isset($data['result'][0])) {
             $total_cleaning_time = $this->_convertToUnixtime((int)$data['result'][0]); // sec
             $this->SetRoborockValue('total_clean_time', $total_cleaning_time);
         }
 
+        if (isset($data['result']['clean_time'])) {
+            $total_cleaning_time = $this->_convertToUnixtime((int)$data['result'][clean_time]); // sec
+            $this->SetRoborockValue('total_clean_time', $total_cleaning_time);
+        }
+
+        //clean_area
         if (isset($data['result'][1])) {
             $area_cleaned = (float)$data['result'][1] / 1000000; // cm2 -> m2
             $this->SetRoborockValue('total_clean_area', $area_cleaned);
         }
 
+        if (isset($data['result']['clean_area'])) {
+            $total_cleaning_time = $this->_convertToUnixtime((int)$data['result']['clean_area']); // sec
+            $this->SetRoborockValue('total_clean_time', $total_cleaning_time);
+        }
+
+        //clean_count
         if (isset($data['result'][2])) {
             $cleanups = (int)$data['result'][2];
             $this->SetRoborockValue('total_cleans', $cleanups);
         }
 
+        if (isset($data['result']['clean_count'])) {
+            $cleanups = (int)$data['result']['clean_count'];
+            $this->SetRoborockValue('total_cleans', $cleanups);
+        }
+
+        //records
         if (isset($data['result'][3])) {
             $clean_records = $data['result'][3];
+            $this->SetBuffer('CleanRecords', json_encode($clean_records));
+            // update clean record details
+            foreach ($clean_records as $record_id) {
+                $this->GetCleanRecord($record_id);
+            }
+        }
+
+        if (isset($data['result']['records'])) {
+            $clean_records = $data['result']['records'];
             $this->SetBuffer('CleanRecords', json_encode($clean_records));
             // update clean record details
             foreach ($clean_records as $record_id) {
