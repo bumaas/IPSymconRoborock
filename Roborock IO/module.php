@@ -89,7 +89,7 @@ class RoborockIO extends IPSModule
         $this->SetTimerInterval('RoborockQueue', 200);
 
         // set status to 102, due no configuration
-        $this->SetStatus(102);
+        $this->SetStatus(IS_ACTIVE);
     }
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)

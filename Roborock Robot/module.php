@@ -1,11 +1,11 @@
 <?php
 
-// declare(strict_types=1);
+declare(strict_types=1);
 // set base dir
-define('__ROOT__', dirname(dirname(__FILE__)));
+//define('__ROOT__', dirname(dirname(__FILE__)));
 
 // load ips constants
-require_once __ROOT__ . '/libs/ips.constants.php';
+//require_once __ROOT__ . '/libs/ips.constants.php';
 
 /**
  * Class Roborock
@@ -517,12 +517,14 @@ class Roborock extends IPSModule
         if ($this->ReadPropertyBoolean('setup_scripts') && $this->ReadPropertyInteger('script_category') == 0) {
             $this->SetStatus(209);
             return false;
-        } elseif ($this->ReadPropertyBoolean('setup_scripts')) {
+        }
+
+        if ($this->ReadPropertyBoolean('setup_scripts')) {
             $this->SetupScripts();
         }
 
         // yay, configuration is valid! =)
-        $this->SetStatus(102);
+        $this->SetStatus(IS_ACTIVE);
         return true;
     }
 
@@ -578,84 +580,74 @@ class Roborock extends IPSModule
         return $ScriptID;
     }
 
-    private function CreateStartScript()
+    private function CreateStartScript(): string
     {
-        $Script = '<?
-Roborock_Start(' . $this->InstanceID . ');		
-?>';
-        return $Script;
+        return '<?
+Roborock_Start(' . $this->InstanceID . ');
+';
     }
 
-    private function CreateStopScript()
+    private function CreateStopScript(): string
     {
-        $Script = '<?
+        return '<?
 Roborock_Stop(' . $this->InstanceID . ');		
-?>';
-        return $Script;
+';
     }
 
-    private function CreatePauseScript()
+    private function CreatePauseScript(): string
     {
-        $Script = '<?
+        return '<?
 Roborock_Pause(' . $this->InstanceID . ');		
-?>';
-        return $Script;
+';
     }
 
-    private function CreateLocateScript()
+    private function CreateLocateScript(): string
     {
-        $Script = '<?
+        return '<?
 Roborock_Locate(' . $this->InstanceID . ');		
-?>';
-        return $Script;
+';
     }
 
-    private function CreateChargeScript()
+    private function CreateChargeScript(): string
     {
-        $Script = '<?
+        return '<?
 Roborock_Charge(' . $this->InstanceID . ');		
-?>';
-        return $Script;
+';
     }
 
-    private function CreateCleanSpotScript()
+    private function CreateCleanSpotScript(): string
     {
-        $Script = '<?
+        return '<?
 Roborock_CleanSpot(' . $this->InstanceID . ');		
-?>';
-        return $Script;
+';
     }
 
-    private function CreateResetFilterScript()
+    private function CreateResetFilterScript(): string
     {
-        $Script = '<?
+        return '<?
 Roborock_Reset_Filter(' . $this->InstanceID . ');		
-?>';
-        return $Script;
+';
     }
 
-    private function CreateResetMainbrushScript()
+    private function CreateResetMainbrushScript(): string
     {
-        $Script = '<?
+        return '<?
 Roborock_Reset_Mainbrush(' . $this->InstanceID . ');		
-?>';
-        return $Script;
+';
     }
 
-    private function CreateResetSideBrushScript()
+    private function CreateResetSideBrushScript(): string
     {
-        $Script = '<?
+        return '<?
 Roborock_Reset_Sidebrush(' . $this->InstanceID . ');		
-?>';
-        return $Script;
+';
     }
 
-    private function CreateResetSensorsScript()
+    private function CreateResetSensorsScript(): string
     {
-        $Script = '<?
+        return '<?
 Roborock_Reset_Sensors(' . $this->InstanceID . ');		
-?>';
-        return $Script;
+';
     }
 
     /**
@@ -1257,12 +1249,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @return bool
      */
-    public function Move_Direction(int $direction, int $velocity, int $time = null)
+    public function Move_Direction(int $direction, int $velocity, int $time = 1000)
     {
-        if (empty($time)) {
-            $time = 1000;
-        }
-
         $this->StartRemoteControl();
         $result = $this->RequestData('app_rc_move', [
             'params' => [
@@ -1351,8 +1339,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      */
     public function UpdateFirmwareOverAirProgress()
     {
-        $ota_progress = $this->RequestData('miIO.get_ota_progress')[0];
-        return $ota_progress;
+        return $this->RequestData('miIO.get_ota_progress')[0];
     }
 
     /**
@@ -1362,8 +1349,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      */
     public function UpdateFirmwareOverAirStatus()
     {
-        $ota_state = $this->RequestData('miIO.get_ota_state')[0];
-        return $ota_state;
+        return $this->RequestData('miIO.get_ota_state')[0];
     }
 
     /**
@@ -1519,52 +1505,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         }
     }
 
-    /**
-     * enable, disable or delete an existing timer.
-     *
-     * @param string $command on|off|delete
-     * @param int    $timerid
-     */
-    protected function Change_Timer(string $command, $timerid)
-    {
-        if ($command == 'on') {
-            $this->EnableTimer(strval($timerid));
-        } elseif ($command == 'off') {
-            $this->DisableTimer(strval($timerid));
-        } elseif ($command == 'delete') {
-            $this->DeleteTimer(strval($timerid));
-        }
-    }
-
-    // @ToDo: change timer
-
-    /**
-     * change the time for an existing timer.
-     *
-     * @param string $time
-     *
-     * @return bool
-     */
-    public function Change_Timer_Time(string $time)
-    {
-        $payload = '' . $time;
-        return $this->RequestData($payload);
-    }
-
-    // @ToDo: change timer
-
-    /**
-     * change the days for an existing timer.
-     *
-     * @param string $date
-     *
-     * @return bool
-     */
-    public function Change_Timer_Date(string $date)
-    {
-        $payload = '' . $date;
-        return $this->RequestData($payload);
-    }
 
     /**
      * enable / disable dnd mode.
@@ -1884,7 +1824,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     protected function SendPushNotification($state_id = 'errors', $error_id = 0, $force_send = false)
     {
         // get codes by state_id
-        if ($state_id == 'errors') {
+        if ($state_id === 'errors') {
             $codes = $this->error_codes;
             $state_id = $error_id;
             $prefix = $this->Translate('Error') . ': ';
@@ -1948,6 +1888,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         foreach ($notifications as &$notification) {
             $notification['name'] = $this->Translate($notification['name']);
         }
+        unset ($notification);
 
         // merge with current settings
         if ($current_notifications = @$this->ReadPropertyString('notifications')) {
@@ -2730,19 +2671,18 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     private function _convertToUnixtime($time)
     {
         $timestring = gmdate('H:i:s', $time);
-        $unixtime = strtotime($timestring);
 
-        return $unixtime;
+        return strtotime($timestring);
     }
 
     /**
-     * convert seconds to human readable time.
+     * convert seconds to human-readable time.
      *
      * @param int $inputSeconds
      *
      * @return string
      */
-    private function _convertSecondsToTime($inputSeconds = 0)
+    private function _convertSecondsToTime(int $inputSeconds = 0)
     {
         $secondsInAMinute = 60;
         $secondsInAnHour = 60 * $secondsInAMinute;
@@ -2934,19 +2874,18 @@ EOF;
      */
     private function _getTimerDay($day_of_week)
     {
-        if ($day_of_week == '*') {
+        if ($day_of_week === '*') {
             $timer_day = 'once';
-        } elseif ($day_of_week == '1,2,3,4,5') {
+        } elseif ($day_of_week === '1,2,3,4,5') {
             $timer_day = 'weekdays';
-        } elseif ($day_of_week == '0,6') {
+        } elseif ($day_of_week === '0,6') {
             $timer_day = 'weekends';
-        } elseif ($day_of_week == '0,1,2,3,4,5,6') {
+        } elseif ($day_of_week === '0,1,2,3,4,5,6') {
             $timer_day = 'every day';
         } else {
             $timer_day = 'custom';
         }
-        $timer_day = $this->Translate($timer_day);
-        return $timer_day;
+        return $this->Translate($timer_day);
     }
 
     /**
@@ -2958,13 +2897,13 @@ EOF;
      */
     private function _getTimerRepetition($repetitionstring)
     {
-        if ($repetitionstring == 'once') {
+        if ($repetitionstring === 'once') {
             $repetition = '*';
-        } elseif ($repetitionstring == 'weekdays') {
+        } elseif ($repetitionstring === 'weekdays') {
             $repetition = '1,2,3,4,5';
-        } elseif ($repetitionstring == 'weekends') {
+        } elseif ($repetitionstring === 'weekends') {
             $repetition = '0,6';
-        } elseif ($repetitionstring == 'every day') {
+        } elseif ($repetitionstring === 'every day') {
             $repetition = '0,1,2,3,4,5,6';
         } else {
             $repetition = '*';
@@ -2985,7 +2924,7 @@ EOF;
         }
 
         // discover device & retrieve token
-        $token = $this->RequestData('discover', [
+        $token = (string) $this->RequestData('discover', [
             'ip'        => '192.168.8.1',
             'immediate' => true
         ]);
@@ -3071,7 +3010,7 @@ EOF;
         }
 
         // login
-        usleep(rand(200, 1000));
+        usleep(random_int(200, 1000));
 
         curl_setopt_array($ch, [
             CURLOPT_REFERER        => $login_url,
@@ -3105,7 +3044,7 @@ EOF;
         curl_setopt($ch, CURLOPT_HEADER, true);
         $login = curl_exec($ch);
 
-        if ($login == 'ok') {
+        if ($login === 'ok') {
             // proceed
         }
         /*
@@ -3408,7 +3347,7 @@ EOF;
         }
 
         if (isset($data['result']['clean_time'])) {
-            $total_cleaning_time = $this->_convertToUnixtime((int)$data['result'][clean_time]); // sec
+            $total_cleaning_time = $this->_convertToUnixtime((int)$data['result']['clean_time']); // sec
             $this->SetRoborockValue('total_clean_time', $total_cleaning_time);
         }
 
@@ -3475,11 +3414,42 @@ EOF;
         if (isset($data['result'][0])) {
             $record = $data['result'][0];
 
-            $start_time = $record[0];
-            $end_time = $record[1];
-            $cleaning_duration = $record[2];
-            $area = floatval($record[3]) / 1000000; //cm2 -> m2
-            $errors = $record[4];
+            if (isset($record[0])){
+                $start_time = $record[0];
+            }
+            if (isset($record['begin'])){
+                $start_time = $record['begin'];
+            }
+
+
+            if (isset($record[1])) {
+                $end_time = $record[1];
+            }
+            if (isset($record['end'])) {
+                $end_time = $record['end'];
+            }
+
+            if (isset($record[2])) {
+                $cleaning_duration = $record[2];
+            }
+            if (isset($record['duration'])) {
+                $cleaning_duration = $record['duration'];
+            }
+
+            if (isset($record[3])) {
+                $area = (float)$record[3] / 1000000; //cm2 -> m2
+            }
+            if (isset($record['area'])) {
+                $area = (float)$record['area'] / 1000000; //cm2 -> m2
+            }
+
+            if (isset($record[4])) {
+                $errors = $record[4];
+            }
+            if (isset($record['error'])) {
+                $errors = $record['error'];
+            }
+
             $completed = $record[5];
 
             $data = [
@@ -3491,7 +3461,7 @@ EOF;
                 'completed'        => $completed
             ];
 
-            // return wen duration was 0s
+            // return when duration was 0s
             if ($cleaning_duration == 0) {
                 return $data;
             }
@@ -3568,9 +3538,9 @@ EOF;
             }
 
             return $data;
-        } else {
-            return [];
         }
+
+        return [];
     }
 
     /**
