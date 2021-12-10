@@ -1,12 +1,6 @@
 <?php
 
-// declare(strict_types=1);
-
-// set base dir
-define('__ROOT__', dirname(dirname(__FILE__)));
-
-// load ips constants
-require_once __ROOT__ . '/libs/ips.constants.php';
+declare(strict_types=1);
 
 /**
  * Class RoborockIO

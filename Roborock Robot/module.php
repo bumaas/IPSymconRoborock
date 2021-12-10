@@ -1,11 +1,6 @@
 <?php
 
 declare(strict_types=1);
-// set base dir
-//define('__ROOT__', dirname(dirname(__FILE__)));
-
-// load ips constants
-//require_once __ROOT__ . '/libs/ips.constants.php';
 
 /**
  * Class Roborock
@@ -237,7 +232,7 @@ class Roborock extends IPSModule
             ]
         );
 
-        $this->RegisterProfile('Roborock.Fanpower', 'Speedo', '', ' %', 0, 100, 1, 0, 1);
+        $this->RegisterProfile('Roborock.Fanpower', 'Speedo', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
         $this->RegisterProfileAssociation('Roborock.WaterQuantity', 'Drops', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER,
                                [
                                    [200, $this->Translate('Off'), '', -1],
@@ -246,11 +241,12 @@ class Roborock extends IPSModule
                                    [203, $this->Translate('High'), '', -1],
                                    [204, $this->Translate('Customize (Auto)'), '', -1],
                                ]);
-        $this->RegisterProfile('Roborock.Cleanarea', 'Shuffle', '', ' ' . chr(109) . chr(178), 0, 0, 0, 1, 2);
-        $this->RegisterProfile('Roborock.Totalcleans', 'Gauge', '', '', 0, 0, 0, 2, 1);
-        $this->RegisterProfile('Roborock.Volume', 'Speaker', '', ' %', 0, 100, 1, 0, 1);
-        $this->RegisterProfile('Roborock.Battery', 'Battery', '', ' %', 0, 100, 1, 0, 1);
-        $this->RegisterProfile('Roborock.Consumable', 'Gear', '', ' %', 0, 100, 1, 0, 1);
+        $this->RegisterProfile('Roborock.Cleanarea', 'Shuffle', '', ' ' . chr(109) . chr(178), 0, 0, 0, 1, VARIABLETYPE_FLOAT);
+        $this->RegisterProfile('Roborock.Totalcleans', 'Gauge', '', '', 0, 0, 0, 2, VARIABLETYPE_INTEGER);
+        $this->RegisterProfile('Roborock.Volume', 'Speaker', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
+        $this->RegisterProfile('Roborock.Battery', 'Battery', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
+        $this->RegisterProfile('Roborock.Consumable', 'Gear', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
+        $this->RegisterProfile('Roborock.Duration', '', '', ' s', 0, 0, 0, 0, VARIABLETYPE_INTEGER);
 
         // hidden, internal variables
         $variable_notification_id = $this->RegisterVariableString('last_notification_state', 'last_notification_state', '', 99);
@@ -361,8 +357,8 @@ class Roborock extends IPSModule
 
         // clean_time
         if ($this->ReadPropertyBoolean('clean_time')) {
-            $this->RegisterVariableInteger('clean_time', $this->Translate('Clean Time'), '~UnixTimestampTime', $this->_getPosition());
-            $this->RegisterVariableInteger('total_clean_time', $this->Translate('Total Clean Time'), '~UnixTimestampTime', $this->_getPosition());
+            $this->RegisterVariableInteger('clean_time', $this->Translate('Clean Time'), 'Roborock.Duration', $this->_getPosition());
+            $this->RegisterVariableInteger('total_clean_time', $this->Translate('Total Clean Time'), 'Roborock.Duration', $this->_getPosition());
             $this->RegisterVariableString('cleaning_records', $this->Translate('Cleaning Records'), '~HTMLBox', $this->_getPosition());
 
             $cleaning_records_tmp = $this->RegisterVariableString('cleaning_records_tmp', 'cleaning_records_tmp', '~HTMLBox', 99);
@@ -2644,7 +2640,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      */
     public function SetJoystickHtml()
     {
-        $joystick = file_get_contents(__ROOT__ . '/libs/joystick.html');
+        $joystick = file_get_contents(dirname(__FILE__, 2) . '/libs/joystick.html');
         $joystick = str_replace('[instance_id]', $this->InstanceID, $joystick);
         $this->SetValue('remote', $joystick);
     }
@@ -2662,27 +2658,13 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     }
 
     /**
-     * convert time into unix time.
-     *
-     * @param $time
-     *
-     * @return false|int
-     */
-    private function _convertToUnixtime($time)
-    {
-        $timestring = gmdate('H:i:s', $time);
-
-        return strtotime($timestring);
-    }
-
-    /**
      * convert seconds to human-readable time.
      *
      * @param int $inputSeconds
      *
      * @return string
      */
-    private function _convertSecondsToTime(int $inputSeconds = 0)
+    private function _convertSecondsToTime(int $inputSeconds = 0): string
     {
         $secondsInAMinute = 60;
         $secondsInAnHour = 60 * $secondsInAMinute;
@@ -2778,6 +2760,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
                         $curMerge[1][$key] = $val;
                     }
                 }
+                unset ($val);
                 unset($stack[$curKey]);
             }
             unset($curMerge);
@@ -3203,7 +3186,7 @@ EOF;
         $this->SetRoborockValue('clean_area', $clean_area);
         $ret['clean_area'] = $clean_area;
 
-        $clean_time = $this->_convertToUnixtime((int) $result['clean_time']); // sec
+        $clean_time = $result['clean_time']; // sec
         $this->SetRoborockValue('clean_time', $clean_time);
         $ret['clean_time'] = $clean_time;
 
@@ -3342,13 +3325,11 @@ EOF;
 
         //clean_time
         if (isset($data['result'][0])) {
-            $total_cleaning_time = $this->_convertToUnixtime((int)$data['result'][0]); // sec
-            $this->SetRoborockValue('total_clean_time', $total_cleaning_time);
+            $this->SetRoborockValue('total_clean_time', $total_cleaning_time = $data['result'][0]); // sec
         }
 
         if (isset($data['result']['clean_time'])) {
-            $total_cleaning_time = $this->_convertToUnixtime((int)$data['result']['clean_time']); // sec
-            $this->SetRoborockValue('total_clean_time', $total_cleaning_time);
+            $this->SetRoborockValue('total_clean_time', $data['result']['clean_time']); // sec
         }
 
         //clean_area
@@ -3358,8 +3339,8 @@ EOF;
         }
 
         if (isset($data['result']['clean_area'])) {
-            $total_cleaning_time = $this->_convertToUnixtime((int)$data['result']['clean_area']); // sec
-            $this->SetRoborockValue('total_clean_time', $total_cleaning_time);
+            $area_cleaned = (float)$data['result'][1] / 1000000; // cm2 -> m2
+            $this->SetRoborockValue('total_clean_area', $area_cleaned);
         }
 
         //clean_count
@@ -3450,7 +3431,13 @@ EOF;
                 $errors = $record['error'];
             }
 
-            $completed = $record[5];
+            if (isset($record[5])) {
+                $completed = $record[5];
+            }
+            if (isset($record['complete'])) {
+                $completed = $record['complete'];
+            }
+
 
             $data = [
                 'starttime'        => $start_time,
@@ -3462,7 +3449,7 @@ EOF;
             ];
 
             // return when duration was 0s
-            if ($cleaning_duration == 0) {
+            if ($cleaning_duration === 0) {
                 return $data;
             }
 
@@ -3713,7 +3700,7 @@ EOF;
         if (isset($data['result'][0])) {
             $volume = $data['result'][0];
             $type = gettype($volume);
-            if ($type == 'integer') {
+            if ($type === 'integer') {
                 $this->SetRoborockValue('volume', $volume);
             }
 
