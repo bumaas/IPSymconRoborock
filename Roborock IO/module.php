@@ -9,11 +9,10 @@ declare(strict_types=1);
 class RoborockIO extends IPSModule
 {
     // constants
-    const hello_msg = '21310020ffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
-    const port_udp = 54321;
-    const unknown = '00000000';
-    const timeout_send = 2;
-    const timeout_discover = 5;
+    private const hello_msg = '21310020ffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+    private const port_udp = 54321;
+    private const timeout_send = 2;
+    private const timeout_discover = 5;
 
     // private properties
     private $token;
@@ -47,7 +46,6 @@ class RoborockIO extends IPSModule
     /**
      * create instance.
      *
-     * @return bool|void
      */
     public function Create()
     {
@@ -67,7 +65,6 @@ class RoborockIO extends IPSModule
     /**
      * apply changes from configuration form.
      *
-     * @return bool|void
      */
     public function ApplyChanges()
     {
@@ -117,28 +114,28 @@ class RoborockIO extends IPSModule
     public function ForwardData($JSONString)
     {
         // receive data
-        $data = json_decode($JSONString);
+        $data = json_decode($JSONString, false);
         $payload = $data->Buffer;
 
         // debug log
         $this->_debug('forwarded data', json_encode($data->Buffer));
 
         // return immediately on discover request
-        if ($payload->method == 'discover') {
+        if ($payload->method === 'discover') {
             return json_encode($this->Discover($payload->ip));
         }
 
         // send & receive command immediately
         if ($payload->immediate) {
             return json_encode($this->Send($payload));
-        } // otherwise, append to queue
-        else {
-            $queue = json_decode($this->GetBuffer('queue'));
-            $queue[] = $payload;
-
-            // save queue
-            $this->SetBuffer('queue', json_encode($queue));
         }
+
+        // otherwise, append to queue
+        $queue = json_decode($this->GetBuffer('queue'), false);
+        $queue[] = $payload;
+
+        // save queue
+        $this->SetBuffer('queue', json_encode($queue));
 
         return true;
     }
@@ -148,10 +145,10 @@ class RoborockIO extends IPSModule
      *
      * @return void
      */
-    public function HandleQueue()
+    public function HandleQueue(): void
     {
         // get current queue
-        $queue = json_decode($this->GetBuffer('queue'));
+        $queue = json_decode($this->GetBuffer('queue'), false);
 
         if ($queue) {
             // reset queue
@@ -216,58 +213,56 @@ class RoborockIO extends IPSModule
         }
 
         // proceed on valid token
-        if ($this->token) {
-            // send HELLO
-            if ($this->SendHello()) {
-                // set message id
-                $messageId = $this->_getMessageId();
-                $message['id'] = $messageId;
+        // send HELLO
+        if ($this->token && $this->SendHello()) {
+            // set message id
+            $messageId = $this->_getMessageId();
+            $message['id'] = $messageId;
 
-                $this->_debug('socket [message]', json_encode($message));
+            $this->_debug('socket [message]', json_encode($message));
 
-                // build message
-                $packet = hex2bin($this->_buildMessage($message));
-                $this->_debug('socket [packet]', $packet, 1);
+            // build message
+            $packet = hex2bin($this->_buildMessage($message));
+            $this->_debug('socket [packet]', $packet, 1);
 
-                // send message to socket
-                if ($bytes = socket_sendto($this->socket, $packet, strlen($packet), 0, $this->ip, self::port_udp)) {
-                    $this->_debug('socket [send]', $bytes . ' bytes');
-                } else {
-                    $this->SocketErrorHandler();
-                }
-
-                // receive data from socket
-                $buffer = '';
-                if (($bytes = @socket_recvfrom($this->socket, $buffer, 4096, 0, $remote_ip, $remote_port)) !== false) {
-                    $this->_debug('socket [receive]', $bytes . ' bytes from ' . $remote_ip . ':' . $remote_port);
-
-                    // parse message
-                    $message = $this->_parseMessage(bin2hex($buffer));
-
-                    // decrypt data
-                    $data_decrypted = trim($this->_decrypt($message));
-                    $this->_debug('raw data', $data_decrypted);
-
-                    // validate json response
-                    if ($result = $this->_validateResponse($data_decrypted, $messageId)) {
-                        $this->attempts = 0;
-                        return $result;
-                    }
-
-                    if ($this->attempts < 3) {
-                        return $this->Retry($payload);
-                    } // on invalid response, retry attempt
-                    // return false
-                    return false;
-
-                }
-
-                if ($this->attempts === 1) {
-                    return $this->Retry($payload);
-                }
-
+            // send message to socket
+            if ($bytes = socket_sendto($this->socket, $packet, strlen($packet), 0, $this->ip, self::port_udp)) {
+                $this->_debug('socket [send]', $bytes . ' bytes');
+            } else {
                 $this->SocketErrorHandler();
             }
+
+            // receive data from socket
+            $buffer = '';
+            if (($bytes = @socket_recvfrom($this->socket, $buffer, 4096, 0, $remote_ip, $remote_port)) !== false) {
+                $this->_debug('socket [receive]', $bytes . ' bytes from ' . $remote_ip . ':' . $remote_port);
+
+                // parse message
+                $message = $this->_parseMessage(bin2hex($buffer));
+
+                // decrypt data
+                $data_decrypted = trim($this->_decrypt($message));
+                $this->_debug('raw data', $data_decrypted);
+
+                // validate json response
+                if ($result = $this->_validateResponse($data_decrypted, $messageId)) {
+                    $this->attempts = 0;
+                    return $result;
+                }
+
+                if ($this->attempts < 3) {
+                    return $this->Retry($payload);
+                } // on invalid response, retry attempt
+                // return false
+                return false;
+
+            }
+
+            if ($this->attempts === 1) {
+                return $this->Retry($payload);
+            }
+
+            $this->SocketErrorHandler();
         }
 
         return false;
@@ -300,7 +295,7 @@ class RoborockIO extends IPSModule
             'token'     => $token,
             'ip'        => $ip,
             'method'    => $data['method'],
-            'params'    => isset($data['params']) ? $data['params'] : [],
+            'params'    => $data['params'] ?? [],
             'immediate' => true
         ];
 
@@ -318,17 +313,13 @@ class RoborockIO extends IPSModule
         // send buffer to children
         $this->SendDataToChildren(json_encode([
             'DataID'     => '{36FF43CE-F065-DD20-F1A8-A7C99C25D7A2}',
-            'InstanceID' => (int) $instance_id,
+            'InstanceID' => $instance_id,
             'Buffer'     => $buffer
         ]));
 
         // sleep on specific commands
-        if ($doTimeout) {
-            if ($payload->method == 'app_rc_start') {
-                IPS_Sleep(5000);
-            } elseif ($payload->method == 'app_rc_move') {
-                IPS_Sleep(500);
-            }
+        if ($doTimeout && (in_array($payload->method, ['app_rc_start', 'app_rc_move']))) {
+           IPS_Sleep(500);
         }
 
         return true;
@@ -364,7 +355,7 @@ class RoborockIO extends IPSModule
         }
 
         // get ip
-        $ip = $discover_ip ? $discover_ip : $this->ip;
+        $ip = $discover_ip ? : $this->ip;
 
         // create socket
         $this->SocketCreate();
@@ -420,8 +411,7 @@ class RoborockIO extends IPSModule
     {
         // send HELLO and retrieve token
         if ($discover = $this->SendHello($ip)) {
-            $token = isset($discover['token']) ? $discover['token'] : false;
-            return $token;
+            return isset($discover['token']) ? $discover['token'] : false;
         }
 
         return false;
@@ -479,7 +469,7 @@ class RoborockIO extends IPSModule
      *
      * @param string $token
      *
-     * @return bool|null
+     * @return string
      */
     private function _validateToken(string $token = null): string
     {
@@ -561,7 +551,7 @@ class RoborockIO extends IPSModule
      *
      * @return int
      */
-    private function _increaseMessageId($delta = 1)
+    private function _increaseMessageId($delta = 1): int
     {
         // read last message id
         $message_id = (int) $this->GetBuffer('message_id');
@@ -595,13 +585,12 @@ class RoborockIO extends IPSModule
         }
 
         $data = $this->_encrypt($command);
-        $this->length = sprintf('%04x', (int) strlen($data) / 2 + 32);
+        $this->length = sprintf('%04x', strlen($data) / 2 + 32);
         $this->timestamp = sprintf('%08x', time() + $this->time_diff);
         $packet = $this->magic . $this->length . $this->unknown1 . $this->devicetype . $this->serial . $this->timestamp . $this->token . $data;
         $this->checksum = md5(hex2bin($packet));
-        $packet = $this->magic . $this->length . $this->unknown1 . $this->devicetype . $this->serial . $this->timestamp . $this->checksum . $data;
 
-        return $packet;
+        return $this->magic . $this->length . $this->unknown1 . $this->devicetype . $this->serial . $this->timestamp . $this->checksum . $data;
     }
 
     /**
@@ -624,19 +613,19 @@ class RoborockIO extends IPSModule
         $this->checksum = substr($message, 32, 32);
 
         // retrieve token
-        if (($this->length == '0020') && (strlen($message) / 2 == 32)) {
+        if (($this->length === '0020') && (strlen($message) / 2 === 32)) {
             // get new token
             $tmp_token = $this->_validateToken(substr($message, 32, 32));
 
             // set new token, if valid
-            if (!stristr($tmp_token, 'fffffffff')) {
+            if (stripos($tmp_token, 'fffffffff') === false) {
                 $this->token = $data['token'] = $tmp_token;
             }
 
             // calculate time diff between client and server
             $time_diff = hexdec($this->timestamp) - time();
 
-            if ($this->first_request && $time_diff != 0) {
+            if ($this->first_request && $time_diff !== 0) {
                 $this->time_diff = $time_diff;
             }
 
@@ -773,103 +762,104 @@ class RoborockIO extends IPSModule
                 break;
             // upload map
             default:
-                if (!isset($_FILES['image']['tmp_name']) || !file_exists($_FILES['image']['tmp_name']) || $_FILES['image']['name'] != 'latest.png') {
+                if (!isset($_FILES['image']['tmp_name']) || !file_exists($_FILES['image']['tmp_name']) || $_FILES['image']['name'] !== 'latest.png') {
                     die('Image missing!');
-                } elseif (!isset($_FILES['coordinates']['tmp_name']) || !file_exists($_FILES['coordinates']['tmp_name'])) {
+                }
+                if (!isset($_FILES['coordinates']['tmp_name']) || !file_exists($_FILES['coordinates']['tmp_name'])) {
                     die('Coordinates missing!');
-                } else {
-                    // validate uploaded image
-                    if ($im = @imagecreatefrompng($_FILES['image']['tmp_name'])) {
-                        // define transparent color
-                        $transparent = imagecolorallocatealpha($im, 0, 0, 0, 127);
+                }
 
-                        // get image size
-                        $s = getimagesize($_FILES['image']['tmp_name']);
-                        $center_x = ($s[0] / 2);
-                        $center_y = ($s[1] / 2);
+                // validate uploaded image
+                if ($im = @imagecreatefrompng($_FILES['image']['tmp_name'])) {
+                    // define transparent color
+                    $transparent = imagecolorallocatealpha($im, 0, 0, 0, 127);
 
-                        // rotate image by -90°
-                        $im = imagerotate($im, -90, $transparent, true);
+                    // get image size
+                    $s = getimagesize($_FILES['image']['tmp_name']);
+                    $center_x = ($s[0] / 2);
+                    $center_y = ($s[1] / 2);
 
-                        // convert coordinates from file to points
-                        $x = 0;
-                        $y = 0;
-                        $img_x = 0;
-                        $img_y = 0;
-                        foreach (file($_FILES['coordinates']['tmp_name']) as $line) {
-                            if (strstr($line, 'estimate')) {
-                                $d = explode('estimate', $line);
-                                $d = trim($d[1]);
+                    // rotate image by -90°
+                    $im = imagerotate($im, -90, $transparent, true);
 
-                                list($y, $x) = explode(' ', $d, 3);
+                    // convert coordinates from file to points
+                    $x = 0;
+                    $y = 0;
+                    $img_x = 0;
+                    $img_y = 0;
+                    foreach (file($_FILES['coordinates']['tmp_name']) as $line) {
+                        if (strpos($line, 'estimate') !== false) {
+                            $d = explode('estimate', $line);
+                            $d = trim($d[1]);
 
-                                // calculate pixel from center of the image, with offset
-                                $img_x = $center_x + ($x * 20);
-                                $img_y = $center_y + ($y * 20);
+                            [$y, $x] = explode(' ', $d, 3);
 
-                                // draw pixel to image
-                                imagesetpixel($im, $img_x, $img_y, imagecolorallocate($im, 125, 125, 125));
-                            }
-                        }
+                            // calculate pixel from center of the image, with offset
+                            $img_x = $center_x + ($x * 20);
+                            $img_y = $center_y + ($y * 20);
 
-                        // draw current position
-                        imagefilledellipse($im, $img_x, $img_y - 3, 8, 8, imagecolorallocate($im, 220, 0, 0));
-
-                        // rotate image back by 90°
-                        $im = imagerotate($im, 90, $transparent, true);
-
-                        // save transparency
-                        imagesavealpha($im, true);
-
-                        // save image
-                        imagepng($im, $_FILES['image']['tmp_name']);
-                        imagedestroy($im);
-
-                        // reopen image
-                        $im = @imagecreatefrompng($_FILES['image']['tmp_name']);
-
-                        // crop background
-                        if ($cropped = imagecropauto($im, IMG_CROP_DEFAULT)) {
-                            imagepng($cropped, $_FILES['image']['tmp_name']);
-                            imagedestroy($cropped);
-                        }
-
-                        imagedestroy($im);
-
-                        // create media image, if not exists
-                        $media_file = 'Map.' . $instance_id . '.png';
-
-                        if (!$media_id = @IPS_GetMediaIDByFile($media_file)) {
-                            $media_id = IPS_CreateMedia(1);
-                            IPS_SetName($media_id, $this->Translate('Map'));
-                        }
-
-                        // move to instance
-                        IPS_SetParent($media_id, intval($instance_id));
-
-                        // update media content
-                        IPS_SetMediaFile($media_id, $media_file, false);
-                        IPS_SetMediaContent($media_id, base64_encode(file_get_contents($_FILES['image']['tmp_name'])));
-
-                        // send coordinates to children
-                        if ($x && $y) {
-                            $this->SendDataToChildren(json_encode([
-                                'DataID'     => '{36FF43CE-F065-DD20-F1A8-A7C99C25D7A2}',
-                                'InstanceID' => (int) $instance_id,
-                                'Buffer'     => [
-                                    'token'  => false,
-                                    'method' => 'coordinates',
-                                    'x'      => $x,
-                                    'y'      => $y
-                                ]
-                            ]));
+                            // draw pixel to image
+                            imagesetpixel($im, $img_x, $img_y, imagecolorallocate($im, 125, 125, 125));
                         }
                     }
 
-                    // unlink temp files
-                    unlink($_FILES['image']['tmp_name']);
-                    unlink($_FILES['coordinates']['tmp_name']);
+                    // draw current position
+                    imagefilledellipse($im, $img_x, $img_y - 3, 8, 8, imagecolorallocate($im, 220, 0, 0));
+
+                    // rotate image back by 90°
+                    $im = imagerotate($im, 90, $transparent, true);
+
+                    // save transparency
+                    imagesavealpha($im, true);
+
+                    // save image
+                    imagepng($im, $_FILES['image']['tmp_name']);
+                    imagedestroy($im);
+
+                    // reopen image
+                    $im = @imagecreatefrompng($_FILES['image']['tmp_name']);
+
+                    // crop background
+                    if ($cropped = imagecropauto($im, IMG_CROP_DEFAULT)) {
+                        imagepng($cropped, $_FILES['image']['tmp_name']);
+                        imagedestroy($cropped);
+                    }
+
+                    imagedestroy($im);
+
+                    // create media image, if not exists
+                    $media_file = 'Map.' . $instance_id . '.png';
+
+                    if (!$media_id = @IPS_GetMediaIDByFile($media_file)) {
+                        $media_id = IPS_CreateMedia(1);
+                        IPS_SetName($media_id, $this->Translate('Map'));
+                    }
+
+                    // move to instance
+                    IPS_SetParent($media_id, intval($instance_id));
+
+                    // update media content
+                    IPS_SetMediaFile($media_id, $media_file, false);
+                    IPS_SetMediaContent($media_id, base64_encode(file_get_contents($_FILES['image']['tmp_name'])));
+
+                    // send coordinates to children
+                    if ($x && $y) {
+                        $this->SendDataToChildren(json_encode([
+                            'DataID'     => '{36FF43CE-F065-DD20-F1A8-A7C99C25D7A2}',
+                            'InstanceID' => (int) $instance_id,
+                            'Buffer'     => [
+                                'token'  => false,
+                                'method' => 'coordinates',
+                                'x'      => $x,
+                                'y'      => $y
+                            ]
+                        ]));
+                    }
                 }
+
+                // unlink temp files
+                unlink($_FILES['image']['tmp_name']);
+                unlink($_FILES['coordinates']['tmp_name']);
                 break;
         endswitch;
     }
@@ -905,25 +895,6 @@ class RoborockIO extends IPSModule
 
             IPS_SetProperty($ids[0], 'Hooks', json_encode($hooks));
             IPS_ApplyChanges($ids[0]);
-        }
-    }
-
-    /***********************************************************
-     * Migrations
-     ***********************************************************/
-
-    /**
-     * Polyfill for IP-Symcon 4.4 and older.
-     *
-     * @param string $Ident
-     * @param mixed  $Value
-     */
-    protected function SetValue($Ident, $Value)
-    {
-        if (IPS_GetKernelVersion() >= 5) {
-            parent::SetValue($Ident, $Value);
-        } elseif ($id = @$this->GetIDForIdent($Ident)) {
-            SetValue($id, $Value);
         }
     }
 }

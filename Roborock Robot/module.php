@@ -459,7 +459,7 @@ class Roborock extends IPSModule
      */
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
-        if ($Message == IPS_KERNELMESSAGE && $Data[0] == KR_READY) {
+        if ($Message === IPS_KERNELMESSAGE && $Data[0] === KR_READY) {
             // validate configuration & set interval
             $valid_config = $this->ValidateConfiguration();
             $this->SetUpdateIntervall($valid_config);
@@ -3284,11 +3284,13 @@ EOF;
 
         //clean_time
         if (isset($data['result'][0])) {
-            $this->SetRoborockValue('total_clean_time', $total_cleaning_time = $data['result'][0]); // sec
+            $total_cleaning_time = $data['result'][0];
+            $this->SetRoborockValue('total_clean_time', $total_cleaning_time); // sec
         }
 
         if (isset($data['result']['clean_time'])) {
-            $this->SetRoborockValue('total_clean_time', $data['result']['clean_time']); // sec
+            $total_cleaning_time = $data['result']['clean_time'];
+            $this->SetRoborockValue('total_clean_time', $total_cleaning_time); // sec
         }
 
         //clean_area
@@ -3298,7 +3300,7 @@ EOF;
         }
 
         if (isset($data['result']['clean_area'])) {
-            $area_cleaned = (float)$data['result'][1] / 1000000; // cm2 -> m2
+            $area_cleaned = (float)$data['result']['clean_area'] / 1000000; // cm2 -> m2
             $this->SetRoborockValue('total_clean_area', $area_cleaned);
         }
 
@@ -3756,24 +3758,5 @@ EOF;
     protected function coordinates_callback(array $data)
     {
         $this->SetValue('coordinates', 'x: ' . $data['x'] . ' y: ' . $data['y'] * 20);
-    }
-
-    /***********************************************************
-     * Migrations
-     ***********************************************************/
-
-    /**
-     * Polyfill for IP-Symcon 4.4 and older.
-     *
-     * @param $Ident
-     * @param $Value
-     */
-    protected function SetValue($Ident, $Value)
-    {
-        if (IPS_GetKernelVersion() >= 5) {
-            parent::SetValue($Ident, $Value);
-        } elseif ($id = @$this->GetIDForIdent($Ident)) {
-            SetValue($id, $Value);
-        }
     }
 }
