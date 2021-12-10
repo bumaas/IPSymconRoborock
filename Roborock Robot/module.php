@@ -3499,11 +3499,12 @@ EOF;
     protected function get_dnd_timer_callback(array $data)
     {
         if (isset($data['result'][0]) && is_array($data['result'][0])) {
-            $dnd_state = (bool) $data['result'][0]['enabled'];
-            $end_hour = $this->_zeroPadding($data['result'][0]['end_hour']);
-            $end_minute = $this->_zeroPadding($data['result'][0]['end_minute']);
-            $start_hour = $this->_zeroPadding($data['result'][0]['start_hour']);
-            $start_minute = $this->_zeroPadding($data['result'][0]['start_minute']);
+            $timer = $data['result'][0];
+            $dnd_state = (bool) $timer['enabled'];
+            $end_hour = $this->_zeroPadding($timer['end_hour']);
+            $end_minute = $this->_zeroPadding($timer['end_minute']);
+            $start_hour = $this->_zeroPadding($timer['start_hour']);
+            $start_minute = $this->_zeroPadding($timer['start_minute']);
 
             $start_time = $start_hour . ':' . $start_minute;
             $start_unixtime = strtotime($start_time);
@@ -3744,7 +3745,7 @@ EOF;
      */
     protected function get_sound_progress_callback(array $data)
     {
-        return isset($data['result'][0]) ? $data['result'][0] : false;
+        return $data['result']['progress']??false;
     }
 
     /**
