@@ -13,6 +13,12 @@ declare(strict_types=1);
  */
 class Roborock extends IPSModule
 {
+    private const STATUS_INST_CONFIGURATION_INCOMPLETE  = 201;
+    private const STATUS_INST_IP_ADDRESS_IS_INVALID     = 203;
+    private const STATUS_INST_FIELD_IS_EMPTY            = 205;
+    private const STATUS_INST_NO_ROBOROCK_FOUND         = 206;
+    private const STATUS_INST_MISSING_CATEGORY          = 209;
+
     private const PROPERTY_FAN_POWER = 'fan_power';
     private const PROPERTY_WATER_QUANTITY = 'water_quantity';
 
@@ -467,11 +473,11 @@ class Roborock extends IPSModule
      *
      * @return bool
      */
-    private function ValidateConfiguration($extended_validation = false)
+    private function ValidateConfiguration(bool $extended_validation = false): bool
     {
         // check if configuration is complete
         if (!$this->CheckConfiguration()) {
-            $this->SetStatus(201);
+            $this->SetStatus(self::STATUS_INST_CONFIGURATION_INCOMPLETE);
             return false;
         }
 
@@ -480,20 +486,13 @@ class Roborock extends IPSModule
 
         // check for valid ip address
         if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
-            $this->SetStatus(203);
+            $this->SetStatus(self::STATUS_INST_IP_ADDRESS_IS_INVALID);
             return false;
         }
 
-        // ping ip
-        /*
-                if (!Sys_Ping($ip, 1000)) {
-                    $this->SetStatus(203);
-                    return false;
-                }
-        */
         // check token
         if (!$this->ValidateToken()) {
-            $this->SetStatus(205);
+            $this->SetStatus(self::STATUS_INST_FIELD_IS_EMPTY);
             return false;
         }
 
@@ -504,14 +503,14 @@ class Roborock extends IPSModule
             ]);
 
             if (!$serial) {
-                $this->SetStatus(206);
+                $this->SetStatus(self::STATUS_INST_NO_ROBOROCK_FOUND);
                 return false;
             }
         }
 
         // check category
         if ($this->ReadPropertyBoolean('setup_scripts') && $this->ReadPropertyInteger('script_category') == 0) {
-            $this->SetStatus(209);
+            $this->SetStatus(self::STATUS_INST_MISSING_CATEGORY);
             return false;
         }
 
@@ -1917,7 +1916,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     {
         // update status, when configuration is not complete
         if (!$this->CheckConfiguration()) {
-            $this->SetStatus(201);
+            $this->SetStatus(self::STATUS_INST_CONFIGURATION_INCOMPLETE);
         }
         $form = json_encode([
             'elements' => $this->FormHead(),
@@ -2567,62 +2566,22 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     {
         $form = [
             [
-                'code'    => 101,
-                'icon'    => 'inactive',
-                'caption' => 'Creating instance.'
-            ],
-            [
-                'code'    => 102,
-                'icon'    => 'active',
-                'caption' => 'Roborock created.'
-            ],
-            [
-                'code'    => 104,
-                'icon'    => 'inactive',
-                'caption' => 'interface closed.'
-            ],
-            [
-                'code'    => 201,
+                'code'    => self::STATUS_INST_CONFIGURATION_INCOMPLETE,
                 'icon'    => 'inactive',
                 'caption' => 'Please follow the instructions.'
             ],
             [
-                'code'    => 202,
-                'icon'    => 'error',
-                'caption' => 'IP address must not empty.'
-            ],
-            [
-                'code'    => 203,
-                'icon'    => 'error',
-                'caption' => 'No valid IP address.'
-            ],
-            [
-                'code'    => 204,
-                'icon'    => 'error',
-                'caption' => 'connection to Roborock lost.'
-            ],
-            [
-                'code'    => 205,
+                'code'    => self::STATUS_INST_FIELD_IS_EMPTY,
                 'icon'    => 'error',
                 'caption' => 'field must not be empty.'
             ],
             [
-                'code'    => 206,
+                'code'    => self::STATUS_INST_NO_ROBOROCK_FOUND,
                 'icon'    => 'inactive',
                 'caption' => 'no roborock was found on that ip and token.'
             ],
             [
-                'code'    => 207,
-                'icon'    => 'inactive',
-                'caption' => 'Please set up wifi settings on your robot and enter the new ip address.'
-            ],
-            [
-                'code'    => 208,
-                'icon'    => 'inactive',
-                'caption' => 'Token must have a lenght of 32 or 96.'
-            ],
-            [
-                'code'    => 209,
+                'code'    => self::STATUS_INST_MISSING_CATEGORY,
                 'icon'    => 'error',
                 'caption' => 'no category selected.'
             ]

@@ -481,21 +481,21 @@ class RoborockIO extends IPSModule
      *
      * @return bool|null
      */
-    private function _validateToken($token = null)
+    private function _validateToken(string $token = null): string
     {
         // validate token length
         if (strlen($token) === 32) {
             // set encryption key
-            $this->key = md5(hex2bin($this->token));
+            $this->key = md5(hex2bin($token));
 
             // set encryption vector
-            $this->iv = md5(hex2bin($this->key . $this->token));
+            $this->iv = md5(hex2bin($this->key . $token));
 
             // return token
             return $token;
         }
 
-        return false;
+        return '';
     }
 
     /**

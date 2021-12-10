@@ -32,14 +32,14 @@ Mit dem Modul ist es möglich einen [Roborock](https://www.roborock.com/ "Roboro
  - Einstellen der Wassermenge  
  - Einstellen der Lautstärke
  - Lokalisieren des Saugers
- - Do not Disturb Mode (DND) ein / auschalten und Zeiten einstellen
+ - Do not Disturb Mode (DND) ein / ausschalten und Zeiten einstellen
  - Anzeige von:
     - gereinigte Fläche
     - Summe gereinigte Fläche
     - Reinigungszeit
     - Summe der Reinigungszeit
     - Batterieleistung
-    - Anzahl der Reinungen
+    - Anzahl der Reinigungen
     - Übersicht letzte Reinigungen
     - Ansicht des Verbrauchsstatus der verbrauchbaren Gegenstände (Haupt-, Seitenbürste, Filter, Sensoren)
     - Seriennummer
@@ -66,7 +66,7 @@ Mit dem Modul ist es möglich einen [Roborock](https://www.roborock.com/ "Roboro
 Die Webconsole von IP-Symcon mit _http://{IP-Symcon IP}:3777/console/_ öffnen. 
 
 
-Anschließend oben rechts auf das Symbol für den Modulstore klicken
+Anschließend oben rechts auf das Symbol für den Module Store klicken
 
 ![Store](img/store_icon.png?raw=true "open store")
 
@@ -93,7 +93,7 @@ Den Objektbaum _Öffnen_.
 
 ![Objektbaum](img/objektbaum.png?raw=true "Objektbaum")	
 
-Die Instanz _'Modules'_ unterhalb von Kerninstanzen im Objektbaum von IP-Symcon (>=Ver. 5.x) mit einem Doppelklick öffnen und das  _Plus_ Zeichen drücken.
+Die Instanz _'Modules'_ unterhalb von Kerninstanzen im Objektbaum von IP-Symcon (>=Ver. 5.x) mit einem Doppelklick öffnen und das _Plus_ Zeichen drücken.
 
 ![Modules](img/modules.png?raw=true "Modules")	
 
@@ -122,22 +122,22 @@ Es öffnet sich ein weiteres Fenster,
 hier kann man auf einen anderen Zweig wechseln, für ältere Versionen kleiner als 5.1 (min 4.3) ist hier
 _Old-Version_ auszuwählen. 
 
-### b. Erhalten der IP Adresse und des Tokens  
+### b. Erhalten der IP-Adresse und des Tokens  
 
-#### IP Adresse in der MIHome App nachschlagen
+#### IP-Adresse in der MIHome App nachschlagen
 
-Um mit dem Roborock kommunizieren zu können benötigt man dessen IP Adresse und den Token.
+Um mit dem Roborock kommunizieren zu können benötigt man dessen IP-Adresse und den Token.
 
 Dazu wird zunächst der Roborock in der [MiHome](https://itunes.apple.com/de/app/mi-home-xiaomi-smarthome/id957323480?mt=8 "MiHome") App von Xiaomi entsprechend eingerichtet.
 Nachdem der Roborock eingerichtet und einem Raum zugewiesen worden ist klickt man diesen an und kommt zur weiteren Menüauswahl über das Icon
 
-Unter _General settings_ und dem Unterpunkt _Network info_ findet man die IP Adresse des Roborock unter dem Feld _IP address_.
+Unter _General settings_ und dem Unterpunkt _Network info_ findet man die IP-Adresse des Roborock unter dem Feld _IP address_.
 Diese wird notiert um diese später in IP-Symcon eintragen zu können.
 
 #### Token mit iOS beziehen
 
 Um den Token auslesen zu können muss ein Backup mit iTunes erstellt werden, hierbei ist darauf zu achten, dass _nicht verschlüsseln_ beim Erstellen des Backups ausgewählt wird.
-Um das Backup dann auszulesen benötigt man Spezialprogramme. Beschrieben ist der Vorgang hier für [iBackup Viewer](http://www.imactools.com/iphonebackupviewer/ "iBackup Viewer")   
+Um das Backup dann auszulesen, benötigt man Spezialprogramme. Beschrieben ist der Vorgang hier für [iBackup Viewer](http://www.imactools.com/iphonebackupviewer/ "iBackup Viewer"). 
 In iBackup Viewer das Backup öffen und _Raw Files_ auswählen und in die _Tree View_ wechseln.
 Hier zum Eintrag Navigate to _AppDomain-com.xiaomi.mihome_ wechseln. Hier benötigen wir ein File das
 aussieht wie _123456789_mihome.sqlite_ (Wichtig: *_mihome.sqlite* ist nicht das gesuchte File) im Ordner _Documents_.
@@ -154,8 +154,8 @@ Der Eintrag hat meist eine Länge von 96 Zeichen. Den Inhalt aus der Zwischenabl
 #### Token mit Android beziehen
 
 In den neuen App Versionen MiHome 5.1.1 ist der Token nicht mehr lokal gespeichert. Dieser lässt sich also nur bis zur Version 5.0.19 auslesen.
-Falls eine neuere Version der MIHome App vorhanden ist und der Token nicht schon bekannt sein sollte, ist die einzige Möglichkeit
-vorrübergehend eine ältere Version der MiHome App aufzuspielen um den Token auszulesen. Nachdem der Token ausgelesen wurde, kann dann wieder auf die 
+Falls eine neuere Version der MIHome App vorhanden ist und der Token nicht schon bekannt sein sollte, ist die einzige Möglichkeit,
+vorübergehend eine ältere Version der MiHome App aufzuspielen um den Token auszulesen. Nachdem der Token ausgelesen wurde, kann dann wieder auf die 
 aktuelle Version der MIHome App upgedated werden.
 Eine ältere Version der MIHome App findet man z.B. unter 
 
@@ -228,10 +228,10 @@ In IP-Symcon nun _Instanz hinzufügen_ (_CTRL+1_) auswählen unter der Kategorie
 ![AddInstance](img/Roborock_add_instance.png?raw=true "Add Instance")
 
 Es öffnet sich das Konfigurationsformular. Hier ist anzugeben:
- - IP Adresse des Saugers in der App oder der Router nachschauen
+ - IP-Adresse des Saugers in der App oder der Router nachschauen
  - Token des Saugers (siehe oben)
  - Aktualisierungsintervall in Sekunden
- - Webfront um Push Nachrichten zu verschicken
+ - Webfront um Push-Nachrichten zu verschicken
  - Auswahl der gewünschten Funktionen bzw. Anzeigen im Webfront
 
 ### d. Einrichtung des Kartenuploads (NUR für gerootete Geräte!)
@@ -489,7 +489,7 @@ Der rote Punkt stellt dabei die aktuelle Position des Staubsaugers dar.
  Roborock_Fan_Power(integer $InstanceID, integer $power);
  ```   
          
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz     
+ Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
  Parameter _$power_ Wert von 0 - 100 zum Einstellen der Leistung     
 
 _**Liest die gereinigte Fläche aus**_
@@ -516,7 +516,7 @@ _**Liest die Anzahl der Reinigungen aus**_
          
  Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz     
  
-_**Reinigt in der Zone der angebenen Koordinaten**_
+_**Reinigt in der Zone der angegebenen Koordinaten**_
           
  ```php
  Roborock_ZoneClean(integer $InstanceID, integer $lower_left_corner_x, integer $lower_left_corner_y, integer $upper_right_corner_x, integer $upper_right_corner_y, integer $number);
@@ -534,7 +534,7 @@ _**Reinigt in der Zone der angebenen Koordinaten**_
  
  Parameter _$number_ __Anzahl der Reinigungen__ 
  
- _**Reinigt meherere Zonen mit den angebenen Koordinaten**_
+ _**Reinigt mehrere Zonen mit den angegebenen Koordinaten**_
  
   ```php
   Roborock_ZoneCleanMulti(integer $InstanceID, string $multizone);

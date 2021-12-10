@@ -6,21 +6,6 @@
     "status":
             [
 				{
-					"code": 101,
-					"icon": "inactive",
-					"caption": "Creating instance."
-				},
-				{
-					"code": 102,
-					"icon": "active",
-					"caption": "Roborock created."
-				},
-				{
-					"code": 104,
-					"icon": "inactive",
-					"caption": "interface closed."
-				},
-				{
 					"code": 202,
 					"icon": "error",
 					"caption": "IP address must not empty."
