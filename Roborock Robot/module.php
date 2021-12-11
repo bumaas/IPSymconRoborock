@@ -270,9 +270,6 @@ class Roborock extends IPSModule
             $this->UnregisterVariable('remote');
         }
 
-        // Current Coordinates
-        $this->RegisterVariableString('coordinates', $this->Translate('Current Coordinates'), '', 98);
-
         // command
         $this->RegisterVariableInteger('command', $this->Translate('command'), 'Roborock.Command', $this->_getPosition());
         $this->EnableAction('command');
@@ -379,7 +376,6 @@ class Roborock extends IPSModule
         // total cleans
         if ($this->ReadPropertyBoolean('total_cleans')) {
             $this->RegisterVariableInteger('total_cleans', $this->Translate('Total Cleans'), 'Roborock.Totalcleans', $this->_getPosition());
-            // $this->EnableAction('total_cleans');
         } else {
             $this->UnregisterVariable('total_cleans');
         }
@@ -388,7 +384,6 @@ class Roborock extends IPSModule
         if ($this->ReadPropertyBoolean('serial_number')) {
             $id = $this->RegisterVariableString('serial_number', $this->Translate('Serial Number'), '', $this->_getPosition());
             IPS_SetIcon($id, 'Robot');
-            // $this->EnableAction('serial_number');
         } else {
             $this->UnregisterVariable('serial_number');
         }
@@ -397,7 +392,6 @@ class Roborock extends IPSModule
         if ($this->ReadPropertyBoolean('timer_details')) {
             $id = $this->RegisterVariableString('timer_details', $this->Translate('Timer Details'), '~HTMLBox', $this->_getPosition());
             IPS_SetIcon($id, 'Clock');
-            // $this->EnableAction('timer_details');
         } else {
             $this->UnregisterVariable('timer_details');
         }
@@ -704,7 +698,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @return array|bool
      */
-    public function RequestData(string $method, array $options = [])
+    private function RequestData(string $method, array $options = [])
     {
         // build payload
         $payload = [
@@ -3748,15 +3742,5 @@ EOF;
     protected function get_sound_progress_callback(array $data)
     {
         return $data['result']['progress']??false;
-    }
-
-    /**
-     * Callback: Current Coordinates.
-     *
-     * @param array $data
-     */
-    protected function coordinates_callback(array $data)
-    {
-        $this->SetValue('coordinates', 'x: ' . $data['x'] . ' y: ' . $data['y'] * 20);
     }
 }
