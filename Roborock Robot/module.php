@@ -698,7 +698,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @return array|bool
      */
-    private function RequestData(string $method, array $options = [])
+    public function RequestData(string $method, array $options = [])
     {
         // build payload
         $payload = [
