@@ -134,7 +134,12 @@ Nachdem der Roborock eingerichtet und einem Raum zugewiesen worden ist klickt ma
 Unter _General settings_ und dem Unterpunkt _Network info_ findet man die IP-Adresse des Roborock unter dem Feld _IP address_.
 Diese wird notiert um diese später in IP-Symcon eintragen zu können.
 
-#### Token mit iOS beziehen
+#### Token über den "Xiaomi Cloud Tokens Extractor" beziehen
+
+Die einfachste Methode ist es, den Token über das [Tool](https://github.com/PiotrMachowski/Xiaomi-cloud-tokens-extractor) von Piotr Machowski zu beziehen. Es ist sehr einfach anzuwenden und holt das Token direkt aus der Xiaomi Cloud.
+
+
+#### Token mit iOS beziehen.
 
 Um den Token auslesen zu können muss ein Backup mit iTunes erstellt werden, hierbei ist darauf zu achten, dass _nicht verschlüsseln_ beim Erstellen des Backups ausgewählt wird.
 Um das Backup dann auszulesen, benötigt man Spezialprogramme. Beschrieben ist der Vorgang hier für [iBackup Viewer](http://www.imactools.com/iphonebackupviewer/ "iBackup Viewer"). 

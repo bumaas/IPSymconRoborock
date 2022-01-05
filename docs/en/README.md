@@ -131,6 +131,9 @@ After the Roborock has been set up and assigned to a room, you click on it and c
 Under _General settings_ and the sub-item _Network info_ you can find the IP address of the Roborock under the field _IP address_.
 This will be noted in order to be able to enter it later in IP-Symcon.
 
+#### Get the Token with "Xiaomi Cloud Tokens Extractor"
+
+The easiest method is to get the token via Piotr Machowski's [Tool](https://github.com/PiotrMachowski/Xiaomi-cloud-tokens-extractor). It is very easy to use and gets the token directly from the Xiaomi Cloud.
 #### Get the Token from an iOS device
 
 In order to be able to read the token, you need to create a backup with iTunes. Make sure that _not encrypted_ is selected when creating the backup.
