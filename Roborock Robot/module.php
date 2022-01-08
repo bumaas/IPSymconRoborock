@@ -492,14 +492,17 @@ class Roborock extends IPSModule
 
         // get device info
         if ($extended_validation) {
-            $serial = $this->RequestData('get_serial_number', [
+            $info = $this->RequestData('miIO.info', [
                 'immediate' => true
             ]);
 
-            if (!$serial) {
+            $info = false;
+            if (!$info) {
                 $this->SetStatus(self::STATUS_INST_NO_ROBOROCK_FOUND);
                 return false;
             }
+
+            $this->_debug('info', json_encode($info));
         }
 
         // check category

@@ -600,7 +600,7 @@ class RoborockIO extends IPSModule
      *
      * @return array
      */
-    private function _parseMessage($message)
+    private function _parseMessage(string $message): string
     {
         $data = [];
 
@@ -619,7 +619,7 @@ class RoborockIO extends IPSModule
 
             // set new token, if valid
             if (stripos($tmp_token, 'fffffffff') === false) {
-                $this->token = $data['token'] = $tmp_token;
+                $this->token = $tmp_token;
             }
 
             // calculate time diff between client and server
@@ -634,11 +634,11 @@ class RoborockIO extends IPSModule
         else {
             $data_length = strlen($message) - 64;
             if ($data_length > 0) {
-                $data = substr($message, 64, $data_length);
+                return substr($message, 64, $data_length);
             }
         }
 
-        return $data;
+        return '';
     }
 
     /**
@@ -660,7 +660,7 @@ class RoborockIO extends IPSModule
      *
      * @return string
      */
-    protected function _decrypt($data)
+    protected function _decrypt(string $data)
     {
         return openssl_decrypt(hex2bin($data), 'AES-128-CBC', hex2bin($this->key), OPENSSL_RAW_DATA, hex2bin($this->iv));
     }
