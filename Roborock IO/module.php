@@ -241,11 +241,11 @@ class RoborockIO extends IPSModule
                 $message = $this->_parseMessage(bin2hex($buffer));
 
                 // decrypt data
-                $data_decrypted = trim($this->_decrypt($message));
+                $data_decrypted = $this->_decrypt($message);
                 $this->_debug('raw data', $data_decrypted);
 
                 // validate json response
-                if ($result = $this->_validateResponse($data_decrypted, $messageId)) {
+                if (($data_decrypted !== false) && ($result = $this->_validateResponse($data_decrypted, $messageId))) {
                     $this->attempts = 0;
                     return $result;
                 }
@@ -662,7 +662,11 @@ class RoborockIO extends IPSModule
      */
     protected function _decrypt(string $data)
     {
-        return openssl_decrypt(hex2bin($data), 'AES-128-CBC', hex2bin($this->key), OPENSSL_RAW_DATA, hex2bin($this->iv));
+        if (!$ret = openssl_decrypt(hex2bin($data), 'AES-128-CBC', hex2bin($this->key), OPENSSL_RAW_DATA, hex2bin($this->iv))){
+            trigger_error (sprintf('Data could not be decrupted. Data: %s, algo: AES-128-CBC, key: %s, iv: %s', $data, $this->key, $this->iv), E_USER_WARNING);
+            return false;
+        }
+        return (trim($ret));
     }
 
     /**

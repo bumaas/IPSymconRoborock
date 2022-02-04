@@ -496,7 +496,6 @@ class Roborock extends IPSModule
                 'immediate' => true
             ]);
 
-            $info = false;
             if (!$info) {
                 $this->SetStatus(self::STATUS_INST_NO_ROBOROCK_FOUND);
                 return false;
