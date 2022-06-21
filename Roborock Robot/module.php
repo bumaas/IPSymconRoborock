@@ -247,7 +247,7 @@ class Roborock extends IPSModule
                                    [203, $this->Translate('High'), '', -1],
                                    [204, $this->Translate('Customize (Auto)'), '', -1],
                                ]);
-        $this->RegisterProfile('Roborock.Cleanarea', 'Shuffle', '', ' ' . chr(109) . chr(178), 0, 0, 0, 1, VARIABLETYPE_FLOAT);
+        $this->RegisterProfile('Roborock.Cleanarea', 'Shuffle', '', ' m²', 0, 0, 0, 1, VARIABLETYPE_FLOAT);
         $this->RegisterProfile('Roborock.Totalcleans', 'Gauge', '', '', 0, 0, 0, 2, VARIABLETYPE_INTEGER);
         $this->RegisterProfile('Roborock.Volume', 'Speaker', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
         $this->RegisterProfile('Roborock.Battery', 'Battery', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
@@ -1711,7 +1711,9 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         }
 
         IPS_SetVariableProfileIcon($Name, $Icon);
-        IPS_SetVariableProfileText($Name, $Prefix, $Suffix);
+        if (!IPS_SetVariableProfileText($Name, $Prefix, $Suffix)){
+            $this->_debug('profile', sprintf('Name: %s, Prefix: %s, Suffix: %s', $Name, $Prefix, $Suffix));
+        }
         IPS_SetVariableProfileDigits($Name, $Digits); //  Nachkommastellen
         IPS_SetVariableProfileValues($Name, $MinValue, $MaxValue, $StepSize); // string $ProfilName, float $Minimalwert, float $Maximalwert, float $Schrittweite
     }

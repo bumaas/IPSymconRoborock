@@ -1,12 +1,12 @@
 {
 	"id": "{CD3419DA-91F2-C5DA-7FEE-6EB452506C9F}",
-	"author": "Fonzo_and_CodeKing",
+	"author": "Fonzo, CodeKing and bumaas",
 	"name": "Roborock",
 	"url": "https://www.roborock.com/",
 	"compatibility": {
 		"version": "6.0"
 	},
 	"version": "1.1",
-	"build": 24 ,
-	"date": 1643977516
+	"build": 25 ,
+	"date": 1655830711
 }
