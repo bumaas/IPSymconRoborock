@@ -665,7 +665,7 @@ class RoborockIO extends IPSModule
     protected function _decrypt(string $data)
     {
         if (!$ret = openssl_decrypt(hex2bin($data), 'AES-128-CBC', hex2bin($this->key), OPENSSL_RAW_DATA, hex2bin($this->iv))){
-            trigger_error (sprintf('Data could not be decrypted. Data: %s, algo: AES-128-CBC, key: %s, iv: %s', $data, $this->key, $this->iv), E_USER_WARNING);
+            trigger_error (sprintf('Data could not be decrypted. Data: %s, algo: AES-128-CBC, key: %s, iv: %s', $data, $this->key, $this->iv), E_USER_NOTICE);
             return false;
         }
         return (trim($ret));
