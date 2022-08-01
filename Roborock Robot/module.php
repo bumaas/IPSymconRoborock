@@ -47,7 +47,7 @@ class Roborock extends IPSModule
         14  => 'Software update',
         15  => 'Docking',
         16  => 'Go To',
-        17  => 'Zoon Clean',
+        17  => 'Zone Clean',
         18  => 'Room Clean',
         100 => 'Full'
     ];
