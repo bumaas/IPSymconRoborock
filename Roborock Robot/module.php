@@ -46,6 +46,9 @@ class Roborock extends IPSModule
         13  => 'Shutting down',
         14  => 'Software update',
         15  => 'Docking',
+        16  => 'Go To',
+        17  => 'Zoon Clean',
+        18  => 'Room Clean',
         100 => 'Full'
     ];
 
@@ -186,7 +189,7 @@ class Roborock extends IPSModule
             4,
             0,
             0,
-            1,
+            VARIABLETYPE_INTEGER,
             [
                 [0, $this->Translate('Start'), 'HollowLargeArrowRight', -1, 1],
                 [1, $this->Translate('Pause'), 'Close', -1],
@@ -206,7 +209,7 @@ class Roborock extends IPSModule
             0,
             0,
             0,
-            1,
+            VARIABLETYPE_INTEGER,
             'error_codes'
         );
 
@@ -219,7 +222,7 @@ class Roborock extends IPSModule
             0,
             0,
             0,
-            1,
+            VARIABLETYPE_INTEGER,
             'state_codes'
         );
 
@@ -232,7 +235,7 @@ class Roborock extends IPSModule
             0,
             0,
             0,
-            1,
+            VARIABLETYPE_INTEGER,
             [
                 [0, $this->Translate('find robot'), '', 0x3ADF00]
             ]
