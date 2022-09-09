@@ -14,9 +14,9 @@ declare(strict_types=1);
 class Roborock extends IPSModule
 {
     private const STATUS_INST_CONFIGURATION_INCOMPLETE  = 201;
-    private const STATUS_INST_IP_ADDRESS_IS_INVALID     = 203;
-    private const STATUS_INST_FIELD_IS_EMPTY            = 205;
-    private const STATUS_INST_NO_ROBOROCK_FOUND         = 206;
+    private const STATUS_INST_IP_ADDRESS_IS_INVALID = 203;
+    private const STATUS_INST_TOKEN_IS_INVALID      = 205;
+    private const STATUS_INST_NO_ROBOROCK_FOUND     = 206;
     private const STATUS_INST_MISSING_CATEGORY          = 209;
 
     private const PROPERTY_FAN_POWER = 'fan_power';
@@ -489,7 +489,7 @@ class Roborock extends IPSModule
 
         // check token
         if (!$this->ValidateToken()) {
-            $this->SetStatus(self::STATUS_INST_FIELD_IS_EMPTY);
+            $this->SetStatus(self::STATUS_INST_TOKEN_IS_INVALID);
             return false;
         }
 
@@ -2572,9 +2572,9 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
                 'caption' => 'Please follow the instructions.'
             ],
             [
-                'code'    => self::STATUS_INST_FIELD_IS_EMPTY,
+                'code'    => self::STATUS_INST_TOKEN_IS_INVALID,
                 'icon'    => 'error',
-                'caption' => 'field must not be empty.'
+                'caption' => 'Token is not valid.'
             ],
             [
                 'code'    => self::STATUS_INST_NO_ROBOROCK_FOUND,
