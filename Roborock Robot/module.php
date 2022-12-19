@@ -716,7 +716,9 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         ];
 
         // force immediate option on ips sender
-        $_IPS = isset($_IPS) ? $_IPS : [];
+
+        //die folgenden Statements scheinen überflüssig zu sein
+        $this->SendDebug('IPS', json_encode($_IPS, JSON_THROW_ON_ERROR), 0);
         if (
             in_array($_IPS['SENDER'], ['Execute', 'Variable'])
             || ($_IPS['SELF'] > 0 && $_IPS['SELF'] != $this->InstanceID)
