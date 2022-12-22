@@ -10,21 +10,35 @@ declare(strict_types=1);
  *
  * a very useful API documentation: https://github.com/marcelrv/XiaomiRobotVacuumProtocol
  *
+ * another implementation: https://github.com/iobroker-community-adapters/ioBroker.mihome-vacuum
+ *
  */
 class Roborock extends IPSModule
 {
-    private const STATUS_INST_CONFIGURATION_INCOMPLETE  = 201;
-    private const STATUS_INST_IP_ADDRESS_IS_INVALID = 203;
-    private const STATUS_INST_TOKEN_IS_INVALID      = 205;
-    private const STATUS_INST_NO_ROBOROCK_FOUND     = 206;
-    private const STATUS_INST_MISSING_CATEGORY          = 209;
+    private const STATUS_INST_CONFIGURATION_INCOMPLETE = 201;
+    private const STATUS_INST_IP_ADDRESS_IS_INVALID    = 203;
+    private const STATUS_INST_TOKEN_IS_INVALID         = 205;
+    private const STATUS_INST_NO_ROBOROCK_FOUND        = 206;
+    private const STATUS_INST_MISSING_CATEGORY         = 209;
 
-    private const PROPERTY_FAN_POWER = 'fan_power';
-    private const PROPERTY_WATER_QUANTITY = 'water_quantity';
+    private const ATTRIBUTE_TOKEN                   = 'token';
+    private const ATTRIBUTE_LAST_NOTIFICATION_STATE = 'last_notification_state';
+    private const ATTRIBUTE_LAST_NOTIFICATION_ERROR = 'last_notification_error';
+    private const ATTRIBUTE_CLEANING_RECORDS = 'cleaning_records';
 
-    private const IDENT_FAN_POWER = 'fan_power';
-    private const IDENT_WATER_QUANTITY = 'water_quantity';
-    private const IDENT_WATER_BOX_STATUS = 'water_box_status';
+
+    private const PROPERTY_IP              = 'ip';
+    private const PROPERTY_VOLUME          = 'volume';
+    private const PROPERTY_FAN_POWER       = 'fan_power';
+    private const PROPERTY_WATER_QUANTITY  = 'water_quantity';
+    private const PROPERTY_XIAOMI_USER     = 'xiaomi_user';
+    private const PROPERTY_XIAOMI_PASSWORD = 'xiaomi_password';
+
+    private const IDENT_VOLUME                    = 'volume';
+    private const IDENT_COMMAND                   = 'command';
+    private const IDENT_FAN_POWER                 = 'fan_power';
+    private const IDENT_WATER_QUANTITY            = 'water_quantity';
+    private const IDENT_WATER_BOX_STATUS          = 'water_box_status';
     private const IDENT_WATER_BOX_CARRIAGE_STATUS = 'water_box_carriage_status';
 
 
@@ -49,11 +63,14 @@ class Roborock extends IPSModule
         16  => 'Go To',
         17  => 'Zone Clean',
         18  => 'Room Clean',
+        22  => 'Dustbin Emptying',
+        23  => 'Mop Washing',
+        26  => 'Returning to base for mop washing',
         100 => 'Full'
     ];
 
     // error code mapper
-    protected $error_codes = [
+    protected $error_codes        = [
         0  => 'None',
         1  => 'Laser sensor fault',
         2  => 'Collision sensor error',
@@ -78,7 +95,13 @@ class Roborock extends IPSModule
         21 => 'Vertical bumper pressed',
         22 => 'Dock locator dirty',
         23 => 'Dock location beacon lost',
-        24 => 'No-go zone detected'
+        24 => 'No-go zone detected',
+        27 => 'VibraRise system jammed',
+        28 => 'Robot on carpet',
+        34 => 'Ladestation blockiert bei automatischer Entleerung',
+        38 => 'Hallsensor für Reinwassertank ausgelöst',
+        39 => 'Überprüfen Sie den Schmutzwassertank.',
+        46 => 'Staubbehälter nicht installiert'
     ];
 
     protected $push_notifications = [
@@ -120,7 +143,7 @@ class Roborock extends IPSModule
     /**
      * create instance.
      *
-     * @return bool|void
+     * @return void
      */
     public function Create()
     {
@@ -130,8 +153,7 @@ class Roborock extends IPSModule
         $this->ConnectParent('{4743ED9C-720B-D5EA-9B0C-0585803284F3}'); // IO Device
 
         // register public properties
-        $this->RegisterPropertyString('ip', '');
-        $this->RegisterPropertyString('token', '');
+        $this->RegisterPropertyString(self::PROPERTY_IP, '');
         $this->RegisterPropertyBoolean(self::PROPERTY_FAN_POWER, false);
         $this->RegisterPropertyBoolean(self::PROPERTY_WATER_QUANTITY, false);
         $this->RegisterPropertyBoolean('error_code', false);
@@ -143,9 +165,8 @@ class Roborock extends IPSModule
         $this->RegisterPropertyBoolean('total_cleans', false);
         $this->RegisterPropertyBoolean('serial_number', false);
         $this->RegisterPropertyBoolean('timer_details', false);
-        $this->RegisterPropertyBoolean('findme', false);
         $this->RegisterPropertyBoolean('extended_info', false);
-        $this->RegisterPropertyBoolean('volume', false);
+        $this->RegisterPropertyBoolean(self::IDENT_VOLUME, false);
         $this->RegisterPropertyBoolean('timezone', false);
         $this->RegisterPropertyBoolean('remote', false);
 
@@ -155,12 +176,8 @@ class Roborock extends IPSModule
         $this->RegisterPropertyBoolean('setup_scripts', false);
         $this->RegisterPropertyInteger('script_category', 0);
 
-        $this->RegisterPropertyBoolean('wifi_connected', false);
-        $this->RegisterPropertyString('xiaomi_email', '');
-        $this->RegisterPropertyString('xiaomi_pass', '');
-
-        // register private properties
-        $this->RegisterPropertyInteger('token_mode', -1);
+        $this->RegisterPropertyString(self::PROPERTY_XIAOMI_USER, '');
+        $this->RegisterPropertyString(self::PROPERTY_XIAOMI_PASSWORD, '');
 
         // register update timer
         $this->RegisterPropertyInteger('UpdateInterval', 15);
@@ -168,12 +185,19 @@ class Roborock extends IPSModule
 
         // register kernel messages
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
+
+        // register attributes
+        $this->RegisterAttributeString(self::ATTRIBUTE_TOKEN, '');
+        $this->RegisterAttributeString(self::ATTRIBUTE_LAST_NOTIFICATION_STATE, '');
+        $this->RegisterAttributeString(self::ATTRIBUTE_LAST_NOTIFICATION_ERROR, '');
+        $this->RegisterAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, '');
+
     }
 
     /**
      * apply changes from configuration form.
      *
-     * @return bool|void
+     * @return void
      */
     public function ApplyChanges()
     {
@@ -181,23 +205,14 @@ class Roborock extends IPSModule
 
         //  register profiles
         $this->RegisterProfileAssociation(
-            'Roborock.Command',
-            'Execute',
-            '',
-            '',
-            0,
-            4,
-            0,
-            0,
-            VARIABLETYPE_INTEGER,
-            [
-                [0, $this->Translate('Start'), 'HollowLargeArrowRight', -1, 1],
-                [1, $this->Translate('Pause'), 'Close', -1],
-                [2, $this->Translate('Stop'), 'Close', -1],
-                [3, $this->Translate('Spot'), 'Climate', -1],
-                [4, $this->Translate('Charge'), 'Battery', -1],
-                [5, $this->Translate('Locate'), 'Motion', -1]
-            ]
+            'Roborock.Command', 'Execute', '', '', 0, 4, 0, 0, VARIABLETYPE_INTEGER, [
+                                  [0, $this->Translate('Start'), 'HollowLargeArrowRight', -1, 1],
+                                  [1, $this->Translate('Pause'), 'Close', -1],
+                                  [2, $this->Translate('Stop'), 'Close', -1],
+                                  [3, $this->Translate('Spot'), 'Climate', -1],
+                                  [4, $this->Translate('Charge'), 'Battery', -1],
+                                  [5, $this->Translate('Locate'), 'Motion', -1]
+                              ]
         );
 
         $this->RegisterProfileAssociation(
@@ -227,42 +242,27 @@ class Roborock extends IPSModule
         );
 
         $this->RegisterProfileAssociation(
-            'Roborock.Findme',
-            'Robot',
-            '',
-            '',
-            0,
-            0,
-            0,
-            0,
-            VARIABLETYPE_INTEGER,
-            [
-                [0, $this->Translate('find robot'), '', 0x3ADF00]
-            ]
+            'Roborock.Findme', 'Robot', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, [
+                                 [0, $this->Translate('find robot'), '', 0x3ADF00]
+                             ]
         );
 
         $this->RegisterProfile('Roborock.Fanpower', 'Speedo', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
-        $this->RegisterProfileAssociation('Roborock.WaterQuantity', 'Drops', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER,
-                               [
-                                   [200, $this->Translate('Off'), '', -1],
-                                   [201, $this->Translate('Low'), '', -1],
-                                   [202, $this->Translate('Medium'), '', -1],
-                                   [203, $this->Translate('High'), '', -1],
-                                   [204, $this->Translate('Customize (Auto)'), '', -1],
-                               ]);
+        $this->RegisterProfileAssociation(
+            'Roborock.WaterQuantity', 'Drops', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, [
+                                        [200, $this->Translate('Off'), '', -1],
+                                        [201, $this->Translate('Low'), '', -1],
+                                        [202, $this->Translate('Medium'), '', -1],
+                                        [203, $this->Translate('High'), '', -1],
+                                        [204, $this->Translate('Customize (Auto)'), '', -1],
+                                    ]
+        );
         $this->RegisterProfile('Roborock.Cleanarea', 'Shuffle', '', ' m²', 0, 0, 0, 1, VARIABLETYPE_FLOAT);
         $this->RegisterProfile('Roborock.Totalcleans', 'Gauge', '', '', 0, 0, 0, 2, VARIABLETYPE_INTEGER);
         $this->RegisterProfile('Roborock.Volume', 'Speaker', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
         $this->RegisterProfile('Roborock.Battery', 'Battery', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
         $this->RegisterProfile('Roborock.Consumable', 'Gear', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
         $this->RegisterProfile('Roborock.Duration', '', '', ' s', 0, 0, 0, 0, VARIABLETYPE_INTEGER);
-
-        // hidden, internal variables
-        $variable_notification_id = $this->RegisterVariableString('last_notification_state', 'last_notification_state', '', 99);
-        IPS_SetHidden($variable_notification_id, true);
-
-        $variable_notification_id = $this->RegisterVariableString('last_notification_error', 'last_notification_error', '', 99);
-        IPS_SetHidden($variable_notification_id, true);
 
         // Remote Control
         if ($this->ReadPropertyBoolean('remote')) {
@@ -274,8 +274,8 @@ class Roborock extends IPSModule
         }
 
         // command
-        $this->RegisterVariableInteger('command', $this->Translate('command'), 'Roborock.Command', $this->_getPosition());
-        $this->EnableAction('command');
+        $this->RegisterVariableInteger(self::IDENT_COMMAND, $this->Translate('command'), 'Roborock.Command', $this->_getPosition());
+        $this->EnableAction(self::IDENT_COMMAND);
 
         // current state
         $this->RegisterVariableInteger('state', $this->Translate('State'), 'Roborock.State', $this->_getPosition());
@@ -293,9 +293,19 @@ class Roborock extends IPSModule
 
         // water quantity
         if ($this->ReadPropertyBoolean(self::PROPERTY_WATER_QUANTITY)) {
-            $this->RegisterVariableInteger(self::IDENT_WATER_QUANTITY, $this->Translate('Water Quantity'), 'Roborock.WaterQuantity', $this->_getPosition());
+            $this->RegisterVariableInteger(
+                self::IDENT_WATER_QUANTITY,
+                $this->Translate('Water Quantity'),
+                'Roborock.WaterQuantity',
+                $this->_getPosition()
+            );
             $this->RegisterVariableBoolean(self::IDENT_WATER_BOX_STATUS, $this->Translate('Water Box installed'), '~Switch', $this->_getPosition());
-            $this->RegisterVariableBoolean(self::IDENT_WATER_BOX_CARRIAGE_STATUS, $this->Translate('Water Box Carriage Status'), '~Switch', $this->_getPosition());
+            $this->RegisterVariableBoolean(
+                self::IDENT_WATER_BOX_CARRIAGE_STATUS,
+                $this->Translate('Water Box Carriage Status'),
+                '~Switch',
+                $this->_getPosition()
+            );
             $this->EnableAction(self::IDENT_WATER_QUANTITY);
         } else {
             $this->UnregisterVariable(self::IDENT_WATER_QUANTITY);
@@ -304,11 +314,11 @@ class Roborock extends IPSModule
         }
 
         // volume
-        if ($this->ReadPropertyBoolean('volume')) {
-            $this->RegisterVariableInteger('volume', $this->Translate('Volume'), 'Roborock.Volume', $this->_getPosition());
-            $this->EnableAction('volume');
+        if ($this->ReadPropertyBoolean(self::PROPERTY_VOLUME)) {
+            $this->RegisterVariableInteger(self::IDENT_VOLUME, $this->Translate('Volume'), 'Roborock.Volume', $this->_getPosition());
+            $this->EnableAction(self::IDENT_VOLUME);
         } else {
-            $this->UnregisterVariable('volume');
+            $this->UnregisterVariable(self::IDENT_VOLUME);
         }
 
         // error code
@@ -366,14 +376,10 @@ class Roborock extends IPSModule
             $this->RegisterVariableInteger('clean_time', $this->Translate('Clean Time'), 'Roborock.Duration', $this->_getPosition());
             $this->RegisterVariableInteger('total_clean_time', $this->Translate('Total Clean Time'), 'Roborock.Duration', $this->_getPosition());
             $this->RegisterVariableString('cleaning_records', $this->Translate('Cleaning Records'), '~HTMLBox', $this->_getPosition());
-
-            $cleaning_records_tmp = $this->RegisterVariableString('cleaning_records_tmp', 'cleaning_records_tmp', '~HTMLBox', 99);
-            IPS_SetHidden($cleaning_records_tmp, true);
         } else {
             $this->UnregisterVariable('clean_time');
             $this->UnregisterVariable('total_clean_time');
             $this->UnregisterVariable('cleaning_records');
-            $this->UnregisterVariable('cleaning_records_tmp');
         }
 
         // total cleans
@@ -399,19 +405,12 @@ class Roborock extends IPSModule
             $this->UnregisterVariable('timer_details');
         }
 
-        // Locate Robot
-        if ($this->ReadPropertyBoolean('findme')) {
-            $this->RegisterVariableInteger('findme', $this->Translate('find robot'), 'Roborock.Findme', $this->_getPosition());
-            $this->EnableAction('findme');
-        } else {
-            $this->UnregisterVariable('findme');
-        }
-
         // extended info
         if ($this->ReadPropertyBoolean('extended_info')) {
             $this->RegisterVariableString('hw_ver', $this->Translate('hardware version'), '', $this->_getPosition());
             $this->RegisterVariableString('fw_ver', $this->Translate('firmware version'), '', $this->_getPosition());
             $this->RegisterVariableString('ssid', $this->Translate('ssid'), '', $this->_getPosition());
+            $this->RegisterVariableString('rssi', $this->Translate('rssi'), '', $this->_getPosition());
             $this->RegisterVariableString('local_ip', $this->Translate('local ip'), '', $this->_getPosition());
             $this->RegisterVariableString('model', $this->Translate('model'), '', $this->_getPosition());
             $this->RegisterVariableString('mac', $this->Translate('mac'), '', $this->_getPosition());
@@ -419,6 +418,7 @@ class Roborock extends IPSModule
             $this->UnregisterVariable('hw_ver');
             $this->UnregisterVariable('fw_ver');
             $this->UnregisterVariable('ssid');
+            $this->UnregisterVariable('rssi');
             $this->UnregisterVariable('local_ip');
             $this->UnregisterVariable('model');
             $this->UnregisterVariable('mac');
@@ -435,7 +435,7 @@ class Roborock extends IPSModule
         $this->SetReceiveDataFilter('.*"InstanceID":' . $this->InstanceID . '.*');
 
         // run only, when kernel is ready
-        if (IPS_GetKernelRunlevel() == KR_READY) {
+        if (IPS_GetKernelRunlevel() === KR_READY) {
             // validate configuration
             $valid_config = $this->ValidateConfiguration(true);
 
@@ -469,27 +469,31 @@ class Roborock extends IPSModule
      * @param bool $extended_validation
      *
      * @return bool
+     * @throws \JsonException
      */
     private function ValidateConfiguration(bool $extended_validation = false): bool
     {
         // check if configuration is complete
         if (!$this->CheckConfiguration()) {
             $this->SetStatus(self::STATUS_INST_CONFIGURATION_INCOMPLETE);
+            $this->SendDebug(__FUNCTION__, (string) $this->GetStatus(), 0);
             return false;
         }
 
         // read properties
-        $ip = $this->ReadPropertyString('ip');
+        $ip = $this->ReadPropertyString(self::PROPERTY_IP);
 
         // check for valid ip address
-        if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
+        if (filter_var(gethostbyname($ip), FILTER_VALIDATE_IP) === false) {
             $this->SetStatus(self::STATUS_INST_IP_ADDRESS_IS_INVALID);
+            $this->SendDebug(__FUNCTION__, (string) $this->GetStatus(), 0);
             return false;
         }
 
         // check token
         if (!$this->ValidateToken()) {
             $this->SetStatus(self::STATUS_INST_TOKEN_IS_INVALID);
+            $this->SendDebug(__FUNCTION__, (string) $this->GetStatus(), 0);
             return false;
         }
 
@@ -501,6 +505,7 @@ class Roborock extends IPSModule
 
             if (!$info) {
                 $this->SetStatus(self::STATUS_INST_NO_ROBOROCK_FOUND);
+                $this->SendDebug(__FUNCTION__, (string) $this->GetStatus(), 0);
                 return false;
             }
 
@@ -508,8 +513,9 @@ class Roborock extends IPSModule
         }
 
         // check category
-        if ($this->ReadPropertyBoolean('setup_scripts') && $this->ReadPropertyInteger('script_category') == 0) {
+        if ($this->ReadPropertyBoolean('setup_scripts') && $this->ReadPropertyInteger('script_category') === 0) {
             $this->SetStatus(self::STATUS_INST_MISSING_CATEGORY);
+            $this->SendDebug(__FUNCTION__, (string) $this->GetStatus(), 0);
             return false;
         }
 
@@ -519,6 +525,7 @@ class Roborock extends IPSModule
 
         // yay, configuration is valid! =)
         $this->SetStatus(IS_ACTIVE);
+        $this->SendDebug(__FUNCTION__, (string) $this->GetStatus(), 0);
         return true;
     }
 
@@ -527,7 +534,7 @@ class Roborock extends IPSModule
      *
      * @param bool $enable
      */
-    protected function SetUpdateIntervall($enable = true)
+    protected function SetUpdateIntervall(bool $enable = true): void
     {
         $interval = $enable ? ($this->ReadPropertyInteger('UpdateInterval') * 1000) : 0;
         $this->SetTimerInterval('RoborockTimerUpdate', $interval);
@@ -559,10 +566,10 @@ class Roborock extends IPSModule
      *
      * @return int
      */
-    protected function CreateRoborockScript($Scriptname, $Ident, $Script)
+    protected function CreateRoborockScript($Scriptname, $Ident, $Script): int
     {
         $MainCatID = $this->ReadPropertyInteger('script_category');
-        $ScriptID = @IPS_GetObjectIDByIdent($Ident, $MainCatID);
+        $ScriptID  = @IPS_GetObjectIDByIdent($Ident, $MainCatID);
 
         if ($ScriptID === false) {
             $ScriptID = IPS_CreateScript(0);
@@ -647,14 +654,14 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     /**
      * Update data.
      */
-    public function Update()
+    public function Update(): void
     {
         if ($this->ValidateConfiguration()) {
             // Update state
             $this->Get_State();
 
             // update serial number, once
-            if ($this->ReadPropertyBoolean('serial_number') && !GetValueString($this->GetIDForIdent('serial_number'))) {
+            if ($this->ReadPropertyBoolean('serial_number') && !$this->GetValue('serial_number')) {
                 $this->Get_Serial_Number();
             }
 
@@ -684,12 +691,12 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
             }
 
             // update volume
-            if ($this->ReadPropertyBoolean('volume')) {
+            if ($this->ReadPropertyBoolean(self::PROPERTY_VOLUME)) {
                 $this->Get_SoundVolume();
             }
 
             // update timezone, once
-            if ($this->ReadPropertyBoolean('timezone') && !GetValueString($this->GetIDForIdent('timezone'))) {
+            if ($this->ReadPropertyBoolean('timezone') && !$this->GetValue('timezone')) {
                 $this->GetTimezone();
             }
         }
@@ -702,14 +709,54 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param array  $options
      *
      * @return array|bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
-    public function RequestData(string $method, array $options = [])
+    public function RequestRawData(string $method, array $options = [])
     {
         // build payload
         $payload = [
             'InstanceID' => $this->InstanceID,
-            'token'      => $this->ReadPropertyString('token'),
-            'ip'         => $this->ReadPropertyString('ip'),
+            'token'      => $this->ReadAttributeString(self::ATTRIBUTE_TOKEN),
+            'ip'         => $this->ReadPropertyString(self::PROPERTY_IP),
+            'immediate'  => true,
+            'method'     => $method,
+            'params'     => []
+        ];
+
+        // merge payload & options
+        $buffer = $this->_merge($payload, $options);
+
+        // send to i/o device
+        $this->_debug('send', json_encode($buffer, JSON_THROW_ON_ERROR));
+
+        if ($io =
+            @$this->SendDataToParent(json_encode(['DataID' => '{F7DC50D6-DCE6-27CE-49B2-A363593EBB3B}', 'Buffer' => $buffer], JSON_THROW_ON_ERROR))) {
+
+                // return data
+                return json_decode($io, true, 512, JSON_THROW_ON_ERROR);
+        }
+
+        return false;
+    }
+
+    /**
+     * Send request to parent instance.
+     *
+     * @param string $method
+     * @param array  $options
+     *
+     * @return array|bool
+     * @throws \JsonException
+     * @throws \JsonException
+     */
+    private function RequestData(string $method, array $options = [])
+    {
+        // build payload
+        $payload = [
+            'InstanceID' => $this->InstanceID,
+            'token'      => $this->ReadAttributeString(self::ATTRIBUTE_TOKEN),
+            'ip'         => $this->ReadPropertyString(self::PROPERTY_IP),
             'immediate'  => false,
             'method'     => $method,
             'params'     => []
@@ -718,11 +765,9 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         // force immediate option on ips sender
 
         //die folgenden Statements scheinen überflüssig zu sein
-        $this->SendDebug('IPS', json_encode($_IPS, JSON_THROW_ON_ERROR), 0);
-        if (
-            in_array($_IPS['SENDER'], ['Execute', 'Variable'])
-            || ($_IPS['SELF'] > 0 && $_IPS['SELF'] != $this->InstanceID)
-        ) {
+        //$this->SendDebug('IPS', json_encode($_IPS, JSON_THROW_ON_ERROR), 0);
+        if (($_IPS['SELF'] > 0 && $_IPS['SELF'] !== $this->InstanceID)
+            || in_array($_IPS['SENDER'], ['Execute', 'Variable'])) {
             $payload['immediate'] = true;
         }
 
@@ -730,15 +775,16 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         $buffer = $this->_merge($payload, $options);
 
         // send to i/o device
-        $this->_debug('send', json_encode($buffer));
+        $this->_debug('send', json_encode($buffer, JSON_THROW_ON_ERROR));
 
-        if ($io = @$this->SendDataToParent(json_encode(['DataID' => '{F7DC50D6-DCE6-27CE-49B2-A363593EBB3B}', 'Buffer' => $buffer]))) {
+        if ($io =
+            @$this->SendDataToParent(json_encode(['DataID' => '{F7DC50D6-DCE6-27CE-49B2-A363593EBB3B}', 'Buffer' => $buffer], JSON_THROW_ON_ERROR))) {
             // receive data on immediately requests
             if ($buffer['immediate']) {
                 // merge buffer
                 $buffer = $this->_merge(
                     $buffer,
-                    json_decode($io, true)
+                    json_decode($io, true, 512, JSON_THROW_ON_ERROR)
                 );
 
                 // return data
@@ -757,44 +803,49 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param string $JSONString
      *
      * @return bool|void
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function ReceiveData($JSONString)
     {
+        //$this->SendDebug(__FUNCTION__ . ': JSONString', $JSONString, 0);
         // convert json payload to array
-        $payload = json_decode($JSONString, true);
+        $payload = json_decode($JSONString, true, 512, JSON_THROW_ON_ERROR);
 
         // extract buffer
         $buffer = $payload['Buffer'];
 
         // check token and save, if diffs from current one
-        $current_token = $this->ReadPropertyString('token');
-        if ($buffer['token'] && strlen($buffer['token']) === 32 && $buffer['token'] != $current_token) {
-            IPS_SetProperty($this->InstanceID, 'token', $buffer['token']);
-            IPS_ApplyChanges($this->InstanceID);
+        $current_token = $this->ReadAttributeString(self::ATTRIBUTE_TOKEN);
+        if (isset($buffer['token']) && ($buffer['token'] !== $current_token) && (strlen($buffer['token']) === 32)) {
+            $this->WriteAttributeString(self::ATTRIBUTE_TOKEN, $buffer['token']);
         }
 
         // execute callback
-        $this->ExecuteCallback($buffer);
+        if (is_array($buffer)) {
+            $this->ExecuteCallback($buffer);
+        }
     }
 
     /**
      * Check if a callback exist and execute method.
      *
-     * @param $buffer
+     * @param array $buffer
      *
      * @return mixed
+     * @throws \JsonException
      */
-    private function ExecuteCallback($buffer)
+    private function ExecuteCallback(array $buffer)
     {
         // check if callback exists
         $callback = strtr(strtolower($buffer['method']), ['.' => '_']) . '_callback';
         if (method_exists($this, $callback)) {
-            $this->_debug('receive', $callback . ': ' . json_encode($buffer));
+            $this->_debug('receive', $callback . ': ' . json_encode($buffer, JSON_THROW_ON_ERROR));
             return call_user_func([$this, $callback], $buffer);
         }
 
         // return original buffer, when no callback was found
-        $this->_debug('receive', json_encode($buffer));
+        $this->_debug('receive', json_encode($buffer, JSON_THROW_ON_ERROR));
         return $buffer;
     }
 
@@ -803,18 +854,17 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @return bool
      */
-    public function ValidateToken()
+    public function ValidateToken(): bool
     {
-        $token = $this->ReadPropertyString('token');
+        $token = $this->ReadAttributeString(self::ATTRIBUTE_TOKEN);
 
         // convert token on 96 byte length
-        if (strlen($token) == 96) {
+        if (strlen($token) === 96) {
             $secret = str_repeat("\0", 16);
-            $token = openssl_decrypt(hex2bin($token), 'aes-128-ecb', $secret, OPENSSL_RAW_DATA);
+            $token  = openssl_decrypt(hex2bin($token), 'aes-128-ecb', $secret, OPENSSL_RAW_DATA);
 
-            // save property
-            IPS_SetProperty($this->InstanceID, 'token', $token);
-            IPS_ApplyChanges($this->InstanceID);
+            // save attribute
+            $this->WriteAttributeString(self::ATTRIBUTE_TOKEN, $token);
         }
 
         // return true, when token length is 32 byte
@@ -825,6 +875,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * check if sound files are installing.
      *
      * @return array
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function sound_progress()
     {
@@ -837,10 +889,12 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * start cleaning.
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Start()
     {
-        $this->SetRoborockValue('command', 0);
+        $this->SetRoborockValue(self::IDENT_COMMAND, 0);
         return $this->RequestData('app_start');
     }
 
@@ -848,10 +902,12 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * stop cleaning.
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Stop()
     {
-        $this->SetRoborockValue('command', 2);
+        $this->SetRoborockValue(self::IDENT_COMMAND, 2);
         return $this->RequestData('app_stop');
     }
 
@@ -859,10 +915,12 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * start spot cleaning.
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function CleanSpot()
     {
-        $this->SetRoborockValue('command', 3);
+        $this->SetRoborockValue(self::IDENT_COMMAND, 3);
         return $this->RequestData('app_spot');
     }
 
@@ -870,10 +928,12 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * pause cleaning.
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Pause()
     {
-        $this->SetRoborockValue('command', 1);
+        $this->SetRoborockValue(self::IDENT_COMMAND, 1);
         return $this->RequestData('app_pause');
     }
 
@@ -881,10 +941,12 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * return to dock.
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Charge()
     {
-        $this->SetRoborockValue('command', 4);
+        $this->SetRoborockValue(self::IDENT_COMMAND, 4);
         return $this->RequestData('app_charge');
     }
 
@@ -892,10 +954,12 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * locate vacuum cleaner by voice message.
      *
      * @return mixed
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Locate()
     {
-        $this->SetRoborockValue('command', 5);
+        $this->SetRoborockValue(self::IDENT_COMMAND, 5);
         return $this->RequestData('find_me');
     }
 
@@ -905,6 +969,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get consumables time remaining in %.
      *
      * @return array
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Get_Consumables()
     {
@@ -917,6 +983,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param string $part filter|mainbrush|sidebrush|sensors
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Reset_Consumable(string $part)
     {
@@ -969,6 +1037,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get clean summary.
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function GetCleanSummary()
     {
@@ -981,11 +1051,13 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int|array $record_id
      *
      * @return array
+     * @throws \JsonException
+     * @throws \JsonException
      */
     protected function GetCleanRecord($record_id)
     {
         return $this->RequestData('get_clean_record', [
-            'params' => is_array($record_id) ? $record_id : [(int) $record_id]
+            'params' => is_array($record_id) ? $record_id : [(int)$record_id]
         ]);
     }
 
@@ -993,6 +1065,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get clean record map.
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function GetCleanRecordMap()
     {
@@ -1003,6 +1077,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get map.
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function GetMap()
     {
@@ -1013,6 +1089,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get current state.
      *
      * @return array
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Get_State()
     {
@@ -1023,6 +1101,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get serial number.
      *
      * @return string
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Get_Serial_Number()
     {
@@ -1033,6 +1113,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get current dnd mode.
      *
      * @return array
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Get_DND_Mode()
     {
@@ -1048,15 +1130,17 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int $endminutes
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function SetDNDTimer(int $starthour, int $startminutes, int $endhour, int $endminutes)
     {
         return $this->RequestData('set_dnd_timer', [
             'params' => [
-                (int) $starthour,
-                (int) $startminutes,
-                (int) $endhour,
-                (int) $endminutes
+                $starthour,
+                $startminutes,
+                $endhour,
+                $endminutes
             ]
         ]);
     }
@@ -1065,6 +1149,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * disable dnd mode.
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function DisableDND()
     {
@@ -1079,6 +1165,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param string $repetition once|weekdays|weekends|every day
      *
      * @return array|bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Set_Timer(int $hour, int $minute, string $repetition)
     {
@@ -1094,6 +1182,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param $timerid
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function EnableTimer(string $timerid)
     {
@@ -1108,6 +1198,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param $timerid
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function DisableTimer(string $timerid)
     {
@@ -1120,6 +1212,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get timer details.
      *
      * @return array
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Get_Timer_Details()
     {
@@ -1132,6 +1226,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param $timerid
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function DeleteTimer(string $timerid)
     {
@@ -1142,6 +1238,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get timezone.
      *
      * @return string
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function GetTimezone()
     {
@@ -1152,6 +1250,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * set timezone to europe.
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function SetTimezoneEurope()
     {
@@ -1164,6 +1264,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param string $sound_url
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     protected function InstallSound(string $sound_url)
     {
@@ -1178,6 +1280,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int $level
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function SetSoundLevel(int $level)
     {
@@ -1202,6 +1306,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int $power
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Set_Fan_Power(int $power)
     {
@@ -1215,6 +1321,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * Get the water quantity control during the cleaning process.
      *
      * @return int
+     * @throws \JsonException
      */
     public function Get_Water_Quantity_Control()
     {
@@ -1227,6 +1334,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int $power
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Set_Water_Quantity_Control(int $mode)
     {
@@ -1244,6 +1353,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int|null $time      in ms
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Move_Direction(int $direction, int $velocity, int $time = 1000)
     {
@@ -1265,6 +1376,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * start remote control.
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     protected function StartRemoteControl()
     {
@@ -1275,77 +1388,12 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * stop remote control.
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     protected function StopRemoteControl()
     {
         return $this->RequestData('app_rc_end');
-    }
-
-    /**
-     * get current gateway.
-     *
-     * @return bool|mixed
-     */
-    public function GetGateway()
-    {
-        return $this->RequestData('get_gateway');
-    }
-
-    /**
-     * Update Firmware Over Air.
-     *
-     * @param string $firmware
-     *
-     * @return array|bool
-     */
-    public function UpdateFirmwareOverAir(string $firmware)
-    {
-        $ip = $this->GetHostIP();
-        $port = 3777;
-        return $this->RequestData('miIO.ota', [
-            'params' => [
-                'mode'     => 'normal',
-                'install'  => '1',
-                'app_url'  => 'http://' . $ip . ':' . $port . '/user/roborock/' . $firmware,
-                'file_md5' => md5($firmware),
-                'proc'     => 'dnld install'
-            ]
-        ]);
-    }
-
-    /**
-     * Get IP IP-Symcon.
-     *
-     * @return string
-     */
-    protected function GetHostIP()
-    {
-        $ip = exec("sudo ifconfig eth0 | grep 'inet Adresse:' | cut -d: -f2 | awk '{ print $1}'");
-        if ($ip == '') {
-            $ipinfo = Sys_GetNetworkInfo();
-            $ip = $ipinfo[0]['IP'];
-        }
-        return $ip;
-    }
-
-    /**
-     * Update Firmware Over Air Progress.
-     *
-     * @return array|bool
-     */
-    public function UpdateFirmwareOverAirProgress()
-    {
-        return $this->RequestData('miIO.get_ota_progress')[0];
-    }
-
-    /**
-     * Update Firmware Over Air Status.
-     *
-     * @return array|bool
-     */
-    public function UpdateFirmwareOverAirStatus()
-    {
-        return $this->RequestData('miIO.get_ota_state')[0];
     }
 
     /**
@@ -1358,44 +1406,47 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int $number
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function ZoneClean(int $lower_left_corner_x, int $lower_left_corner_y, int $upper_right_corner_x, int $upper_right_corner_y, int $number)
     {
         return $this->RequestData('app_zoned_clean', [
-            'params' => [[
-                $lower_left_corner_x,
-                $lower_left_corner_y,
-                $upper_right_corner_x,
-                $upper_right_corner_y,
-                $number
-            ]]
+            'params' => [
+                [
+                    $lower_left_corner_x,
+                    $lower_left_corner_y,
+                    $upper_right_corner_x,
+                    $upper_right_corner_y,
+                    $number
+                ]
+            ]
         ]);
     }
 
     public function ZoneCleanRoomname(string $roomname, int $number)
     {
-        $zones = $this->GetZones();
+        $zones  = $this->GetZones();
         $zoneid = -1;
-        foreach($zones as $key => $zone)
-        {
-            if($zone['roomname'] == $roomname)
-            {
+        foreach ($zones as $key => $zone) {
+            if ($zone['roomname'] == $roomname) {
                 $zoneid = $key;
             }
         }
-        if($zoneid > -1)
-        {
+        if ($zoneid > -1) {
             $zone = $zones[$zoneid];
             $this->_debug('ZoneClean', 'room: ' . $zone['roomname']);
-            $lower_left_corner_x = $zone['lx'];
-            $lower_left_corner_y = $zone['ly'];
+            $lower_left_corner_x  = $zone['lx'];
+            $lower_left_corner_y  = $zone['ly'];
             $upper_right_corner_x = $zone['ux'];
             $upper_right_corner_y = $zone['uy'];
-            $this->_debug('ZoneClean', 'left x: ' . $lower_left_corner_x . ', left y: ' . $lower_left_corner_y . ', right x: ' . $upper_right_corner_x . ', right y: ' . $upper_right_corner_y);
+            $this->_debug(
+                'ZoneClean',
+                'left x: ' . $lower_left_corner_x . ', left y: ' . $lower_left_corner_y . ', right x: ' . $upper_right_corner_x . ', right y: '
+                . $upper_right_corner_y
+            );
             $result = $this->ZoneClean($lower_left_corner_x, $lower_left_corner_y, $upper_right_corner_x, $upper_right_corner_y, $number);
-        }
-        else
-        {
+        } else {
             $this->_debug('ZoneClean', 'could not find roomname');
             $result = false;
         }
@@ -1404,22 +1455,23 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
 
     public function ZoneCleanRoomnumber(int $roomnumber, int $number)
     {
-        $zones = $this->GetZones();
-        $zoneid = $roomnumber -1;
-        $zonenumber = $this->GetNumberZones() -1;
-        if($zonenumber < $roomnumber)
-        {
+        $zones      = $this->GetZones();
+        $zoneid     = $roomnumber - 1;
+        $zonenumber = $this->GetNumberZones() - 1;
+        if ($zonenumber < $roomnumber) {
             $zone = $zones[$zoneid];
             $this->_debug('ZoneClean', 'room: ' . $zone['roomname']);
-            $lower_left_corner_x = $zone['lx'];
-            $lower_left_corner_y = $zone['ly'];
+            $lower_left_corner_x  = $zone['lx'];
+            $lower_left_corner_y  = $zone['ly'];
             $upper_right_corner_x = $zone['ux'];
             $upper_right_corner_y = $zone['uy'];
-            $this->_debug('ZoneClean', 'left x: ' . $lower_left_corner_x . ', left y: ' . $lower_left_corner_y . ', right x: ' . $upper_right_corner_x . ', right y: ' . $upper_right_corner_y);
+            $this->_debug(
+                'ZoneClean',
+                'left x: ' . $lower_left_corner_x . ', left y: ' . $lower_left_corner_y . ', right x: ' . $upper_right_corner_x . ', right y: '
+                . $upper_right_corner_y
+            );
             $result = $this->ZoneClean($lower_left_corner_x, $lower_left_corner_y, $upper_right_corner_x, $upper_right_corner_y, $number);
-        }
-        else
-        {
+        } else {
             $this->_debug('ZoneClean', 'could not find roomnumber');
             $result = false;
         }
@@ -1427,31 +1479,35 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     }
 
     /** Roborock Vacuum 2 clean multiple zone with coordinates for area, use a rectangle with values for the lower left corner and the upper right corner
-     * $multizone = '[['.$lower_left_corner_x.','. $lower_left_corner_y.','. $upper_right_corner_x.','. $upper_right_corner_y.','. $number.'],['. $lower_left_corner_x1.','. $lower_left_corner_y1.','.	$upper_right_corner_x1.','. $upper_right_corner_y1.','. $number.']]';.
+     * $multizone = '[['.$lower_left_corner_x.','. $lower_left_corner_y.','. $upper_right_corner_x.','. $upper_right_corner_y.','. $number.'],['.
+     * $lower_left_corner_x1.','. $lower_left_corner_y1.','.    $upper_right_corner_x1.','. $upper_right_corner_y1.','. $number.']]';.
      *
      * @param string $multizone
      *
      * @return array|bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function ZoneCleanMulti(string $multizone)
     {
-        $multizone = json_decode($multizone, true);
+        $multizone = json_decode($multizone, true, 512, JSON_THROW_ON_ERROR);
         return $this->RequestData('app_zoned_clean', [
             'params' => $multizone
         ]);
     }
 
     /** Roborock Vacuum 2 clean multiple zone with coordinates for area, use a rectangle with values for the lower left corner and the upper right corner
+     *
      * @param string $multizone
      *
      * @return array|bool
+     * @throws \JsonException
      */
     public function ZoneCleanMultiName(string $multizone)
     {
-        $multizone = json_decode($multizone, true);
+        $multizone     = json_decode($multizone, true, JSON_THROW_ON_ERROR);
         $command_zones = [];
-        foreach($multizone as $key => $zone)
-        {
+        foreach ($multizone as $key => $zone) {
             $command_zones[] = [$zone[0][0], $zone[0][1], $zone[0][2], $zone[0][3], $zone[1]];
         }
         return $this->RequestData('app_zoned_clean', [
@@ -1466,6 +1522,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int $y
      *
      * @return bool
+     * @throws \JsonException
      */
     public function GotoTarget(int $x, int $y)
     {
@@ -1481,6 +1538,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get device info.
      *
      * @return array
+     * @throws \JsonException
      */
     public function GetDeviceInfo()
     {
@@ -1513,13 +1571,13 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
 
         if ($state) {
             $start_time_string = GetValueFormatted($this->GetIDForIdent('dnd_starttime'));
-            $time = explode(':', $start_time_string);
-            $start_hour = (int) $time[0];
-            $start_minutes = (int) $time[1];
-            $end_time_string = GetValueFormatted($this->GetIDForIdent('dnd_endtime'));
-            $time = explode(':', $end_time_string);
-            $end_hour = (int) $time[0];
-            $end_minutes = (int) $time[1];
+            $time              = explode(':', $start_time_string);
+            $start_hour        = (int)$time[0];
+            $start_minutes     = (int)$time[1];
+            $end_time_string   = GetValueFormatted($this->GetIDForIdent('dnd_endtime'));
+            $time              = explode(':', $end_time_string);
+            $end_hour          = (int)$time[0];
+            $end_minutes       = (int)$time[1];
             $this->SetDNDTimer($start_hour, $start_minutes, $end_hour, $end_minutes);
         } else {
             $this->DisableDND();
@@ -1539,13 +1597,13 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
 
     protected function Set_DND_StartInt($starttime)
     {
-        $start_hour = (int) date('H', $starttime);
-        $start_minutes = (int) date('i', $starttime);
+        $start_hour    = (int)date('H', $starttime);
+        $start_minutes = (int)date('i', $starttime);
         $this->SetRoborockValue('dnd_starttime', $starttime);
         $end_time_string = GetValueFormatted($this->GetIDForIdent('dnd_endtime'));
-        $time = explode(':', $end_time_string);
-        $end_hour = (int) $time[0];
-        $end_minutes = (int) $time[1];
+        $time            = explode(':', $end_time_string);
+        $end_hour        = (int)$time[0];
+        $end_minutes     = (int)$time[1];
         $this->SetDNDTimer($start_hour, $start_minutes, $end_hour, $end_minutes);
     }
 
@@ -1562,13 +1620,13 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
 
     protected function Set_DND_EndInt($endtime)
     {
-        $end_hour = (int) date('H', $endtime);
-        $end_minutes = (int) date('i', $endtime);
+        $end_hour    = (int)date('H', $endtime);
+        $end_minutes = (int)date('i', $endtime);
         $this->SetRoborockValue('dnd_endtime', $endtime);
-        $starttime = GetValueFormatted($this->GetIDForIdent('dnd_starttime'));
-        $time = explode(':', $starttime);
-        $start_hour = (int) $time[0];
-        $start_minutes = (int) $time[1];
+        $starttime     = GetValueFormatted($this->GetIDForIdent('dnd_starttime'));
+        $time          = explode(':', $starttime);
+        $start_hour    = (int)$time[0];
+        $start_minutes = (int)$time[1];
         $this->SetDNDTimer($start_hour, $start_minutes, $end_hour, $end_minutes);
     }
 
@@ -1576,6 +1634,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get sounds.
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Get_Sound()
     {
@@ -1586,6 +1646,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get sound volume.
      *
      * @return int
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Get_SoundVolume()
     {
@@ -1598,10 +1660,12 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int $volume
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Set_SoundVolume(int $volume)
     {
-        $this->SetRoborockValue('volume', $volume);
+        $this->SetRoborockValue(self::IDENT_VOLUME, $volume);
         return $this->RequestData('change_sound_volume', [
             'params' => [$volume]
         ]);
@@ -1613,6 +1677,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int $segmentid
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Start_Segment_Clean(int $segmentid)
     {
@@ -1629,6 +1695,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param string json encoded array of segmentids
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     public function Start_Segment_Clean_Ex(string $segmentIds)
     {
@@ -1642,30 +1710,34 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * webfront request actions.
      *
      * @param string $Ident
-     * @param $Value
+     * @param        $Value
      *
      * @return bool|void
      */
     public function RequestAction($Ident, $Value)
     {
         switch ($Ident) {
-            case 'command':
-                if ($Value == 0) {
-                    $this->Start();
-                } elseif ($Value == 1) {
-                    $this->Pause();
-                } elseif ($Value == 2) {
-                    $this->Stop();
-                } elseif ($Value == 3) {
-                    $this->CleanSpot();
-                } elseif ($Value == 4) {
-                    $this->Charge();
-                } elseif ($Value == 5) {
-                    $this->Locate();
+            case self::IDENT_COMMAND:
+                switch ($Value) {
+                    case 0:
+                        $this->Start();
+                        break;
+                    case 1:
+                        $this->Pause();
+                        break;
+                    case 2:
+                        $this->Stop();
+                        break;
+                    case 3:
+                        $this->CleanSpot();
+                        break;
+                    case 4:
+                        $this->Charge();
+                        break;
+                    case 5:
+                        $this->Locate();
+                        break;
                 }
-                break;
-            case 'findme':
-                $this->Locate();
                 break;
             case 'dnd_mode':
                 $this->Set_DND($Value);
@@ -1676,7 +1748,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
             case 'dnd_endtime':
                 $this->Set_DND_EndInt($Value);
                 break;
-            case 'volume':
+            case self::IDENT_VOLUME:
                 $this->Set_SoundVolume($Value);
                 break;
             case self::IDENT_FAN_POWER:
@@ -1705,7 +1777,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      */
     protected function RegisterProfile($Name, $Icon, $Prefix, $Suffix, $MinValue, $MaxValue, $StepSize, $Digits, $Vartype)
     {
-
         if (!IPS_VariableProfileExists($Name)) {
             IPS_CreateVariableProfile($Name, $Vartype); // 0 boolean, 1 int, 2 float, 3 string,
         } else {
@@ -1716,11 +1787,16 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         }
 
         IPS_SetVariableProfileIcon($Name, $Icon);
-        if (!IPS_SetVariableProfileText($Name, $Prefix, $Suffix)){
+        if (!IPS_SetVariableProfileText($Name, $Prefix, $Suffix)) {
             $this->_debug('profile', sprintf('Name: %s, Prefix: %s, Suffix: %s', $Name, $Prefix, $Suffix));
         }
         IPS_SetVariableProfileDigits($Name, $Digits); //  Nachkommastellen
-        IPS_SetVariableProfileValues($Name, $MinValue, $MaxValue, $StepSize); // string $ProfilName, float $Minimalwert, float $Maximalwert, float $Schrittweite
+        IPS_SetVariableProfileValues(
+            $Name,
+            $MinValue,
+            $MaxValue,
+            $StepSize
+        ); // string $ProfilName, float $Minimalwert, float $Maximalwert, float $Schrittweite
     }
 
     /**
@@ -1755,50 +1831,26 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
                 IPS_SetVariableProfileAssociation($Name, $code, $this->Translate($association), $Icon, -1);
             }
         }
-
     }
 
     /**
      * checks, if configuration is complete.
      *
      * @return bool
+     * @throws \JsonException
+     * @throws \JsonException
      */
     private function CheckConfiguration()
     {
         // if token is valid, everything is ok
-        if ($this->ReadPropertyString('token')) {
+        if ($this->ReadAttributeString(self::ATTRIBUTE_TOKEN)) {
             return true;
         }
 
-        if (
-            // configuration is not finished
-            $this->ReadPropertyInteger('token_mode') === -1
-            // token mode: Xiaomi App
-            || (
-                $this->ReadPropertyInteger('token_mode') == 1
-                && (
-                    !$this->ReadPropertyString('xiaomi_email')
-                    || !$this->ReadPropertyString('xiaomi_pass')
-                    || !$this->GetTokenFromXiaomi()
-                )
-            )
-            // token mode: WiFi Discover
-            || (
-                $this->ReadPropertyInteger('token_mode') == 2
-                && (
-                    !$this->ReadPropertyBoolean('wifi_connected')
-                    || !$this->GetTokenFromDiscover()
-                )
-            )
-            // token mode: enter ip & token manually
-            || (
-                $this->ReadPropertyInteger('token_mode') == 3
-                && (
-                    !$this->ReadPropertyString('ip')
-                    || !$this->ReadPropertyString('token')
-                )
-            )
-        ) {
+        if (// configuration is not finished
+            !$this->ReadPropertyString(self::PROPERTY_XIAOMI_USER)
+            || !$this->ReadPropertyString(self::PROPERTY_XIAOMI_PASSWORD)
+            || !$this->GetTokenFromXiaomi()) {
             return false;
         }
 
@@ -1823,24 +1875,24 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     {
         // get codes by state_id
         if ($state_id === 'errors') {
-            $codes = $this->error_codes;
+            $codes    = $this->error_codes;
             $state_id = $error_id;
-            $prefix = $this->Translate('Error') . ': ';
+            $prefix   = $this->Translate('Error') . ': ';
 
-            $notification_ident = 'last_notification_error';
+            $notification_ident = self::ATTRIBUTE_LAST_NOTIFICATION_ERROR;
         } else {
-            $codes = $this->state_codes;
+            $codes  = $this->state_codes;
             $prefix = '';
 
-            $notification_ident = 'last_notification_state';
+            $notification_ident = self::ATTRIBUTE_LAST_NOTIFICATION_STATE;
         }
 
         // check notification
-        $last_notification = GetValueString($this->GetIDForIdent($notification_ident));
-        $this->SetRoborockValue($notification_ident, $state_id);
+        $last_notification = $this->ReadAttributeString($notification_ident);
+        $this->WriteAttributeString($notification_ident, $state_id);
 
         // return false, when last notification is the same as current notification or id is 0
-        if (($last_notification == $state_id && !$force_send) || $state_id == 0) {
+        if ((($last_notification === $state_id) && !$force_send) || ($state_id === 0)) {
             return false;
         }
 
@@ -1856,7 +1908,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
                             // send notification
                             if ($state_id > 0 && isset($codes[$state_id])) {
                                 // build message
-                                $title = IPS_GetName($this->InstanceID); // instance name
+                                $title   = IPS_GetName($this->InstanceID); // instance name
                                 $message = $prefix . $this->Translate($codes[$state_id]);
 
                                 // send notification
@@ -1893,13 +1945,14 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
             $current_notifications = json_decode($current_notifications, true);
             foreach ($current_notifications as $current) {
                 // loop and replace settings
-                foreach ($notifications as &$n)
+                foreach ($notifications as &$n) {
                     if ($n['state_id'] == $current['state_id']) {
-                        $n['sound'] = $current['sound'];
+                        $n['sound']   = $current['sound'];
                         $n['enabled'] = $current['enabled'];
 
                         break;
                     }
+                }
             }
         }
 
@@ -1922,10 +1975,10 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
             $this->SetStatus(self::STATUS_INST_CONFIGURATION_INCOMPLETE);
         }
         $form = json_encode([
-            'elements' => $this->FormHead(),
-            'actions'  => $this->FormActions(),
-            'status'   => $this->FormStatus()
-        ]);
+                                'elements' => $this->FormHead(),
+                                'actions'  => $this->FormActions(),
+                                'status'   => $this->FormStatus()
+                            ]);
         $this->_debug('Form', $form);
         // return current form
         return $form;
@@ -1936,422 +1989,344 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @return array
      */
-    protected function FormHead()
+    protected function FormHead(): array
     {
-        $token = $this->ReadPropertyString('token');
-        $token_mode = $this->ReadPropertyInteger('token_mode');
+        $token = $this->ReadAttributeString(self::ATTRIBUTE_TOKEN);
 
         $form = [
             [
-                'type'  => 'Image',
-                'image' => 'data:image/png;base64, iVBORw0KGgoAAAANSUhEUgAAAHoAAAB4CAYAAAA9kebvAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAA3ZpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuNi1jMDY3IDc5LjE1Nzc0NywgMjAxNS8wMy8zMC0yMzo0MDo0MiAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iIHhtcE1NOk9yaWdpbmFsRG9jdW1lbnRJRD0ieG1wLmRpZDoxZmUzOTk2NS0wMDg2LWNmNDUtOWYyZS0xMzk3NmM5NDBkN2QiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6QzMwQzZBODRGQTNGMTFFODg1RkFENjI2NjgwQjI1OEQiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6QzMwQzZBODNGQTNGMTFFODg1RkFENjI2NjgwQjI1OEQiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENDIDIwMTUgKFdpbmRvd3MpIj4gPHhtcE1NOkRlcml2ZWRGcm9tIHN0UmVmOmluc3RhbmNlSUQ9InhtcC5paWQ6MWZlMzk5NjUtMDA4Ni1jZjQ1LTlmMmUtMTM5NzZjOTQwZDdkIiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOjFmZTM5OTY1LTAwODYtY2Y0NS05ZjJlLTEzOTc2Yzk0MGQ3ZCIv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'
+                'name'    => self::PROPERTY_IP,
+                'type'    => 'ValidationTextBox',
+                'caption' => 'IP address Roborock'
             ],
             [
-                'name'    => 'token_mode',
-                'type'    => 'Select',
-                'caption' => 'Token Mode',
-                'options' => [
-                    [
-                        'label' => 'Please choose',
-                        'value' => -1
-                    ],
-                    /*
-                        [
-                            'label' => 'Xiaomi Home Login (not working)',
-                            'value' => 1
-                        ],
-                        [
-                            'label' => 'WiFi Discover',
-                            'value' => 2
-                        ],
-                    */
-                    [
-                        'label' => 'IP & Token',
-                        'value' => 3
-                    ]
-                ]
-            ]
-        ];
+                'type'  => 'Label',
+                'label' => 'Enter the credentials of your Xiaomi Home Account below.'
+            ],
+            [
+                'name'    => self::PROPERTY_XIAOMI_USER,
+                'type'    => 'ValidationTextBox',
+                'caption' => 'User'
+            ],
+            [
+                'name'    => self::PROPERTY_XIAOMI_PASSWORD,
+                'type'    => 'PasswordTextBox',
+                'caption' => 'Password'
+            ],
 
-        if ($token_mode == 1) {
-            $form = array_merge_recursive(
-                $form,
-                [
-                    [
-                        'type'  => 'Label',
-                        'label' => 'Enter the credentials of your Xiaomi Home Account below.'
-                    ],
-                    [
-                        'name'    => 'xiaomi_email',
-                        'type'    => 'ValidationTextBox',
-                        'caption' => 'E-Mail'
-                    ],
-                    [
-                        'name'    => 'xiaomi_pass',
-                        'type'    => 'PasswordTextBox',
-                        'caption' => 'Password'
-                    ],
-                ]
-            );
-        } elseif ($token_mode == 2) {
-            $form = array_merge_recursive(
-                $form,
-                [
-                    [
-                        'type'  => 'Label',
-                        'label' => '1. Reset the wifi of your robot by pressing the power and home button for 5 seconds simultaneously.'
-                            . "\r\n"
-                            . '2. Connect the wifi to the hotspot of your robot, e.g. rockrobo-vacuum-v1_miapXXXX'
-                            . "\r\n"
-                            . '3. Confirm checkbox below and apply changes'
-                    ],
-                    [
-                        'type'  => 'Label',
-                        'label' => ''
-                    ],
-                    [
-                        'name'    => 'wifi_connected',
-                        'type'    => 'CheckBox',
-                        'caption' => 'connected to rockrobo hotspot.'
-                    ]
-                ]
-            );
-        } elseif ($token_mode == 3) {
-            $form = array_merge_recursive(
-                $form,
-                [
-                    [
-                        'type'  => 'Label',
-                        'label' => 'Enter the ip address and token of your robot.'
-                    ],
-                    [
-                        'name'    => 'ip',
-                        'type'    => 'ValidationTextBox',
-                        'caption' => 'IP address Roborock'
-                    ],
-                    [
-                        'name'    => 'token',
-                        'type'    => 'ValidationTextBox',
-                        'caption' => 'Token'
-                    ]
-                ]
-            );
-        }
+        ];
 
         if ($token) {
             $form = array_merge_recursive(
-                $form,
-                [
-                    [
-                        'type'  => 'Label',
-                        'label' => 'Update Interval Roborock'
-                    ],
-                    [
-                        'name'    => 'UpdateInterval',
-                        'type'    => 'IntervalBox',
-                        'caption' => 'Seconds'
-                    ],
-                    [
-                        'type'    => 'ExpansionPanel',
-                        'caption' => 'Push Notifications',
-                        'items'   => [
-                            [
-                                'name'    => 'notification_instance',
-                                'type'    => 'SelectInstance',
-                                'caption' => 'Webfront Configurator'
-                            ],
-                            [
-                                'type'     => 'List',
-                                'name'     => 'notifications',
-                                'caption'  => 'Push Notifications',
-                                'rowCount' => count($this->push_notifications),
-                                'add'      => false,
-                                'delete'   => false,
-                                'sort'     => [
-                                    'column'    => 'name',
-                                    'direction' => 'ascending'
-                                ],
-                                'columns' => [
-                                    [
-                                        'name'  => 'enabled',
-                                        'label' => 'Enabled',
-                                        'width' => '100px',
-                                        'edit'  => [
-                                            'type'    => 'CheckBox',
-                                            'caption' => 'Enable Push Notification'
-                                        ]
-                                    ],
-                                    [
-                                        'name'  => 'name',
-                                        'label' => 'Notification',
-                                        'width' => 'auto',
-                                        'save'  => true
-                                    ],
-                                    [
-                                        'name'  => 'sound',
-                                        'label' => 'Notification Sound',
-                                        'width' => '170px',
-                                        'edit'  => [
-                                            'type'    => 'Select',
-                                            'options' => [
-                                                [
-                                                    'label' => 'default',
-                                                    'value' => ''
-                                                ],
-                                                [
-                                                    'label' => 'alarm',
-                                                    'value' => 'alarm'
-                                                ],
-                                                [
-                                                    'label' => 'bell',
-                                                    'value' => 'bell'
-                                                ],
-                                                [
-                                                    'label' => 'boom',
-                                                    'value' => 'boom'
-                                                ],
-                                                [
-                                                    'label' => 'buzzer',
-                                                    'value' => 'buzzer'
-                                                ],
-                                                [
-                                                    'label' => 'connected',
-                                                    'value' => 'connected'
-                                                ],
-                                                [
-                                                    'label' => 'dark',
-                                                    'value' => 'dark'
-                                                ],
-                                                [
-                                                    'label' => 'digital',
-                                                    'value' => 'digital'
-                                                ],
-                                                [
-                                                    'label' => 'drums',
-                                                    'value' => 'drums'
-                                                ],
-                                                [
-                                                    'label' => 'duck',
-                                                    'value' => 'duck'
-                                                ],
-                                                [
-                                                    'label' => 'full',
-                                                    'value' => 'full'
-                                                ],
-                                                [
-                                                    'label' => 'happy',
-                                                    'value' => 'happy'
-                                                ],
-                                                [
-                                                    'label' => 'horn',
-                                                    'value' => 'horn'
-                                                ],
-                                                [
-                                                    'label' => 'inception',
-                                                    'value' => 'inception'
-                                                ],
-                                                [
-                                                    'label' => 'kazoo',
-                                                    'value' => 'kazoo'
-                                                ],
-                                                [
-                                                    'label' => 'roll',
-                                                    'value' => 'roll'
-                                                ],
-                                                [
-                                                    'label' => 'siren',
-                                                    'value' => 'siren'
-                                                ],
-                                                [
-                                                    'label' => 'space',
-                                                    'value' => 'space'
-                                                ],
-                                                [
-                                                    'label' => 'trickling',
-                                                    'value' => 'trickling'
-                                                ],
-                                                [
-                                                    'label' => 'turn',
-                                                    'value' => 'turn'
-                                                ]
-                                            ]
-                                        ]
-                                    ],
-                                    [
-                                        'name'    => 'state_id',
-                                        'label'   => 'State ID',
-                                        'width'   => 'auto',
-                                        'save'    => true,
-                                        'visible' => false
-                                    ]
-                                ]
-                            ]
-                        ]
-                    ],
-                    [
-                        'type'    => 'ExpansionPanel',
-                        'caption' => 'Enabled options',
-                        'items'   => [
-                            [
-                                'name'    => self::PROPERTY_FAN_POWER,
-                                'type'    => 'CheckBox',
-                                'caption' => 'Fan Power'
-                            ],
-                            [
-                                'name'    => self::PROPERTY_WATER_QUANTITY,
-                                'type'    => 'CheckBox',
-                                'caption' => 'Water Quantity'
-                            ],
-                            [
-                                'name'    => 'error_code',
-                                'type'    => 'CheckBox',
-                                'caption' => 'Error Code'
-                            ],
-                            [
-                                'name'    => 'consumables',
-                                'type'    => 'CheckBox',
-                                'caption' => 'Consumables'
-                            ],
-                            [
-                                'name'    => 'consumables_separate',
-                                'type'    => 'CheckBox',
-                                'caption' => 'Consumables (Separate Variables)'
-                            ],
-                            [
-                                'name'    => 'dnd_mode',
-                                'type'    => 'CheckBox',
-                                'caption' => 'DND Mode (Do not disturb)'
-                            ],
-                            [
-                                'name'    => 'clean_area',
-                                'type'    => 'CheckBox',
-                                'caption' => 'Clean Area'
-                            ],
-                            [
-                                'name'    => 'clean_time',
-                                'type'    => 'CheckBox',
-                                'caption' => 'Clean Time'
-                            ],
-                            [
-                                'name'    => 'total_cleans',
-                                'type'    => 'CheckBox',
-                                'caption' => 'Total Cleans'
-                            ],
-                            [
-                                'name'    => 'serial_number',
-                                'type'    => 'CheckBox',
-                                'caption' => 'Serial Number'
-                            ],
-                            [
-                                'name'    => 'timer_details',
-                                'type'    => 'CheckBox',
-                                'caption' => 'Timer Details'
-                            ],
-                            [
-                                'name'    => 'findme',
-                                'type'    => 'CheckBox',
-                                'caption' => 'find robot'
-                            ],
-                            [
-                                'name'    => 'volume',
-                                'type'    => 'CheckBox',
-                                'caption' => 'Volume'
-                            ],
-                            [
-                                'name'    => 'timezone',
-                                'type'    => 'CheckBox',
-                                'caption' => 'Timezone'
-                            ],
-                            [
-                                'name'    => 'remote',
-                                'type'    => 'CheckBox',
-                                'caption' => 'Remote Control'
-                            ]
-                        ]
-                    ],
-                    [
-                        'type'    => 'ExpansionPanel',
-                        'caption' => 'Install scripts',
-                        'items'   => $this->SelectionSkripts()
-                    ],
-                    [
-                        'type'    => 'ExpansionPanel',
-                        'caption' => 'Zones',
-                        'items'   => [
-                            [
-                                'type'     => 'List',
-                                'name'     => 'zonecoordinates',
-                                'caption'  => 'zone coordinates',
-                                'rowCount' => $this->GetNumberZones()  + 2,
-                                'add'      => true,
-                                'delete'   => true,
-                                'sort'     => [
-                                    'column'    => 'zone',
-                                    'direction' => 'ascending'
-                                ],
-                                'columns' => [
-                                    [
-                                        'name'  => 'zone',
-                                        'label' => 'zone',
-                                        'width' => '100px',
-                                        'add'   => $this->GetZoneID(),
-                                        'save'  => true
-                                    ],
-                                    [
-                                        'name'  => 'roomname',
-                                        'label' => 'room name',
-                                        'width' => 'auto',
-                                        'add'   => 'room name',
-                                        'save'  => true,
-                                        'edit'  => [
-                                            'type' => 'ValidationTextBox'
-                                        ]
-                                    ],
-                                    [
-                                        'name'  => 'lx',
-                                        'label' => 'lower left corner x',
-                                        'width' => '150px',
-                                        'add'   => 25000,
-                                        'save'  => true,
-                                        'edit'  => [
-                                            'type' => 'NumberSpinner'
-                                        ]
-                                    ],
-                                    [
-                                        'name'  => 'ly',
-                                        'label' => 'lower left corner y',
-                                        'width' => '150px',
-                                        'add'   => 25000,
-                                        'save'  => true,
-                                        'edit'  => [
-                                            'type' => 'NumberSpinner'
-                                        ]
-                                    ],
-                                    [
-                                        'name'  => 'ux',
-                                        'label' => 'upper right corner x',
-                                        'width' => '150px',
-                                        'add'   => 25000,
-                                        'save'  => true,
-                                        'edit'  => [
-                                            'type' => 'NumberSpinner'
-                                        ]
-                                    ],
-                                    [
-                                        'name'  => 'uy',
-                                        'label' => 'upper right corner y',
-                                        'width' => '150px',
-                                        'add'   => 25000,
-                                        'save'  => true,
-                                        'edit'  => [
-                                            'type' => 'NumberSpinner'
-                                        ]
-                                    ]
-                                ]
-                            ]
-                        ]
-                    ],
-                ]
+                $form, [
+                         [
+                             'name'    => 'UpdateInterval',
+                             'type'    => 'NumberSpinner',
+                             'caption' => 'Update Interval Roborock',
+                             'suffix'  => 'Seconds',
+                             'minimum' => 0
+                         ],
+                         [
+                             'type'    => 'ExpansionPanel',
+                             'caption' => 'Push Notifications',
+                             'items'   => [
+                                 [
+                                     'name'    => 'notification_instance',
+                                     'type'    => 'SelectInstance',
+                                     'caption' => 'Webfront Configurator'
+                                 ],
+                                 [
+                                     'type'     => 'List',
+                                     'name'     => 'notifications',
+                                     'caption'  => 'Push Notifications',
+                                     'rowCount' => count($this->push_notifications),
+                                     'add'      => false,
+                                     'delete'   => false,
+                                     'sort'     => [
+                                         'column'    => 'name',
+                                         'direction' => 'ascending'
+                                     ],
+                                     'columns'  => [
+                                         [
+                                             'name'  => 'enabled',
+                                             'label' => 'Enabled',
+                                             'width' => '100px',
+                                             'edit'  => [
+                                                 'type'    => 'CheckBox',
+                                                 'caption' => 'Enable Push Notification'
+                                             ]
+                                         ],
+                                         [
+                                             'name'  => 'name',
+                                             'label' => 'Notification',
+                                             'width' => 'auto',
+                                             'save'  => true
+                                         ],
+                                         [
+                                             'name'  => 'sound',
+                                             'label' => 'Notification Sound',
+                                             'width' => '170px',
+                                             'edit'  => [
+                                                 'type'    => 'Select',
+                                                 'options' => [
+                                                     [
+                                                         'label' => 'default',
+                                                         'value' => ''
+                                                     ],
+                                                     [
+                                                         'label' => 'alarm',
+                                                         'value' => 'alarm'
+                                                     ],
+                                                     [
+                                                         'label' => 'bell',
+                                                         'value' => 'bell'
+                                                     ],
+                                                     [
+                                                         'label' => 'boom',
+                                                         'value' => 'boom'
+                                                     ],
+                                                     [
+                                                         'label' => 'buzzer',
+                                                         'value' => 'buzzer'
+                                                     ],
+                                                     [
+                                                         'label' => 'connected',
+                                                         'value' => 'connected'
+                                                     ],
+                                                     [
+                                                         'label' => 'dark',
+                                                         'value' => 'dark'
+                                                     ],
+                                                     [
+                                                         'label' => 'digital',
+                                                         'value' => 'digital'
+                                                     ],
+                                                     [
+                                                         'label' => 'drums',
+                                                         'value' => 'drums'
+                                                     ],
+                                                     [
+                                                         'label' => 'duck',
+                                                         'value' => 'duck'
+                                                     ],
+                                                     [
+                                                         'label' => 'full',
+                                                         'value' => 'full'
+                                                     ],
+                                                     [
+                                                         'label' => 'happy',
+                                                         'value' => 'happy'
+                                                     ],
+                                                     [
+                                                         'label' => 'horn',
+                                                         'value' => 'horn'
+                                                     ],
+                                                     [
+                                                         'label' => 'inception',
+                                                         'value' => 'inception'
+                                                     ],
+                                                     [
+                                                         'label' => 'kazoo',
+                                                         'value' => 'kazoo'
+                                                     ],
+                                                     [
+                                                         'label' => 'roll',
+                                                         'value' => 'roll'
+                                                     ],
+                                                     [
+                                                         'label' => 'siren',
+                                                         'value' => 'siren'
+                                                     ],
+                                                     [
+                                                         'label' => 'space',
+                                                         'value' => 'space'
+                                                     ],
+                                                     [
+                                                         'label' => 'trickling',
+                                                         'value' => 'trickling'
+                                                     ],
+                                                     [
+                                                         'label' => 'turn',
+                                                         'value' => 'turn'
+                                                     ]
+                                                 ]
+                                             ]
+                                         ],
+                                         [
+                                             'name'    => 'state_id',
+                                             'label'   => 'State ID',
+                                             'width'   => 'auto',
+                                             'save'    => true,
+                                             'visible' => false
+                                         ]
+                                     ]
+                                 ]
+                             ]
+                         ],
+                         [
+                             'type'    => 'ExpansionPanel',
+                             'caption' => 'Optional Status Variables',
+                             'items'   => [
+                                 [
+                                     'name'    => self::PROPERTY_FAN_POWER,
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'Fan Power'
+                                 ],
+                                 [
+                                     'name'    => self::PROPERTY_WATER_QUANTITY,
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'Water Quantity'
+                                 ],
+                                 [
+                                     'name'    => 'error_code',
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'Error Code'
+                                 ],
+                                 [
+                                     'name'    => 'consumables',
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'Consumables'
+                                 ],
+                                 [
+                                     'name'    => 'consumables_separate',
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'Consumables (Separate Variables)'
+                                 ],
+                                 [
+                                     'name'    => 'dnd_mode',
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'DND Mode (Do not disturb)'
+                                 ],
+                                 [
+                                     'name'    => 'clean_area',
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'Clean Area'
+                                 ],
+                                 [
+                                     'name'    => 'clean_time',
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'Clean Time'
+                                 ],
+                                 [
+                                     'name'    => 'total_cleans',
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'Total Cleans'
+                                 ],
+                                 [
+                                     'name'    => 'serial_number',
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'Serial Number'
+                                 ],
+                                 [
+                                     'name'    => 'timer_details',
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'Timer Details'
+                                 ],
+                                 [
+                                     'name'    => 'extended_info',
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'Extended Information (WLAN SSID, RSSI, firmware version, ip, model, mac)'
+                                 ],
+                                 [
+                                     'name'    => 'volume',
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'Volume'
+                                 ],
+                                 [
+                                     'name'    => 'timezone',
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'Timezone'
+                                 ],
+                                 [
+                                     'name'    => 'remote',
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'Remote Control'
+                                 ]
+                             ]
+                         ],
+                         [
+                             'type'    => 'ExpansionPanel',
+                             'caption' => 'Install scripts',
+                             'items'   => $this->SelectionSkripts()
+                         ],
+                         [
+                             'type'    => 'ExpansionPanel',
+                             'caption' => 'Zones',
+                             'items'   => [
+                                 [
+                                     'type'     => 'List',
+                                     'name'     => 'zonecoordinates',
+                                     'caption'  => 'zone coordinates',
+                                     'rowCount' => $this->GetNumberZones() + 2,
+                                     'add'      => true,
+                                     'delete'   => true,
+                                     'sort'     => [
+                                         'column'    => 'zone',
+                                         'direction' => 'ascending'
+                                     ],
+                                     'columns'  => [
+                                         [
+                                             'name'  => 'zone',
+                                             'label' => 'zone',
+                                             'width' => '100px',
+                                             'add'   => $this->GetZoneID(),
+                                             'save'  => true
+                                         ],
+                                         [
+                                             'name'  => 'roomname',
+                                             'label' => 'room name',
+                                             'width' => 'auto',
+                                             'add'   => 'room name',
+                                             'save'  => true,
+                                             'edit'  => [
+                                                 'type' => 'ValidationTextBox'
+                                             ]
+                                         ],
+                                         [
+                                             'name'  => 'lx',
+                                             'label' => 'lower left corner x',
+                                             'width' => '150px',
+                                             'add'   => 25000,
+                                             'save'  => true,
+                                             'edit'  => [
+                                                 'type' => 'NumberSpinner'
+                                             ]
+                                         ],
+                                         [
+                                             'name'  => 'ly',
+                                             'label' => 'lower left corner y',
+                                             'width' => '150px',
+                                             'add'   => 25000,
+                                             'save'  => true,
+                                             'edit'  => [
+                                                 'type' => 'NumberSpinner'
+                                             ]
+                                         ],
+                                         [
+                                             'name'  => 'ux',
+                                             'label' => 'upper right corner x',
+                                             'width' => '150px',
+                                             'add'   => 25000,
+                                             'save'  => true,
+                                             'edit'  => [
+                                                 'type' => 'NumberSpinner'
+                                             ]
+                                         ],
+                                         [
+                                             'name'  => 'uy',
+                                             'label' => 'upper right corner y',
+                                             'width' => '150px',
+                                             'add'   => 25000,
+                                             'save'  => true,
+                                             'edit'  => [
+                                                 'type' => 'NumberSpinner'
+                                             ]
+                                         ]
+                                     ]
+                                 ]
+                             ]
+                         ],
+                     ]
             );
         }
         return $form;
@@ -2359,7 +2334,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
 
     protected function GetNumberZones()
     {
-        $zones = $this->GetZones();
+        $zones  = $this->GetZones();
         $number = count($zones);
         $this->_debug('Zone numbers', strval($number));
         return $number;
@@ -2376,12 +2351,9 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     {
         $zones_json = $this->ReadPropertyString('zonecoordinates');
         $this->_debug('Zones', $zones_json);
-        if($zones_json == '')
-        {
+        if ($zones_json == '') {
             $zones = [];
-        }
-        else
-        {
+        } else {
             $zones = json_decode($zones_json, true);
         }
         return $zones;
@@ -2389,22 +2361,23 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
 
     public function GetZoneCoordinatesByNumber(int $roomnumber)
     {
-        $zones = $this->GetZones();
-        $zoneid = $roomnumber -1;
-        $zonenumber = $this->GetNumberZones() -1;
-        if($zonenumber < $roomnumber)
-        {
+        $zones      = $this->GetZones();
+        $zoneid     = $roomnumber - 1;
+        $zonenumber = $this->GetNumberZones() - 1;
+        if ($zonenumber < $roomnumber) {
             $zone = $zones[$zoneid];
             $this->_debug('Zone Coordinates', 'room: ' . $zone['roomname']);
-            $lower_left_corner_x = $zone['lx'];
-            $lower_left_corner_y = $zone['ly'];
+            $lower_left_corner_x  = $zone['lx'];
+            $lower_left_corner_y  = $zone['ly'];
             $upper_right_corner_x = $zone['ux'];
             $upper_right_corner_y = $zone['uy'];
-            $this->_debug('Zone Coordinates', 'left x: ' . $lower_left_corner_x . ', left y: ' . $lower_left_corner_y . ', right x: ' . $upper_right_corner_x . ', right y: ' . $upper_right_corner_y);
+            $this->_debug(
+                'Zone Coordinates',
+                'left x: ' . $lower_left_corner_x . ', left y: ' . $lower_left_corner_y . ', right x: ' . $upper_right_corner_x . ', right y: '
+                . $upper_right_corner_y
+            );
             $result = [$lower_left_corner_x, $lower_left_corner_y, $upper_right_corner_x, $upper_right_corner_y];
-        }
-        else
-        {
+        } else {
             $this->_debug('Zone Coordinates', 'could not find roomnumber');
             $result = false;
         }
@@ -2413,28 +2386,27 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
 
     public function GetZoneCoordinatesByName(string $roomname)
     {
-        $zones = $this->GetZones();
+        $zones  = $this->GetZones();
         $zoneid = -1;
-        foreach($zones as $key => $zone)
-        {
-            if($zone['roomname'] == $roomname)
-            {
+        foreach ($zones as $key => $zone) {
+            if ($zone['roomname'] == $roomname) {
                 $zoneid = $key;
             }
         }
-        if($zoneid > -1)
-        {
+        if ($zoneid > -1) {
             $zone = $zones[$zoneid];
             $this->_debug('Zone Coordinates', 'room: ' . $zone['roomname']);
-            $lower_left_corner_x = $zone['lx'];
-            $lower_left_corner_y = $zone['ly'];
+            $lower_left_corner_x  = $zone['lx'];
+            $lower_left_corner_y  = $zone['ly'];
             $upper_right_corner_x = $zone['ux'];
             $upper_right_corner_y = $zone['uy'];
-            $this->_debug('Zone Coordinates', 'left x: ' . $lower_left_corner_x . ', left y: ' . $lower_left_corner_y . ', right x: ' . $upper_right_corner_x . ', right y: ' . $upper_right_corner_y);
+            $this->_debug(
+                'Zone Coordinates',
+                'left x: ' . $lower_left_corner_x . ', left y: ' . $lower_left_corner_y . ', right x: ' . $upper_right_corner_x . ', right y: '
+                . $upper_right_corner_y
+            );
             $result = [$lower_left_corner_x, $lower_left_corner_y, $upper_right_corner_x, $upper_right_corner_y];
-        }
-        else
-        {
+        } else {
             $this->_debug('Zone Coordinates', 'could not find roomname');
             $result = false;
         }
@@ -2444,7 +2416,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     protected function SelectionSkripts()
     {
         $setup_scripts = $this->ReadPropertyBoolean('setup_scripts');
-        $form = [
+        $form          = [
             [
                 'name'    => 'setup_scripts',
                 'type'    => 'CheckBox',
@@ -2453,14 +2425,13 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         ];
         if ($setup_scripts) {
             $form = array_merge_recursive(
-                $form,
-                [
-                    [
-                        'name'    => 'script_category',
-                        'type'    => 'SelectCategory',
-                        'caption' => 'Script category'
-                    ]
-                ]
+                $form, [
+                         [
+                             'name'    => 'script_category',
+                             'type'    => 'SelectCategory',
+                             'caption' => 'Script category'
+                         ]
+                     ]
             );
         }
         return $form;
@@ -2471,51 +2442,26 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @return array
      */
-    protected function FormActions()
+    protected function FormActions(): array
     {
-        $token = $this->ReadPropertyString('token');
-        $token_mode = $this->ReadPropertyInteger('token_mode');
+        $token = $this->ReadAttributeString(self::ATTRIBUTE_TOKEN);
 
-        $form = [];
-        if ($token_mode == 1) {
+        $form = [
+            [
+                'type'    => 'Button',
+                'label'   => 'Xiaomi Login Test',
+                'onClick' => 'Roborock_GetTokenFromXiaomi($id);'
+            ]
+        ];
+
+        if ($token) {
             $form = [
                 [
-                    'type'    => 'Button',
-                    'label'   => 'Xiaomi Login Test',
-                    'onClick' => 'Roborock_GetTokenFromXiaomi($id);'
-                ]
-            ];
-        } elseif ($token) {
-            $form = [
+                    'type' => 'TestCenter'],
                 [
                     'type'    => 'Button',
                     'label'   => 'Update',
                     'onClick' => 'Roborock_Update($id);'
-                ],
-                [
-                    'type'    => 'Button',
-                    'label'   => 'find robot',
-                    'onClick' => 'Roborock_Locate($id);'
-                ],
-                [
-                    'type'    => 'Button',
-                    'label'   => 'Start',
-                    'onClick' => 'Roborock_Start($id);'
-                ],
-                [
-                    'type'    => 'Button',
-                    'label'   => 'Stop',
-                    'onClick' => 'Roborock_Stop($id);'
-                ],
-                [
-                    'type'    => 'Button',
-                    'label'   => 'Pause',
-                    'onClick' => 'Roborock_Pause($id);'
-                ],
-                [
-                    'type'    => 'Button',
-                    'label'   => 'Charge',
-                    'onClick' => 'Roborock_Charge($id);'
                 ],
                 [
                     'type'    => 'Button',
@@ -2574,6 +2520,11 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
                 'caption' => 'Please follow the instructions.'
             ],
             [
+                'code'    => self::STATUS_INST_IP_ADDRESS_IS_INVALID,
+                'icon'    => 'error',
+                'caption' => 'No valid IP address.'
+            ],
+            [
                 'code'    => self::STATUS_INST_TOKEN_IS_INVALID,
                 'icon'    => 'error',
                 'caption' => 'Token is not valid.'
@@ -2615,8 +2566,9 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      */
     private function SetRoborockValue($ident, $value)
     {
-        if (@$this->GetIDForIdent($ident))
+        if (@$this->GetIDForIdent($ident)) {
             $this->SetValue($ident, $value);
+        }
     }
 
     /**
@@ -2629,23 +2581,23 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     private function _convertSecondsToTime(int $inputSeconds = 0): string
     {
         $secondsInAMinute = 60;
-        $secondsInAnHour = 60 * $secondsInAMinute;
-        $secondsInADay = 24 * $secondsInAnHour;
+        $secondsInAnHour  = 60 * $secondsInAMinute;
+        $secondsInADay    = 24 * $secondsInAnHour;
 
         // extract days
         $days = floor($inputSeconds / $secondsInADay);
 
         // extract hours
         $hourSeconds = $inputSeconds % $secondsInADay;
-        $hours = floor($hourSeconds / $secondsInAnHour);
+        $hours       = floor($hourSeconds / $secondsInAnHour);
 
         // extract minutes
         $minuteSeconds = $hourSeconds % $secondsInAnHour;
-        $minutes = floor($minuteSeconds / $secondsInAMinute);
+        $minutes       = floor($minuteSeconds / $secondsInAMinute);
 
         // extract the remaining seconds
         $remainingSeconds = $minuteSeconds % $secondsInAMinute;
-        $seconds = ceil($remainingSeconds);
+        $seconds          = ceil($remainingSeconds);
 
         // build time
         $time = '';
@@ -2678,7 +2630,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      */
     private function _zeroPadding($number, $padding = 2)
     {
-        return str_pad((string) $number, $padding, '0', STR_PAD_LEFT);
+        return str_pad((string)$number, $padding, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -2686,7 +2638,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @param string $notification
      * @param string $message
-     * @param int    $format       0 = Text, 1 = Hex
+     * @param int    $format 0 = Text, 1 = Hex
      */
     private function _debug(string $notification = null, string $message = null, $format = 0)
     {
@@ -2703,20 +2655,20 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      */
     private function _merge(array $data, $merge)
     {
-        $args = array_slice(func_get_args(), 1);
+        $args   = array_slice(func_get_args(), 1);
         $return = $data;
 
         foreach ($args as &$curArg) {
-            $stack[] = [(array) $curArg, &$return];
+            $stack[] = [(array)$curArg, &$return];
         }
         unset($curArg);
 
         while (!empty($stack)) {
             foreach ($stack as $curKey => &$curMerge) {
                 foreach ($curMerge[0] as $key => &$val) {
-                    if (!empty($curMerge[1][$key]) && (array) $curMerge[1][$key] === $curMerge[1][$key] && (array) $val === $val) {
+                    if (!empty($curMerge[1][$key]) && (array)$curMerge[1][$key] === $curMerge[1][$key] && (array)$val === $val) {
                         $stack[] = [&$val, &$curMerge[1][$key]];
-                    } elseif ((int) $key === $key && isset($curMerge[1][$key])) {
+                    } elseif ((int)$key === $key && isset($curMerge[1][$key])) {
                         $curMerge[1][] = $val;
                     } else {
                         $curMerge[1][$key] = $val;
@@ -2778,7 +2730,7 @@ EOF;
                 $options = '';
                 if (is_array($th)) {
                     $options = ' ' . $th[1];
-                    $th = $th[0];
+                    $th      = $th[0];
                 }
 
                 $html .= '<th class="th" ' . $options . '>' . $this->Translate($th) . '</th>';
@@ -2795,7 +2747,7 @@ EOF;
                     $options = '';
                     if (is_array($td)) {
                         $options = ' ' . $td[1];
-                        $td = $td[0];
+                        $td      = $td[0];
                     }
 
                     $html .= '<td' . $options . '>' . $this->Translate($td) . '</td>';
@@ -2856,176 +2808,304 @@ EOF;
         return $repetition;
     }
 
-    /**
-     * get token by discovering 192.168.8.1.
-     *
-     * @return bool
-     */
-    private function GetTokenFromDiscover()
+
+    // Xiaomi App Login Test
+    public function GetTokenFromXiaomi(): bool
     {
-        // check option if wifi is connected to robots hotspot
-        if (!$this->ReadPropertyBoolean('wifi_connected')) {
+        // read properties
+        $user     = $this->ReadPropertyString(self::PROPERTY_XIAOMI_USER);
+        $password = $this->ReadPropertyString(self::PROPERTY_XIAOMI_PASSWORD);
+        $clientId = $this->randomClientId();
+        $this->SendDebug(__FUNCTION__, 'user/password: ' . json_encode([$user, $password], JSON_THROW_ON_ERROR), 0);
+
+        // -- login --
+        $loginData = $this->login($user, $clientId);
+
+        if (!$loginData || !isset($loginData['qs'], $loginData['callback'], $loginData['_sign'])) {
             return false;
         }
 
-        // discover device & retrieve token
-        $token = (string) $this->RequestData('discover', [
-            'ip'        => '192.168.8.1',
-            'immediate' => true
-        ]);
+        $this->SendDebug(
+            __FUNCTION__,
+            'loginData: ' . json_encode(['qs' => $loginData['qs'], 'callback' => $loginData['callback'], '_sign' => $loginData['_sign']],
+                                        JSON_THROW_ON_ERROR),
+            0
+        );
 
-        // reset wifi_connected checkbox
-        IPS_SetProperty($this->InstanceID, 'wifi_connected', false);
+        // -- login_account --
+        $loginAccountData = $this->login_account($user, $password, $clientId, $loginData['qs'], $loginData['callback'], $loginData['_sign']);
 
-        // apply changes
-        IPS_ApplyChanges($this->InstanceID);
-
-        // check token
-        if ($token && strlen($token) === 32) {
-            // save ip & token
-            IPS_SetProperty($this->InstanceID, 'ip', '192.168.8.1');
-            IPS_SetProperty($this->InstanceID, 'token', $token);
-
-            // set token mode to manual
-            IPS_SetProperty($this->InstanceID, 'token_mode', 3);
-
-            // apply changes
-            IPS_ApplyChanges($this->InstanceID);
-
-            echo sprintf($this->Translate('Token %s were found! Please configure the Wifi in Mi Home app now and update IP-Address.'), $token);
-            exit(-1);
+        if (!$loginAccountData || !isset($loginAccountData['ssecurity'], $loginAccountData['userId'], $loginAccountData['location'])) {
+            return false;
         }
 
-        return strlen($token) == 32;
-    }
+        $this->SendDebug(
+            __FUNCTION__,
+            'loginAccountData: ' . json_encode(
+                [
+                    'ssecurity' => $loginAccountData['ssecurity'],
+                    'userId'    => $loginAccountData['userId'],
+                    'location'  => $loginAccountData['location']
+                ],
+                JSON_THROW_ON_ERROR
+            ),
+            0
+        );
 
-    // Xiaomi App Login Test
-    public function GetTokenFromXiaomi()
-    {
-        // read properties
-        $email = $this->ReadPropertyString('xiaomi_email');
-        $pass = $this->ReadPropertyString('xiaomi_pass');
+        // -- login_location --
+        $loginLocationData = $this->login_location($clientId, $loginAccountData['location']);
+        if (!$loginLocationData || !isset($loginLocationData['userId'], $loginLocationData['serviceToken'])) {
+            return false;
+        }
 
-        // urls
-        $login_url = 'https://account.xiaomi.com/pass/serviceLogin?sid=xiaomiio&_json=true';
-        $login_action = 'https://account.xiaomi.com/pass/serviceLoginAuth2';
+        $this->SendDebug(
+            __FUNCTION__,
+            'loginLocationData: ' . json_encode(
+                ['userId' => $loginLocationData['userId'], 'serviceToken' => $loginLocationData['serviceToken']],
+                JSON_THROW_ON_ERROR
+            ),
+            0
+        );
 
-        // params
-        $useragent = 'Android-7.0-5.1.5-SMG950F-G950FXXU1AQL5-03D9BEC8F7BEB3CD6393F80F8D29E24E5D5EAA20-665C1350487FABCA59BB28C012593A65-1290191941 APP/xiaomi.smartphone';
+        // -- getDeviceStatus --
+        $deviceData = $this->getDeviceStatus($loginLocationData['userId'], $loginLocationData['serviceToken'], 'de', $loginAccountData['ssecurity']);
+        if ($deviceData === false) {
+            return false;
+        }
+        if (!isset($deviceData['result']['list'][0]['did'], $deviceData['result']['list'][0]['token'])) {
+            return false;
+        }
 
-        // init curl
-        $ch = curl_init($login_url);
-
-        // set options
-        curl_setopt_array($ch, [
-            CURLOPT_TIMEOUT        => 10,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_HTTPHEADER     => [
-                'User-Agent: ' . $useragent,
-                'deviceId: ' . $this->InstanceID,
-                'Cookie: sdkVersion=Android-0.0.0-Alpha; userId=' . $email
-            ]
-        ]);
-
-        // set login post fields
-        $loginData = [
-            '_json'        => true,
-            'callback'     => null,
-            'sid'          => null,
-            'qs'           => null,
-            '_sign'        => null,
-            'serviceParam' => json_encode([
-                'checkSafePhone' => false
-            ]),
-            'user' => $email,
-            'hash' => strtoupper(md5($pass)),
-        ];
-
-        // call login page
-        $params = curl_exec($ch);
-        $params = json_decode(str_replace('&&&START&&&', '', $params), true);
-
-        foreach ($params as $param => $value) {
-            if (array_key_exists($param, $loginData) && is_null($loginData[$param])) {
-                $loginData[$param] = $value;
+        $host = gethostbyname($this->ReadPropertyString(self::PROPERTY_IP));
+        foreach ($deviceData['result']['list'] as $key => $device) {
+            $this->SendDebug(
+                __FUNCTION__,
+                "deviceData[$key]: " . json_encode(['did' => $device['did'], 'token' => $device['token']], JSON_THROW_ON_ERROR),
+                0
+            );
+            if ($device['localip'] === $host) {
+                $this->WriteAttributeString(self::ATTRIBUTE_TOKEN, $device['token']);
+                $this->SendDebug(__FUNCTION__, sprintf('Token \'%s\' found', $device['token']), 0);
+                return true;
             }
         }
 
-        // login
-        usleep(random_int(200, 1000));
+        $this->SendDebug(__FUNCTION__, sprintf('No Token found for \'%s\'', $host), 0);
+        return false;
+    }
 
-        curl_setopt_array($ch, [
-            CURLOPT_REFERER        => $login_url,
-            CURLOPT_URL            => $login_action,
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => http_build_query($loginData),
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_HTTPHEADER     => [
-                'User-Agent: ' . $useragent
-            ]
-        ]);
-
-        curl_exec($ch);
-
-        // get app auth url
-        curl_setopt_array($ch, [
-            CURLOPT_URL            => $login_url,
-            CURLOPT_POST           => false,
-            CURLOPT_FOLLOWLOCATION => false,
-            CURLOPT_HTTPHEADER     => [
-                'User-Agent: ' . $useragent
-            ]
-        ]);
-
-        $location = curl_exec($ch);
-        $location = json_decode(str_replace('&&&START&&&', '', $location), true);
-        $location = $location['location'];
-
-        // auth on app location
-        curl_setopt($ch, CURLOPT_URL, $location);
-        curl_setopt($ch, CURLOPT_HEADER, true);
-        $login = curl_exec($ch);
-
-        if ($login === 'ok') {
-            // proceed
+    private function randomClientId(): string
+    {
+        $clientId = '';
+        for ($i = 0; $i < 7; $i++) {
+            $clientId .= chr(random_int(97, 122)); // buchstaben a bis z
         }
-        /*
-         *
-         sid=xiaomiio&hash=B392AE630E040A071CAE478383A98AB7&callback=https://api.io.mi.com/sts&qs=%3Fsid%3Dxiaomiio%26_json%3Dtrue
-         envKey=anN7qfiKaEjzYnWDc78Oo8HOIK2p_3mYbNetWPEhD8vsfKOLmVgsXwtaJTKQf7xsf0_1ppfH2ErAM2PJwyZXKwqO3-UfELGlo9Mqfvq_FsQpnowe5oatzJXEnGvbhLQ0FdycN0czkBed-Ni-3HUBiXDyNlr-5tRrpjsLogxErP4=
-         user=frank@codeking.de
-         _sign=t8AemvX80ORqoJmGfHjYAcJr0Ms=
-         env=O18h1ovpSoxvlRrqSFPv2PECdyhsrhHwUzAYiwGMTkWNuIYqfKLlFAl8bpWAztMlvIxdgjNskb05E/RwRVwon9eMGo0CA97lmfZJpdj/wgfPxFyLeHvZrs4phSlnyzpczF512ZAAO5UQLLP8pGt3hyjupxBXwV7zuUNKtfyjsMvbfQGXItpRUo3CRxRMPs4rEibGUJnjnHGbMs5zgXy+mz4gC17xOLt1fMZbjHdcWGut3AIxMIZ+Hj0bjBBne37HSPnbVEPmuF9tqcNoloW0IvYWucaUnFi2yw1u1wXdmoauCzwNPpveiTFUFU2i8W2xSY7snIWCG6kGQJOB5WQBlaQe7BzXvLEAuAnP6NJk9V/uMJmsp9JXR5v9VbmEmJsjPVEVdpl5iGnRqwdRgAanDU1UOMEs9qQGZ+w1xRJhs9bz5B+3x+2shDt3r+eHMCLv
-         _json=true
+        return $clientId;
+    }
 
-        data=J2buC7gj7zhYRMk7UZ0PDQmxe/D9x5qgaqNrhMdsAqFVQFEu7k16DzBmryW3jwemsf7L6mEmEvYRpcMUVmTW7QJ6AKqoSJLkMOb2naoQplEZMwaIBV23RPGnzyMWaB4=
-        rc4_hash__=xr4OZu0vAVc5PJXYaiNIWn5KJJxvfZLdcyqdoA==
-        signature=jtih92ACgiag7y6RxvUYTmwd640
-        &_nonce=ddINEdDO7VEBgi8W&ssecurity=9yiDX/On7p9wH+r1fdGgcQ==
-         */
-        // get devices
-        curl_setopt_array($ch, [
-            CURLOPT_URL        => 'https://api.io.mi.com/app/location/area_prop_info_v2',
-            CURLOPT_POST       => true,
-            CURLOPT_POSTFIELDS => http_build_query([
-                'data' => json_encode([
-                    'area_id' => '101010100'
-                ])
-            ]),
-        ]);
+    private function login(string $user, string $clientId)
+    {
+        $headers = [
+            'Content-Type: application/x-www-form-urlencoded',
+            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $clientId . ' APP/xiaomi.smarthome APPV/62830',
+            'Cookie: sdkVersion=3.8.6; userId=' . trim($user) . '; deviceId=' . $clientId
+        ];
+        $ch      = curl_init('https://account.xiaomi.com/pass/serviceLogin?sid=xiaomiio&_json=true');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 
-        $devices = curl_exec($ch);
-
-        var_dump('https://api.io.mi.com/app/location/area_prop_info_v2', $devices);
-        exit;
-
-        // close curl
+        $result   = curl_exec($ch);
+        $httpcode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         curl_close($ch);
 
+        if ($httpcode !== 200) {
+            trigger_error(sprintf('%s: httpcode: %s', __FUNCTION__, (int)$httpcode));
+            return false;
+        }
+        return $this->parseJson($result);
+    }
+
+    private function login_account(string $user, string $password, string $clientId, string $qs, string $callback, string $sign)
+    {
+        $headers = [
+            'Content-Type: application/x-www-form-urlencoded',
+            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-9D28921C354D7 APP/xiaomi.smarthome APPV/62830',
+            'Cookie: sdkVersion=accountsdk-18.8.15; deviceId=' . $clientId
+        ];
+        $form    = [
+            'sid'      => 'xiaomiio',
+            'hash'     => $this->encodePassword($password),
+            'callback' => $callback,
+            'qs'       => $qs,
+            'user'     => trim($user),
+            '_sign'    => $sign,
+            '_json'    => 'true',
+
+        ];
+
+        $form = http_build_query($form);
+        $ch   = curl_init('https://account.xiaomi.com/pass/serviceLoginAuth2');
+
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $form);
+        curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        $result   = curl_exec($ch);
+        $httpcode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+
+        curl_close($ch);
+        if ($httpcode !== 200) {
+            trigger_error(sprintf('%s: httpcode: %s', __FUNCTION__, (int)$httpcode));
+            return false;
+        }
+        return $this->parseJson($result);
+    }
+
+    function login_location(string $clientId, string $location)
+    {
+        $headers = [
+            'Content-Type: application/x-www-form-urlencoded',
+            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-9D28921C354D7 APP/xiaomi.smarthome APPV/62830',
+            'Cookie: sdkVersion=accountsdk-18.8.15; deviceId=' . $clientId
+        ];
+        $ch      = curl_init($location);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HEADER, 1);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        $result      = curl_exec($ch);
+        $httpcode    = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+
+        $header = substr($result, 0, $header_size);
+        $result = substr($result, $header_size);
+
+        curl_close($ch);
+
+        if (($httpcode === false) || ($httpcode !== 200)) {
+            trigger_error(sprintf('%s: httpcode: %s', __FUNCTION__, (int)$httpcode));
+            return false;
+        }
+
+        if ($result === 'ok') {
+            $userId = explode('userId=', $header)[1];
+            $userId = explode(';', $userId)[0];
+
+            $cUserId = explode('cUserId=', $header)[1];
+            $cUserId = explode(';', $cUserId)[0];
+
+            $serviceToken = explode('serviceToken=', $header)[1];
+            $serviceToken = explode(';', $serviceToken)[0];
+
+            return [
+                'userId'       => $userId,
+                'cUserId'      => $cUserId,
+                'serviceToken' => $serviceToken
+            ];
+        }
+
         return false;
+    }
+
+    function getDeviceStatus(string $userid, string $serviceToken, string $server, string $ssecurity)
+    {
+        $path    = '/home/device_list';
+        $obj     = '{"getVirtualModel":false,"getHuamiDevices":0}';
+        $headers = [
+            'Content-Type: application/x-www-form-urlencoded',
+            'x-xiaomi-protocal-flag-cli: PROTOCAL-HTTP2',
+            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-9D28921C354D7 APP/xiaomi.smarthome APPV/62830',
+            'Cookie: userId=' . $userid . '; yetAnotherServiceToken=' . $serviceToken . '; serviceToken=' . $serviceToken
+            . '; locale=de_DE; timezone=GMT%2B01%3A00; is_daylight=1; dst_offset=3600000; channel=MI_APP_STORE'
+        ];
+
+
+        $url    = 'https://' . $server . '.api.io.mi.com/app' . $path;
+        $params = [
+            'key'   => 'data',
+            'value' => $obj
+        ];
+
+        $body = $this->generateSignature($ssecurity, $params, $path);
+        $body = http_build_query($body);
+
+        $ch = curl_init($url);
+
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+        curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        $result   = curl_exec($ch);
+        $httpcode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+
+        curl_close($ch);
+        if (($httpcode === false) || ($httpcode !== 200)) {
+            trigger_error(sprintf('%s: httpcode: %s', __FUNCTION__, (int)$httpcode));
+            return false;
+        }
+        return json_decode($result, true, 512, JSON_THROW_ON_ERROR);
+    }
+
+    private function encodePassword(string $password): string
+    {
+        return strtoupper(md5($password));
+    }
+
+    private function parseJson(string $jsonString)
+    {
+        $jsonString = str_replace('&&&START&&&', '', $jsonString);
+        $jsonData   = json_decode($jsonString, true, 512, JSON_THROW_ON_ERROR);
+        return $jsonData ?? false;
+    }
+
+    function generateSignature(string $ssecurity, array $params, string $path): array
+    {
+        $nonce = random_bytes(8);
+        $bytes = pack('N', (int)round(microtime(true) / 60));
+        $nonce .= $bytes;
+        $nonce = base64_encode($nonce);
+
+        $ctx = hash_init('sha256');
+        hash_update($ctx, base64_decode($ssecurity) . base64_decode($nonce));
+        $signature = base64_encode(hash_final($ctx, true));
+
+
+        $paramsArray   = [];
+        $paramsArray[] = $path;
+        $paramsArray[] = $signature;
+        $paramsArray[] = $nonce;
+
+        $data = "";
+        foreach ($params as $key => $value) {
+            if ($key === "key") {
+                $data = $value . "=";
+            }
+            if ($key === "value") {
+                $data .= $value;
+            }
+        }
+        $paramsArray[] = $data;
+
+        $postdata = '';
+        foreach ($paramsArray as $value) {
+            $postdata .= $value . '&';
+        }
+        $postdata = substr($postdata, 0, -1);
+
+        return [
+            'signature' => $this->HashHmacSHA256($postdata, $signature),
+            '_nonce'    => $nonce,
+            'data'      => $params['value']
+        ];
+    }
+
+    private function HashHmacSHA256($data, $secret): string
+    {
+        return base64_encode(hash_hmac('sha256', $data, base64_decode($secret), true));
     }
 
     /***********************************************************
@@ -3069,7 +3149,7 @@ EOF;
      *
      * @return array
      */
-    protected function miio_info_callback(array $data)
+    protected function miio_info_callback(array $data): array
     {
         if (isset($data['result'])) {
             $info = $data['result'];
@@ -3082,6 +3162,9 @@ EOF;
 
             $ssid = $info['ap']['ssid'];
             $this->SetRoborockValue('ssid', $ssid);
+
+            $rssi = $info['ap']['rssi'];
+            $this->SetRoborockValue('rssi', $rssi);
 
             $ip = $info['netif']['localIp'];
             $this->SetRoborockValue('local_ip', $ip);
@@ -3097,6 +3180,7 @@ EOF;
                 'hardware_version' => $hardware_version,
                 'firmware_version' => $firmware_version,
                 'ssid'             => $ssid,
+                'rssi'             => $rssi,
                 'ip'               => $ip,
                 'model'            => $model,
                 'mac'              => $mac
@@ -3108,6 +3192,7 @@ EOF;
             'hardware_version' => null,
             'firmware_version' => null,
             'ssid'             => null,
+            'rssi'             => null,
             'ip'               => null,
             'model'            => null,
             'mac'              => null
@@ -3123,7 +3208,6 @@ EOF;
      */
     protected function get_status_callback(array $data): array
     {
-
         if (!isset($data['result'][0])) {
             return [];
         }
@@ -3131,12 +3215,12 @@ EOF;
         $result = $data['result'][0];
 
         // update values
-        $ret = [];
-        $battery = (int) $result['battery'];
+        $ret     = [];
+        $battery = (int)$result['battery'];
         $this->SetRoborockValue('battery', $battery);
         $ret['battery'] = $battery;
 
-        $state = (int) $result['state'];
+        $state = (int)$result['state'];
         if ($state === 8 && $battery === 100) {
             $this->SetRoborockValue('state', 100);
         } else {
@@ -3144,7 +3228,7 @@ EOF;
         }
         $ret['state'] = $state;
 
-        $clean_area = (float) ($result['clean_area'] / 1000000); // cm2 -> m2
+        $clean_area = (float)($result['clean_area'] / 1000000); // cm2 -> m2
         $this->SetRoborockValue('clean_area', $clean_area);
         $ret['clean_area'] = $clean_area;
 
@@ -3152,28 +3236,28 @@ EOF;
         $this->SetRoborockValue('clean_time', $clean_time);
         $ret['clean_time'] = $clean_time;
 
-        $error_code = (int) $result['error_code'];
+        $error_code = (int)$result['error_code'];
         $this->SetRoborockValue('error_code', $error_code);
         $ret['error_code'] = $error_code;
 
-        $fan_power = (int) $result['fan_power'];
+        $fan_power = (int)$result['fan_power'];
         $this->SetRoborockValue(self::IDENT_FAN_POWER, $fan_power);
         $ret['fan_power'] = $fan_power;
 
-        if (isset($result['water_box_mode'])){
-            $water_box_mode = (int) $result['water_box_mode'];
+        if (isset($result['water_box_mode'])) {
+            $water_box_mode = (int)$result['water_box_mode'];
             $this->SetRoborockValue(self::IDENT_WATER_QUANTITY, $water_box_mode);
             $ret['water_box_mode'] = $water_box_mode;
         }
 
         if (isset($result['water_box_status'])) {
-            $water_box_status = (bool) $result['water_box_status'];
+            $water_box_status = (bool)$result['water_box_status'];
             $this->SetRoborockValue(self::IDENT_WATER_BOX_STATUS, $water_box_status);
             $ret['water_box_status'] = $water_box_status;
         }
 
         if (isset($result['water_box_carriage_status'])) {
-            $water_box_carriage_status = (bool) $result['water_box_carriage_status'];
+            $water_box_carriage_status = (bool)$result['water_box_carriage_status'];
             $this->SetRoborockValue(self::IDENT_WATER_BOX_CARRIAGE_STATUS, $water_box_carriage_status);
             $ret['water_box_carriage_status'] = $water_box_carriage_status;
         }
@@ -3198,18 +3282,18 @@ EOF;
         if (isset($data['result'][0])) {
             $total_main_brush_work_time = 300; // hours
             $total_side_brush_work_time = 200; // hours
-            $total_filter_work_time = 150; // hours
-            $total_sensor_dirty_time = 30; // hours
+            $total_filter_work_time     = 150; // hours
+            $total_sensor_dirty_time    = 30; // hours
 
             $main_brush_work_time = $data['result'][0]['main_brush_work_time'];
             $side_brush_work_time = $data['result'][0]['side_brush_work_time'];
-            $filter_work_time = $data['result'][0]['filter_work_time'];
-            $sensor_dirty_time = $data['result'][0]['sensor_dirty_time'];
+            $filter_work_time     = $data['result'][0]['filter_work_time'];
+            $sensor_dirty_time    = $data['result'][0]['sensor_dirty_time'];
 
             $main_brush_work_percent = round(100 - (100 / ($total_main_brush_work_time * 3600) * $main_brush_work_time));
             $side_brush_work_percent = round(100 - (100 / ($total_side_brush_work_time * 3600) * $side_brush_work_time));
-            $filter_work_percent = round(100 - (100 / ($total_filter_work_time * 3600) * $filter_work_time));
-            $sensor_dirty_percent = round(100 - (100 / ($total_sensor_dirty_time * 3600) * $sensor_dirty_time));
+            $filter_work_percent     = round(100 - (100 / ($total_filter_work_time * 3600) * $filter_work_time));
+            $sensor_dirty_percent    = round(100 - (100 / ($total_sensor_dirty_time * 3600) * $sensor_dirty_time));
 
             $consumables = [
                 [
@@ -3231,14 +3315,14 @@ EOF;
             ];
 
             $html = $this->_convertDataToTable([
-                'table' => [
-                    'head' => [
-                        $this->Translate('Consumable'),
-                        $this->Translate('Consumption (%)')
-                    ],
-                    'body' => $consumables
-                ]
-            ]);
+                                                   'table' => [
+                                                       'head' => [
+                                                           $this->Translate('Consumable'),
+                                                           $this->Translate('Consumption (%)')
+                                                       ],
+                                                       'body' => $consumables
+                                                   ]
+                                               ]);
 
             // consumables
             if ($this->ReadPropertyBoolean('consumables')) {
@@ -3281,9 +3365,9 @@ EOF;
     protected function get_clean_summary_callback(array $data)
     {
         $total_cleaning_time = null;
-        $area_cleaned = null;
-        $cleanups = null;
-        $clean_records = null;
+        $area_cleaned        = null;
+        $cleanups            = null;
+        $clean_records       = null;
 
         //clean_time
         if (isset($data['result'][0])) {
@@ -3359,10 +3443,10 @@ EOF;
         if (isset($data['result'][0])) {
             $record = $data['result'][0];
 
-            if (isset($record[0])){
+            if (isset($record[0])) {
                 $start_time = $record[0];
             }
-            if (isset($record['begin'])){
+            if (isset($record['begin'])) {
                 $start_time = $record['begin'];
             }
 
@@ -3423,8 +3507,8 @@ EOF;
                     $data['starttime'] => $data
                 ];
 
-                if ($tmp_data = @GetValueString(@$this->GetIDForIdent('cleaning_records_tmp'))) {
-                    $tmp_data = json_decode($tmp_data, true);
+                if ($tmp_data = $this->ReadAttributeString(self::ATTRIBUTE_CLEANING_RECORDS)) {
+                    $tmp_data = json_decode($tmp_data, true, 512,JSON_THROW_ON_ERROR);
 
                     // merge temporary data with html data
                     $html_data = $this->_merge(
@@ -3441,23 +3525,23 @@ EOF;
                     }
                 }
 
-                $this->SetRoborockValue('cleaning_records_tmp', json_encode($html_data));
+                $this->WriteAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, json_encode($html_data));
 
                 // build html
                 $cleaning_records = [];
                 foreach ($html_data as $clean_record) {
-                    $start_time = $clean_record['starttime'];
-                    $start_hour = date('H', $start_time);
-                    $clean_day = date('l', $start_time);
-                    $clean_date = date('d.m.', $start_time);
-                    $start_minutes = date('i', $start_time);
-                    $end_time = $clean_record['endtime'];
-                    $end_hour = date('H', $end_time);
-                    $end_minutes = date('i', $end_time);
+                    $start_time        = $clean_record['starttime'];
+                    $start_hour        = date('H', $start_time);
+                    $clean_day         = date('l', $start_time);
+                    $clean_date        = date('d.m.', $start_time);
+                    $start_minutes     = date('i', $start_time);
+                    $end_time          = $clean_record['endtime'];
+                    $end_hour          = date('H', $end_time);
+                    $end_minutes       = date('i', $end_time);
                     $cleaning_duration = $this->_convertSecondsToTime($clean_record['cleaningduration']);
-                    $area = number_format($clean_record['area'], 1, ',', '.');
-                    $errors = $clean_record['errors'];
-                    $completed = $clean_record['completed'];
+                    $area              = number_format($clean_record['area'], 1, ',', '.');
+                    $errors            = $clean_record['errors'];
+                    $completed         = $clean_record['completed'];
 
                     $cleaning_records[] = [
                         $this->Translate($clean_day),
@@ -3471,18 +3555,18 @@ EOF;
 
                 // build html table
                 $html = $this->_convertDataToTable([
-                    'table' => [
-                        'head' => [
-                            $this->Translate('Day'),
-                            $this->Translate('Date'),
-                            $this->Translate('Cleaning Duration'),
-                            $this->Translate('Area'),
-                            $this->Translate('Errors'),
-                            $this->Translate('Completed'),
-                        ],
-                        'body' => $cleaning_records
-                    ]
-                ]);
+                                                       'table' => [
+                                                           'head' => [
+                                                               $this->Translate('Day'),
+                                                               $this->Translate('Date'),
+                                                               $this->Translate('Cleaning Duration'),
+                                                               $this->Translate('Area'),
+                                                               $this->Translate('Errors'),
+                                                               $this->Translate('Completed'),
+                                                           ],
+                                                           'body' => $cleaning_records
+                                                       ]
+                                                   ]);
 
                 // save html table
                 $this->SetRoborockValue('cleaning_records', $html);
@@ -3504,18 +3588,18 @@ EOF;
     protected function get_dnd_timer_callback(array $data)
     {
         if (isset($data['result'][0]) && is_array($data['result'][0])) {
-            $timer = $data['result'][0];
-            $dnd_state = (bool) $timer['enabled'];
-            $end_hour = $this->_zeroPadding($timer['end_hour']);
-            $end_minute = $this->_zeroPadding($timer['end_minute']);
-            $start_hour = $this->_zeroPadding($timer['start_hour']);
+            $timer        = $data['result'][0];
+            $dnd_state    = (bool)$timer['enabled'];
+            $end_hour     = $this->_zeroPadding($timer['end_hour']);
+            $end_minute   = $this->_zeroPadding($timer['end_minute']);
+            $start_hour   = $this->_zeroPadding($timer['start_hour']);
             $start_minute = $this->_zeroPadding($timer['start_minute']);
 
-            $start_time = $start_hour . ':' . $start_minute;
+            $start_time     = $start_hour . ':' . $start_minute;
             $start_unixtime = strtotime($start_time);
             $this->SetRoborockValue('dnd_starttime', $start_unixtime);
 
-            $end_time = $end_hour . ':' . $end_minute;
+            $end_time     = $end_hour . ':' . $end_minute;
             $end_unixtime = strtotime($end_time);
 
             $this->SetRoborockValue('dnd_endtime', $end_unixtime);
@@ -3554,53 +3638,52 @@ EOF;
                 // save html table
                 $this->SetRoborockValue('timer_details', '');
                 return ['timer' => 'no timer set'];
-
             }
             $timer_list = [];
             foreach ($timers as $key => $timer) {
                 $setuptime = $timer[0]; // setup time of this schedule (Unix time)
                 // $setuptimestring = date('h:i:s',$setuptime);
                 $timer_active = $timer[1]; // Is this schedule active
-                $timing = $timer[2];
-                $time_detail = $timing[0];
-                $command = $timing[1][0];
+                $timing       = $timer[2];
+                $time_detail  = $timing[0];
+                $command      = $timing[1][0];
                 // $unknown = $timing[1][1];
                 $timer_data = explode(' ', $time_detail);
-                $minute = $timer_data[0];
+                $minute     = $timer_data[0];
                 if ($minute == '0') {
                     $minute = '00';
                 }
-                $hour = $timer_data[1];
+                $hour         = $timer_data[1];
                 $day_of_month = $timer_data[2];
-                $month = $timer_data[3];
-                $day_of_week = $timer_data[4];
-                $repetition = $this->_getTimerDay($day_of_week);
-                $time_string = $hour . ':' . $minute;
+                $month        = $timer_data[3];
+                $day_of_week  = $timer_data[4];
+                $repetition   = $this->_getTimerDay($day_of_week);
+                $time_string  = $hour . ':' . $minute;
 
-                $timer_entry[] = [
+                $timer_entry[]                          = [
                     $time_string . '<br>' . $repetition,
                     $timer_active
                 ];
                 $timer_list[$setuptime]['timer_active'] = $timer_active;
-                $timer_list[$setuptime]['minute'] = $minute;
-                $timer_list[$setuptime]['hour'] = $hour;
+                $timer_list[$setuptime]['minute']       = $minute;
+                $timer_list[$setuptime]['hour']         = $hour;
                 $timer_list[$setuptime]['day_of_month'] = $day_of_month;
-                $timer_list[$setuptime]['month'] = $month;
-                $timer_list[$setuptime]['time_string'] = $time_string;
-                $timer_list[$setuptime]['repetition'] = $repetition;
-                $timer_list[$setuptime]['command'] = $command;
+                $timer_list[$setuptime]['month']        = $month;
+                $timer_list[$setuptime]['time_string']  = $time_string;
+                $timer_list[$setuptime]['repetition']   = $repetition;
+                $timer_list[$setuptime]['command']      = $command;
             }
 
             // build html table
             $html = $this->_convertDataToTable([
-                'table' => [
-                    'head' => [
-                        $this->Translate('Timer'),
-                        $this->Translate('Status'),
-                    ],
-                    'body' => $timer_entry
-                ]
-            ]);
+                                                   'table' => [
+                                                       'head' => [
+                                                           $this->Translate('Timer'),
+                                                           $this->Translate('Status'),
+                                                       ],
+                                                       'body' => $timer_entry
+                                                   ]
+                                               ]);
 
             // save html table
             $this->SetRoborockValue('timer_details', $html);
@@ -3664,9 +3747,9 @@ EOF;
     {
         if (isset($data['result'][0])) {
             $volume = $data['result'][0];
-            $type = gettype($volume);
+            $type   = gettype($volume);
             if ($type === 'integer') {
-                $this->SetRoborockValue('volume', $volume);
+                $this->SetRoborockValue(self::IDENT_VOLUME, $volume);
             }
 
             return $volume;
@@ -3686,7 +3769,7 @@ EOF;
     protected function change_sound_volume_callback(array $data)
     {
         // start & stop device quickly, to check volume
-        if (in_array(GetValueInteger($this->GetIDForIdent('state')), [2, 3, 8, 10, 15, 100])) {
+        if (in_array($this->GetValue('state'), [2, 3, 8, 10, 15, 100], true)) {
             $this->Start();
             $this->Stop();
         }
@@ -3750,6 +3833,6 @@ EOF;
      */
     protected function get_sound_progress_callback(array $data)
     {
-        return $data['result']['progress']??false;
+        return $data['result']['progress'] ?? false;
     }
 }
