@@ -2020,18 +2020,26 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     {
         $token = $this->ReadAttributeString(self::ATTRIBUTE_TOKEN);
         $model = $this->ReadAttributeString(self::ATTRIBUTE_MODEL);
+        if ($model !== ''){
+            $model = $this->device->GetName();
+        }
 
         $form = [
             [
-                'name'    => self::PROPERTY_IP,
-                'type'    => 'ValidationTextBox',
-                'caption' => 'IP address Roborock'
-            ],
-            [
-                'name'    => self::PROPERTY_MODEL,
-                'type'    => 'Label',
-                'caption' => $model,
-                'visible' => (strlen($model)>0)
+                'type'  => 'RowLayout',
+                'items' => [
+                    [
+                        'name'    => self::PROPERTY_IP,
+                        'type'    => 'ValidationTextBox',
+                        'caption' => 'IP address Roborock'
+                    ],
+                    [
+                        'name'    => self::PROPERTY_MODEL,
+                        'type'    => 'Label',
+                        'caption' => $model,
+                        'visible' => ($model !== '')
+                    ]
+                ]
             ],
             [
                 'type'  => 'Label',
