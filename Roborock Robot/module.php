@@ -2,19 +2,27 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/roborock_vacuum.php';
+
 /**
  * Class Roborock
  * Xiaomi Mi Vacuum Cleaner.
  *
- * @ToDo Read Token (Xiaomi Mi App?)
- *
  * a very useful API documentation: https://github.com/marcelrv/XiaomiRobotVacuumProtocol
  *
+ * also https://python-miio.readthedocs.io/en/latest/_modules/miio/integrations/vacuum/roborock/vacuum.html is very helpful
+ *  with vacuum.enums:      https://python-miio.readthedocs.io/en/latest/_modules/miio/integrations/vacuum/roborock/vacuum_enums.html
+ *  with vacuum.containers:
+ *  github: https://github.com/rytilahti/python-miio
+ *          https://github.com/rytilahti/python-miio/blob/master/miio/integrations/vacuum/roborock/vacuum.py
+ *
  * another implementation: https://github.com/iobroker-community-adapters/ioBroker.mihome-vacuum
+ * https://github.com/openhab/openhab-addons/tree/main/bundles/org.openhab.binding.miio
  *
  */
 class Roborock extends IPSModule
 {
+
     private const STATUS_INST_CONFIGURATION_INCOMPLETE = 201;
     private const STATUS_INST_IP_ADDRESS_IS_INVALID    = 203;
     private const STATUS_INST_TOKEN_IS_INVALID         = 205;
@@ -24,13 +32,15 @@ class Roborock extends IPSModule
     private const ATTRIBUTE_TOKEN                   = 'token';
     private const ATTRIBUTE_LAST_NOTIFICATION_STATE = 'last_notification_state';
     private const ATTRIBUTE_LAST_NOTIFICATION_ERROR = 'last_notification_error';
-    private const ATTRIBUTE_CLEANING_RECORDS = 'cleaning_records';
-
+    private const ATTRIBUTE_CLEANING_RECORDS        = 'cleaning_records';
+    private const ATTRIBUTE_MODEL                   = 'model';
 
     private const PROPERTY_IP              = 'ip';
+    private const PROPERTY_MODEL           = 'model';
     private const PROPERTY_VOLUME          = 'volume';
     private const PROPERTY_FAN_POWER       = 'fan_power';
     private const PROPERTY_WATER_QUANTITY  = 'water_quantity';
+    private const PROPERTY_CONSUMABLES     = 'consumables';
     private const PROPERTY_XIAOMI_USER     = 'xiaomi_user';
     private const PROPERTY_XIAOMI_PASSWORD = 'xiaomi_password';
 
@@ -38,12 +48,14 @@ class Roborock extends IPSModule
     private const IDENT_COMMAND                   = 'command';
     private const IDENT_FAN_POWER                 = 'fan_power';
     private const IDENT_WATER_QUANTITY            = 'water_quantity';
+    private const IDENT_CONSUMABLES               = 'consumables';
     private const IDENT_WATER_BOX_STATUS          = 'water_box_status';
-    private const IDENT_WATER_BOX_CARRIAGE_STATUS = 'water_box_carriage_status';
+    private const IDENT_WATER_BOX_CARRIAGE_STATUS = 'water_box_carriage_status'; //Anmerkung: der Unterschied zwischen 'water_box_status' und 'water_box_carriage_status' ist unklar
+    private const IDENT_MODEL                     = 'model';
 
 
     // state code mapper
-    protected $state_codes = [
+    protected array $state_codes = [
         0   => 'Unknown',
         1   => 'Starting up',
         2   => 'Sleeping',
@@ -70,7 +82,7 @@ class Roborock extends IPSModule
     ];
 
     // error code mapper
-    protected $error_codes        = [
+    protected array $error_codes        = [
         0  => 'None',
         1  => 'Laser sensor fault',
         2  => 'Collision sensor error',
@@ -104,7 +116,7 @@ class Roborock extends IPSModule
         46 => 'Staubbehälter nicht installiert'
     ];
 
-    protected $push_notifications = [
+    protected array $push_notifications = [
         [
             'enabled'  => true,
             'state_id' => 'errors', // enable all error codes
@@ -138,7 +150,21 @@ class Roborock extends IPSModule
     ];
 
     // helper properties
-    private $position = 0;
+    private int $position = 0;
+    private roborock_vacuum $device;
+
+    public function __construct($InstanceID)
+    {
+        parent::__construct($InstanceID);
+
+        if (($model = @$this->ReadAttributeString(self::ATTRIBUTE_MODEL)) && ($modelClassName = str_replace('.', '_', $model)) && class_exists($modelClassName)) {
+            $this->device = new $modelClassName();
+        } else {
+            $this->device = new roborock_vacuum();
+        }
+
+//        $this->SendDebug(__FUNCTION__, 'Model: ' . $this->device->GetName(), 0);
+    }
 
     /**
      * create instance.
@@ -157,7 +183,7 @@ class Roborock extends IPSModule
         $this->RegisterPropertyBoolean(self::PROPERTY_FAN_POWER, false);
         $this->RegisterPropertyBoolean(self::PROPERTY_WATER_QUANTITY, false);
         $this->RegisterPropertyBoolean('error_code', false);
-        $this->RegisterPropertyBoolean('consumables', false);
+        $this->RegisterPropertyBoolean(self::PROPERTY_CONSUMABLES, false);
         $this->RegisterPropertyBoolean('consumables_separate', false);
         $this->RegisterPropertyBoolean('dnd_mode', false);
         $this->RegisterPropertyBoolean('clean_area', false);
@@ -191,6 +217,7 @@ class Roborock extends IPSModule
         $this->RegisterAttributeString(self::ATTRIBUTE_LAST_NOTIFICATION_STATE, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_LAST_NOTIFICATION_ERROR, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, '');
+        $this->RegisterAttributeString(self::ATTRIBUTE_MODEL, '');
 
     }
 
@@ -198,6 +225,7 @@ class Roborock extends IPSModule
      * apply changes from configuration form.
      *
      * @return void
+     * @throws \JsonException
      */
     public function ApplyChanges()
     {
@@ -329,10 +357,10 @@ class Roborock extends IPSModule
         }
 
         // consumables
-        if ($this->ReadPropertyBoolean('consumables')) {
-            $this->RegisterVariableString('consumables', $this->Translate('Consumables'), '~HTMLBox', $this->_getPosition());
+        if ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES)) {
+            $this->RegisterVariableString(self::IDENT_CONSUMABLES, $this->Translate('Consumables'), '~HTMLBox', $this->_getPosition());
         } else {
-            $this->UnregisterVariable('consumables');
+            $this->UnregisterVariable(self::IDENT_CONSUMABLES);
         }
 
         // consumables separate
@@ -412,7 +440,7 @@ class Roborock extends IPSModule
             $this->RegisterVariableString('ssid', $this->Translate('ssid'), '', $this->_getPosition());
             $this->RegisterVariableString('rssi', $this->Translate('rssi'), '', $this->_getPosition());
             $this->RegisterVariableString('local_ip', $this->Translate('local ip'), '', $this->_getPosition());
-            $this->RegisterVariableString('model', $this->Translate('model'), '', $this->_getPosition());
+            $this->RegisterVariableString(self::IDENT_MODEL, $this->Translate('model'), '', $this->_getPosition());
             $this->RegisterVariableString('mac', $this->Translate('mac'), '', $this->_getPosition());
         } else {
             $this->UnregisterVariable('hw_ver');
@@ -420,7 +448,7 @@ class Roborock extends IPSModule
             $this->UnregisterVariable('ssid');
             $this->UnregisterVariable('rssi');
             $this->UnregisterVariable('local_ip');
-            $this->UnregisterVariable('model');
+            $this->UnregisterVariable(self::IDENT_MODEL);
             $this->UnregisterVariable('mac');
         }
 
@@ -453,6 +481,7 @@ class Roborock extends IPSModule
      * @param array $Data
      *
      * @return bool|void
+     * @throws \JsonException
      */
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
@@ -498,19 +527,17 @@ class Roborock extends IPSModule
         }
 
         // get device info
-        if ($extended_validation) {
-            $info = $this->RequestData('miIO.info', [
-                'immediate' => true
-            ]);
+        $info = $this->RequestData('miIO.info', [
+            'immediate' => true
+        ]);
 
-            if (!$info) {
-                $this->SetStatus(self::STATUS_INST_NO_ROBOROCK_FOUND);
-                $this->SendDebug(__FUNCTION__, (string) $this->GetStatus(), 0);
-                return false;
-            }
-
-            $this->_debug('info', json_encode($info));
+        if (!$info) {
+            $this->SetStatus(self::STATUS_INST_NO_ROBOROCK_FOUND);
+            $this->SendDebug(__FUNCTION__, (string) $this->GetStatus(), 0);
+            return false;
         }
+
+        $this->_debug('info', json_encode($info));
 
         // check category
         if ($this->ReadPropertyBoolean('setup_scripts') && $this->ReadPropertyInteger('script_category') === 0) {
@@ -566,19 +593,17 @@ class Roborock extends IPSModule
      *
      * @return int
      */
-    protected function CreateRoborockScript($Scriptname, $Ident, $Script): int
+    protected function CreateRoborockScript(string $Scriptname, string $Ident, string $Content):void
     {
         $MainCatID = $this->ReadPropertyInteger('script_category');
-        $ScriptID  = @IPS_GetObjectIDByIdent($Ident, $MainCatID);
 
-        if ($ScriptID === false) {
-            $ScriptID = IPS_CreateScript(0);
+        if (!@IPS_GetObjectIDByIdent($Ident, $MainCatID)) {
+            $ScriptID = IPS_CreateScript(SCRIPTTYPE_PHP);
             IPS_SetName($ScriptID, $Scriptname);
             IPS_SetParent($ScriptID, $MainCatID);
             IPS_SetIdent($ScriptID, $Ident);
-            IPS_SetScriptContent($ScriptID, $Script);
+            IPS_SetScriptContent($ScriptID, $Content);
         }
-        return $ScriptID;
     }
 
     private function CreateStartScript(): string
@@ -666,7 +691,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
             }
 
             // update consumables
-            if ($this->ReadPropertyBoolean('consumables') || $this->ReadPropertyBoolean('consumables_separate')) {
+            if ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES) || $this->ReadPropertyBoolean('consumables_separate')) {
                 $this->Get_Consumables();
             }
 
@@ -766,6 +791,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
 
         //die folgenden Statements scheinen überflüssig zu sein
         //$this->SendDebug('IPS', json_encode($_IPS, JSON_THROW_ON_ERROR), 0);
+        /** @noinspection PhpUndefinedVariableInspection */
         if (($_IPS['SELF'] > 0 && $_IPS['SELF'] !== $this->InstanceID)
             || in_array($_IPS['SENDER'], ['Execute', 'Variable'])) {
             $payload['immediate'] = true;
@@ -1000,7 +1026,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      */
     public function Reset_Filter()
     {
-        return $this->Reset_Consumable('filter');
+        return $this->Reset_Consumable($this->device::CONSUMABLES[Consumable::FILTER]);
     }
 
     /**
@@ -1010,7 +1036,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      */
     public function Reset_Mainbrush()
     {
-        return $this->Reset_Consumable('mainbrush');
+        return $this->Reset_Consumable($this->device::CONSUMABLES[Consumable::MAINBRUSH]);
     }
 
     /**
@@ -1020,7 +1046,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      */
     public function Reset_Sidebrush()
     {
-        return $this->Reset_Consumable('sidebrush');
+        return $this->Reset_Consumable($this->device::CONSUMABLES[Consumable::SIDEBRUSH]);
     }
 
     /**
@@ -1030,7 +1056,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      */
     public function Reset_Sensors()
     {
-        return $this->Reset_Consumable('sensors');
+        return $this->Reset_Consumable($this->device::CONSUMABLES[Consumable::SENSOR]);
     }
 
     /**
@@ -1974,6 +2000,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         if (!$this->CheckConfiguration()) {
             $this->SetStatus(self::STATUS_INST_CONFIGURATION_INCOMPLETE);
         }
+
         $form = json_encode([
                                 'elements' => $this->FormHead(),
                                 'actions'  => $this->FormActions(),
@@ -1992,12 +2019,19 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     protected function FormHead(): array
     {
         $token = $this->ReadAttributeString(self::ATTRIBUTE_TOKEN);
+        $model = $this->ReadAttributeString(self::ATTRIBUTE_MODEL);
 
         $form = [
             [
                 'name'    => self::PROPERTY_IP,
                 'type'    => 'ValidationTextBox',
                 'caption' => 'IP address Roborock'
+            ],
+            [
+                'name'    => self::PROPERTY_MODEL,
+                'type'    => 'Label',
+                'caption' => $model,
+                'visible' => (strlen($model)>0)
             ],
             [
                 'type'  => 'Label',
@@ -2183,7 +2217,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
                                      'caption' => 'Error Code'
                                  ],
                                  [
-                                     'name'    => 'consumables',
+                                     'name'    => self::PROPERTY_CONSUMABLES,
                                      'type'    => 'CheckBox',
                                      'caption' => 'Consumables'
                                  ],
@@ -2720,7 +2754,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
                     .separator { background: rgba(0,0,0,0.3);font-weight:bold;font-size:1.2em }
                 </style>
                 $prepend
-			<table class="robotable" cellpadding="0" cellspacing="0" width="100%">
+			<table class="robotable">
 EOF;
 
         // build table head
@@ -3170,7 +3204,18 @@ EOF;
             $this->SetRoborockValue('local_ip', $ip);
 
             $model = $info['model'];
-            $this->SetRoborockValue('model', $model);
+            $this->SetRoborockValue(self::IDENT_MODEL, $model);
+            if ($model !== $this->ReadAttributeString(self::ATTRIBUTE_MODEL)){
+                $this->WriteAttributeString(self::ATTRIBUTE_MODEL, $model);
+                $this->SendDebug(__FUNCTION__, 'new attribute Model: ' . $model, 0);
+                if (($modelClassName = str_replace('.', '_', $model)) && class_exists($modelClassName)) {
+                    $this->device = new $modelClassName();
+                } else {
+                    $this->device = new roborock_vacuum();
+                }
+            }
+
+            $this->UpdateFormField(self::PROPERTY_MODEL, 'Caption', 'AAAA');
 
             $mac = $info['mac'];
             $this->SetRoborockValue('mac', $mac);
@@ -3284,6 +3329,8 @@ EOF;
             $total_side_brush_work_time = 200; // hours
             $total_filter_work_time     = 150; // hours
             $total_sensor_dirty_time    = 30; // hours
+            //todo: dust_collection_work_times beim S7 (Anzahl)
+            //todo: filter_element_work_time beim S6 und beim S7
 
             $main_brush_work_time = $data['result'][0]['main_brush_work_time'];
             $side_brush_work_time = $data['result'][0]['side_brush_work_time'];
@@ -3314,19 +3361,19 @@ EOF;
                 ]
             ];
 
-            $html = $this->_convertDataToTable([
+            // consumables
+            if ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES)) {
+                $html = $this->_convertDataToTable([
                                                    'table' => [
                                                        'head' => [
                                                            $this->Translate('Consumable'),
-                                                           $this->Translate('Consumption (%)')
+                                                           $this->Translate('Residual (%)')
                                                        ],
                                                        'body' => $consumables
                                                    ]
                                                ]);
 
-            // consumables
-            if ($this->ReadPropertyBoolean('consumables')) {
-                $this->SetRoborockValue('consumables', $html);
+                $this->SetRoborockValue(self::IDENT_CONSUMABLES, $html);
             }
 
             // consumables separate

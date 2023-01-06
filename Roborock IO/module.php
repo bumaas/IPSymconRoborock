@@ -400,7 +400,7 @@ class RoborockIO extends IPSModule
 
         // receive response
         $buffer = '';
-        if (($bytes = socket_recvfrom($this->socket, $buffer, 4096, 0, $remote_ip, $remote_port)) !== false) {
+        if (($bytes = @socket_recvfrom($this->socket, $buffer, 4096, 0, $remote_ip, $remote_port)) !== false) {
             $this->_debug(($discover_ip ? 'discover' : 'socket') . ' [response]', $bytes . ' bytes received from ' . $remote_ip . ':' . $remote_port);
 
             // parse message

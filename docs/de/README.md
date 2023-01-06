@@ -1,10 +1,7 @@
 # Roborock Staubsauger Roboter
 [![Version](https://img.shields.io/badge/Symcon-PHPModul-red.svg)](https://www.symcon.de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/)
-[![Version](https://img.shields.io/badge/Symcon%20Version-%3E%205.1-green.svg)](https://www.symcon.de/service/dokumentation/installation/)
-![Code](https://img.shields.io/badge/Code-PHP-blue.svg)
-[![StyleCI](https://github.styleci.io/repos/123504524/shield?branch=master)](https://github.styleci.io/repos/123504524)
 
-Modul für IP-Symcon ab Version 5.1
+Modul für IP-Symcon ab Version 6.0
 
 ## Dokumentation
 
@@ -41,7 +38,7 @@ Mit dem Modul ist es möglich einen [Roborock](https://www.roborock.com/ "Roboro
     - Batterieleistung
     - Anzahl der Reinigungen
     - Übersicht letzte Reinigungen
-    - Ansicht des Verbrauchsstatus der verbrauchbaren Gegenstände (Haupt-, Seitenbürste, Filter, Sensoren)
+    - Ansicht des Status der Verbrauchsmaterialien (Haupt-, Seitenbürste, Filter, Sensoren)
     - Seriennummer
     - Hardware Version
     - Firmware Version
@@ -55,7 +52,7 @@ Mit dem Modul ist es möglich einen [Roborock](https://www.roborock.com/ "Roboro
 
 ## 2. Voraussetzungen
 
- - IP-Symcon 4.3
+ - IP-Symcon 6.0
  - MI App (Xiaomi) 
  - Roborock Staubsauger Roboter (Xiaomi)
 
@@ -93,7 +90,7 @@ Den Objektbaum _Öffnen_.
 
 ![Objektbaum](img/objektbaum.png?raw=true "Objektbaum")	
 
-Die Instanz _'Modules'_ unterhalb von Kerninstanzen im Objektbaum von IP-Symcon (>=Ver. 5.x) mit einem Doppelklick öffnen und das _Plus_ Zeichen drücken.
+Die Instanz _'Modules'_ unterhalb von Kerninstanzen im Objektbaum von IP-Symcon mit einem Doppelklick öffnen und das _Plus_ Zeichen drücken.
 
 ![Modules](img/modules.png?raw=true "Modules")	
 
@@ -108,19 +105,6 @@ https://github.com/Wolbolar/IPSymconRoborock
 ```  
 	
 Anschließend erscheint ein Eintrag für das Modul in der Liste der Instanz _Modules_    
-
-Es wird im Standard der Zweig (Branch) _master_ geladen, dieser enthält aktuelle Änderungen und Anpassungen.
-Nur der Zweig _master_ wird aktuell gehalten.
-
-![Master](img/master.png?raw=true "master") 
-
-Sollte eine ältere Version von IP-Symcon die kleiner ist als Version 5.1 (min 4.3) eingesetzt werden, ist auf das Zahnrad rechts in der Liste zu klicken.
-Es öffnet sich ein weiteres Fenster,
-
-![SelectBranch](img/select_branch.png?raw=true "select branch") 
-
-hier kann man auf einen anderen Zweig wechseln, für ältere Versionen kleiner als 5.1 (min 4.3) ist hier
-_Old-Version_ auszuwählen. 
 
 ### b. Erhalten der IP-Adresse und des Tokens  
 
