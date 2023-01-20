@@ -91,7 +91,6 @@ class RoborockIO extends IPSModule
 
         $this->SetTimerInterval('RoborockQueue', 200);
 
-        // set status to 102, due no configuration
         $this->SetStatus(IS_ACTIVE);
     }
 

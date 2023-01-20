@@ -19,6 +19,7 @@ require_once __DIR__ . '/roborock_vacuum.php';
  * another implementation: https://github.com/iobroker-community-adapters/ioBroker.mihome-vacuum
  * https://github.com/openhab/openhab-addons/tree/main/bundles/org.openhab.binding.miio
  *
+ * KNX Xiaomi Roboroc Integration: https://service.knx-user-forum.de/?comm=download&id=19001929&dl=1
  */
 class Roborock extends IPSModule
 {
@@ -40,6 +41,7 @@ class Roborock extends IPSModule
     private const PROPERTY_VOLUME          = 'volume';
     private const PROPERTY_FAN_POWER       = 'fan_power';
     private const PROPERTY_WATER_QUANTITY  = 'water_quantity';
+    private const PROPERTY_MAP_STATUS      = 'map_status';
     private const PROPERTY_CONSUMABLES     = 'consumables';
     private const PROPERTY_XIAOMI_USER     = 'xiaomi_user';
     private const PROPERTY_XIAOMI_PASSWORD = 'xiaomi_password';
@@ -51,6 +53,7 @@ class Roborock extends IPSModule
     private const IDENT_CONSUMABLES               = 'consumables';
     private const IDENT_WATER_BOX_STATUS          = 'water_box_status';
     private const IDENT_WATER_BOX_CARRIAGE_STATUS = 'water_box_carriage_status'; //Anmerkung: der Unterschied zwischen 'water_box_status' und 'water_box_carriage_status' ist unklar
+    private const IDENT_MAP_STATUS                = 'map_status';
     private const IDENT_MODEL                     = 'model';
 
 
@@ -182,6 +185,7 @@ class Roborock extends IPSModule
         $this->RegisterPropertyString(self::PROPERTY_IP, '');
         $this->RegisterPropertyBoolean(self::PROPERTY_FAN_POWER, false);
         $this->RegisterPropertyBoolean(self::PROPERTY_WATER_QUANTITY, false);
+        $this->RegisterPropertyBoolean(self::PROPERTY_MAP_STATUS, false);
         $this->RegisterPropertyBoolean('error_code', false);
         $this->RegisterPropertyBoolean(self::PROPERTY_CONSUMABLES, false);
         $this->RegisterPropertyBoolean('consumables_separate', false);
@@ -225,7 +229,6 @@ class Roborock extends IPSModule
      * apply changes from configuration form.
      *
      * @return void
-     * @throws \JsonException
      */
     public function ApplyChanges()
     {
@@ -243,6 +246,10 @@ class Roborock extends IPSModule
                               ]
         );
 
+        $ass = [];
+        foreach ($this->error_codes as $code => $error){
+            $ass[] = [$code, $error, '', -1];
+        }
         $this->RegisterProfileAssociation(
             'Roborock.Errorcode',
             'Information',
@@ -253,9 +260,13 @@ class Roborock extends IPSModule
             0,
             0,
             VARIABLETYPE_INTEGER,
-            'error_codes'
+            $ass
         );
 
+        $ass = [];
+        foreach ($this->state_codes as $code => $state){
+            $ass[] = [$code, $state, '', -1];
+        }
         $this->RegisterProfileAssociation(
             'Roborock.State',
             'Information',
@@ -266,7 +277,7 @@ class Roborock extends IPSModule
             0,
             0,
             VARIABLETYPE_INTEGER,
-            'state_codes'
+            $ass
         );
 
         $this->RegisterProfileAssociation(
@@ -339,6 +350,14 @@ class Roborock extends IPSModule
             $this->UnregisterVariable(self::IDENT_WATER_QUANTITY);
             $this->UnregisterVariable(self::IDENT_WATER_BOX_STATUS);
             $this->UnregisterVariable(self::IDENT_WATER_BOX_CARRIAGE_STATUS);
+        }
+
+        // map_status
+        if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS)) {
+            $this->RegisterVariableInteger(self::IDENT_MAP_STATUS, $this->Translate('Active Map'), 'Roborock.Maps', $this->_getPosition());
+            $this->EnableAction(self::IDENT_MAP_STATUS);
+        } else {
+            $this->UnregisterVariable(self::IDENT_MAP_STATUS);
         }
 
         // volume
@@ -465,10 +484,10 @@ class Roborock extends IPSModule
         // run only, when kernel is ready
         if (IPS_GetKernelRunlevel() === KR_READY) {
             // validate configuration
-            $valid_config = $this->ValidateConfiguration(true);
+            $valid_config = $this->ValidateConfiguration();
 
             // set interval
-            $this->SetUpdateIntervall($valid_config);
+            $this->SetUpdateInterval($valid_config);
         }
     }
 
@@ -480,27 +499,22 @@ class Roborock extends IPSModule
      * @param int   $Message
      * @param array $Data
      *
-     * @return bool|void
-     * @throws \JsonException
      */
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
         if ($Message === IPS_KERNELMESSAGE && $Data[0] === KR_READY) {
             // validate configuration & set interval
             $valid_config = $this->ValidateConfiguration();
-            $this->SetUpdateIntervall($valid_config);
+            $this->SetUpdateInterval($valid_config);
         }
     }
 
     /**
      * validate configuration.
      *
-     * @param bool $extended_validation
-     *
      * @return bool
-     * @throws \JsonException
      */
-    private function ValidateConfiguration(bool $extended_validation = false): bool
+    private function ValidateConfiguration(): bool
     {
         // check if configuration is complete
         if (!$this->CheckConfiguration()) {
@@ -537,7 +551,7 @@ class Roborock extends IPSModule
             return false;
         }
 
-        $this->_debug('info', json_encode($info));
+        $this->_debug('info', json_encode($info, JSON_THROW_ON_ERROR));
 
         // check category
         if ($this->ReadPropertyBoolean('setup_scripts') && $this->ReadPropertyInteger('script_category') === 0) {
@@ -561,7 +575,7 @@ class Roborock extends IPSModule
      *
      * @param bool $enable
      */
-    protected function SetUpdateIntervall(bool $enable = true): void
+    protected function SetUpdateInterval(bool $enable = true): void
     {
         $interval = $enable ? ($this->ReadPropertyInteger('UpdateInterval') * 1000) : 0;
         $this->SetTimerInterval('RoborockTimerUpdate', $interval);
@@ -570,7 +584,7 @@ class Roborock extends IPSModule
     /**
      * Setup Scripts.
      */
-    protected function SetupScripts()
+    protected function SetupScripts(): void
     {
         $this->CreateRoborockScript('Roborock Start', 'Roborock_Start_Script', $this->CreateStartScript());
         $this->CreateRoborockScript('Roborock Stop', 'Roborock_Stop_Script', $this->CreateStopScript());
@@ -587,11 +601,11 @@ class Roborock extends IPSModule
     /**
      * Create a Roborock Script.
      *
-     * @param $Scriptname
-     * @param $Ident
-     * @param $Script
+     * @param string $Scriptname
+     * @param string $Ident
+     * @param string $Content
      *
-     * @return int
+     * @return void
      */
     protected function CreateRoborockScript(string $Scriptname, string $Ident, string $Content):void
     {
@@ -724,6 +738,11 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
             if ($this->ReadPropertyBoolean('timezone') && !$this->GetValue('timezone')) {
                 $this->GetTimezone();
             }
+
+            // update maps (profile)
+            if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS)) {
+                $this->RequestData('get_multi_maps_list', []);
+            }
         }
     }
 
@@ -734,8 +753,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param array  $options
      *
      * @return array|bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function RequestRawData(string $method, array $options = [])
     {
@@ -772,8 +789,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param array  $options
      *
      * @return array|bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     private function RequestData(string $method, array $options = [])
     {
@@ -803,18 +818,20 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         // send to i/o device
         $this->_debug('send', json_encode($buffer, JSON_THROW_ON_ERROR));
 
-        if ($io =
+        if ($io_json =
             @$this->SendDataToParent(json_encode(['DataID' => '{F7DC50D6-DCE6-27CE-49B2-A363593EBB3B}', 'Buffer' => $buffer], JSON_THROW_ON_ERROR))) {
             // receive data on immediately requests
             if ($buffer['immediate']) {
-                // merge buffer
-                $buffer = $this->_merge(
-                    $buffer,
-                    json_decode($io, true, 512, JSON_THROW_ON_ERROR)
-                );
+                $io = json_decode($io_json, true, 512, JSON_THROW_ON_ERROR);
+                if ($io){
+                    // merge buffer
+                    $buffer = $this->_merge($buffer, $io);
 
-                // return data
-                return $this->ExecuteCallback($buffer);
+                    // return data
+                    return $this->ExecuteCallback($buffer);
+
+                }
+                return false;
             }
 
             return true;
@@ -828,9 +845,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @param string $JSONString
      *
-     * @return bool|void
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function ReceiveData($JSONString)
     {
@@ -859,7 +873,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param array $buffer
      *
      * @return mixed
-     * @throws \JsonException
      */
     private function ExecuteCallback(array $buffer)
     {
@@ -867,7 +880,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         $callback = strtr(strtolower($buffer['method']), ['.' => '_']) . '_callback';
         if (method_exists($this, $callback)) {
             $this->_debug('receive', $callback . ': ' . json_encode($buffer, JSON_THROW_ON_ERROR));
-            return call_user_func([$this, $callback], $buffer);
+            return $this->$callback($buffer);
         }
 
         // return original buffer, when no callback was found
@@ -901,8 +914,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * check if sound files are installing.
      *
      * @return array
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function sound_progress()
     {
@@ -915,8 +926,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * start cleaning.
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Start()
     {
@@ -928,8 +937,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * stop cleaning.
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Stop()
     {
@@ -941,8 +948,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * start spot cleaning.
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function CleanSpot()
     {
@@ -954,8 +959,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * pause cleaning.
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Pause()
     {
@@ -967,8 +970,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * return to dock.
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Charge()
     {
@@ -980,8 +981,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * locate vacuum cleaner by voice message.
      *
      * @return mixed
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Locate()
     {
@@ -995,8 +994,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get consumables time remaining in %.
      *
      * @return array
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Get_Consumables()
     {
@@ -1009,8 +1006,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param string $part filter|mainbrush|sidebrush|sensors
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Reset_Consumable(string $part)
     {
@@ -1050,7 +1045,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     }
 
     /**
-     * reset conmsumables.
+     * reset sensor.
      *
      * @return bool
      */
@@ -1063,8 +1058,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get clean summary.
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function GetCleanSummary()
     {
@@ -1077,8 +1070,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int|array $record_id
      *
      * @return array
-     * @throws \JsonException
-     * @throws \JsonException
      */
     protected function GetCleanRecord($record_id)
     {
@@ -1091,8 +1082,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get clean record map.
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function GetCleanRecordMap()
     {
@@ -1103,8 +1092,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get map.
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function GetMap()
     {
@@ -1115,8 +1102,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get current state.
      *
      * @return array
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Get_State()
     {
@@ -1127,8 +1112,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get serial number.
      *
      * @return string
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Get_Serial_Number()
     {
@@ -1139,8 +1122,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get current dnd mode.
      *
      * @return array
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Get_DND_Mode()
     {
@@ -1156,8 +1137,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int $endminutes
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function SetDNDTimer(int $starthour, int $startminutes, int $endhour, int $endminutes)
     {
@@ -1175,8 +1154,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * disable dnd mode.
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function DisableDND()
     {
@@ -1191,8 +1168,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param string $repetition once|weekdays|weekends|every day
      *
      * @return array|bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Set_Timer(int $hour, int $minute, string $repetition)
     {
@@ -1205,11 +1180,9 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     /**
      * enable timer.
      *
-     * @param $timerid
+     * @param string $timerid
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function EnableTimer(string $timerid)
     {
@@ -1221,11 +1194,9 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     /**
      * disable timer.
      *
-     * @param $timerid
+     * @param string $timerid
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function DisableTimer(string $timerid)
     {
@@ -1238,8 +1209,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get timer details.
      *
      * @return array
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Get_Timer_Details()
     {
@@ -1249,11 +1218,9 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     /**
      * delete a timer.
      *
-     * @param $timerid
+     * @param string $timerid
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function DeleteTimer(string $timerid)
     {
@@ -1263,9 +1230,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     /**
      * get timezone.
      *
-     * @return string
-     * @throws \JsonException
-     * @throws \JsonException
+     * @return bool
      */
     public function GetTimezone()
     {
@@ -1276,8 +1241,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * set timezone to europe.
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function SetTimezoneEurope()
     {
@@ -1290,8 +1253,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param string $sound_url
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     protected function InstallSound(string $sound_url)
     {
@@ -1306,8 +1267,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int $level
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function SetSoundLevel(int $level)
     {
@@ -1332,8 +1291,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int $power
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Set_Fan_Power(int $power)
     {
@@ -1347,7 +1304,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * Get the water quantity control during the cleaning process.
      *
      * @return int
-     * @throws \JsonException
      */
     public function Get_Water_Quantity_Control()
     {
@@ -1357,11 +1313,9 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     /**
      * set the water quantity control during the cleaning process. (Quiet=38, Balanced=60, Turbo=77, Full Speed=90).
      *
-     * @param int $power
+     * @param int $mode
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Set_Water_Quantity_Control(int $mode)
     {
@@ -1379,8 +1333,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int|null $time      in ms
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Move_Direction(int $direction, int $velocity, int $time = 1000)
     {
@@ -1399,11 +1351,22 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     }
 
     /**
+     * load map
+     *
+     * @param int      $mapIndex
+     *
+     * @return bool
+     */
+    public function LoadMap(int $mapIndex)
+    {
+        return $this->RequestData('load_multi_map', ['params' => [$mapIndex]]);
+    }
+
+
+    /**
      * start remote control.
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     protected function StartRemoteControl()
     {
@@ -1414,8 +1377,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * stop remote control.
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     protected function StopRemoteControl()
     {
@@ -1432,8 +1393,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int $number
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function ZoneClean(int $lower_left_corner_x, int $lower_left_corner_y, int $upper_right_corner_x, int $upper_right_corner_y, int $number)
     {
@@ -1455,7 +1414,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         $zones  = $this->GetZones();
         $zoneid = -1;
         foreach ($zones as $key => $zone) {
-            if ($zone['roomname'] == $roomname) {
+            if ($zone['roomname'] === $roomname) {
                 $zoneid = $key;
             }
         }
@@ -1511,8 +1470,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param string $multizone
      *
      * @return array|bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function ZoneCleanMulti(string $multizone)
     {
@@ -1527,13 +1484,12 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param string $multizone
      *
      * @return array|bool
-     * @throws \JsonException
      */
     public function ZoneCleanMultiName(string $multizone)
     {
-        $multizone     = json_decode($multizone, true, JSON_THROW_ON_ERROR);
+        $multizone     = json_decode($multizone, true, 512, JSON_THROW_ON_ERROR);
         $command_zones = [];
-        foreach ($multizone as $key => $zone) {
+        foreach ($multizone as $zone) {
             $command_zones[] = [$zone[0][0], $zone[0][1], $zone[0][2], $zone[0][3], $zone[1]];
         }
         return $this->RequestData('app_zoned_clean', [
@@ -1548,7 +1504,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int $y
      *
      * @return bool
-     * @throws \JsonException
      */
     public function GotoTarget(int $x, int $y)
     {
@@ -1564,7 +1519,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get device info.
      *
      * @return array
-     * @throws \JsonException
      */
     public function GetDeviceInfo()
     {
@@ -1576,7 +1530,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @param bool $state
      */
-    public function Toggle_State(bool $state)
+    public function Toggle_State(bool $state): void
     {
         if ($state) {
             $this->Start();
@@ -1591,7 +1545,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @param bool $state
      */
-    public function Set_DND(bool $state)
+    public function Set_DND(bool $state): void
     {
         $this->SetRoborockValue('dnd_mode', $state);
 
@@ -1615,13 +1569,13 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @param string $starttime
      */
-    public function Set_DND_Start(string $starttime)
+    public function Set_DND_Start(string $starttime): void
     {
         $unixtime = strtotime($starttime);
         $this->Set_DND_StartInt($unixtime);
     }
 
-    protected function Set_DND_StartInt($starttime)
+    protected function Set_DND_StartInt($starttime): void
     {
         $start_hour    = (int)date('H', $starttime);
         $start_minutes = (int)date('i', $starttime);
@@ -1638,13 +1592,13 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @param string $endtime
      */
-    public function Set_DND_End(string $endtime)
+    public function Set_DND_End(string $endtime): void
     {
         $unixtime = strtotime($endtime);
         $this->Set_DND_EndInt($unixtime);
     }
 
-    protected function Set_DND_EndInt($endtime)
+    protected function Set_DND_EndInt($endtime): void
     {
         $end_hour    = (int)date('H', $endtime);
         $end_minutes = (int)date('i', $endtime);
@@ -1660,8 +1614,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get sounds.
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Get_Sound()
     {
@@ -1672,8 +1624,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * get sound volume.
      *
      * @return int
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Get_SoundVolume()
     {
@@ -1686,8 +1636,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int $volume
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Set_SoundVolume(int $volume)
     {
@@ -1703,8 +1651,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int $segmentid
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Start_Segment_Clean(int $segmentid)
     {
@@ -1718,15 +1664,13 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     /**
      * segment clean Ex
      *
-     * @param string json encoded array of segmentids
+     * @param string $segmentIds json encoded array of segmentids
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     public function Start_Segment_Clean_Ex(string $segmentIds)
     {
-        $segments = json_decode($segmentIds, true);
+        $segments = json_decode($segmentIds, true, 512, JSON_THROW_ON_ERROR);
         return $this->RequestData('app_segment_clean', [
             'params' => $segments
         ]);
@@ -1783,6 +1727,9 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
             case self::IDENT_WATER_QUANTITY:
                 $this->Set_Water_Quantity_Control($Value);
                 break;
+            case self::IDENT_MAP_STATUS:
+                $this->LoadMap($Value);
+                break;
             default:
                 $this->_debug('request action', 'Invalid $Ident <' . $Ident . '>');
         }
@@ -1801,13 +1748,13 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param $Digits
      * @param $Vartype
      */
-    protected function RegisterProfile($Name, $Icon, $Prefix, $Suffix, $MinValue, $MaxValue, $StepSize, $Digits, $Vartype)
+    protected function RegisterProfile($Name, $Icon, $Prefix, $Suffix, $MinValue, $MaxValue, $StepSize, $Digits, $Vartype): void
     {
         if (!IPS_VariableProfileExists($Name)) {
             IPS_CreateVariableProfile($Name, $Vartype); // 0 boolean, 1 int, 2 float, 3 string,
         } else {
             $profile = IPS_GetVariableProfile($Name);
-            if ($profile['ProfileType'] != $Vartype) {
+            if ($profile['ProfileType'] !== $Vartype) {
                 $this->_debug('profile', 'Variable profile type does not match for profile ' . $Name);
             }
         }
@@ -1839,23 +1786,35 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param $Vartype
      * @param $Associations
      */
-    protected function RegisterProfileAssociation($Name, $Icon, $Prefix, $Suffix, $MinValue, $MaxValue, $Stepsize, $Digits, $Vartype, $Associations)
+    protected function RegisterProfileAssociation(
+        $Name,
+        $Icon,
+        $Prefix,
+        $Suffix,
+        $MinValue,
+        $MaxValue,
+        $Stepsize,
+        $Digits,
+        $Vartype,
+        array $Associations
+    ): void
     {
-        if (is_array($Associations) && count($Associations) === 0) {
+        if (count($Associations) === 0) {
             $MinValue = 0;
             $MaxValue = 0;
         }
         $this->RegisterProfile($Name, $Icon, $Prefix, $Suffix, $MinValue, $MaxValue, $Stepsize, $Digits, $Vartype);
 
-        if (is_array($Associations)) {
-            foreach ($Associations as $Association) {
-                IPS_SetVariableProfileAssociation($Name, $Association[0], $Association[1], $Association[2], $Association[3]);
-            }
-        } else {
-            $Associations = $this->$Associations;
-            foreach ($Associations as $code => $association) {
-                IPS_SetVariableProfileAssociation($Name, $code, $this->Translate($association), $Icon, -1);
-            }
+        //zunächst werden alte Assoziationen gelöscht
+        foreach (IPS_GetVariableProfile($Name)['Associations'] as $Association) {
+            IPS_SetVariableProfileAssociation($Name, $Association['Value'], '', '', -1);
+        }
+
+        //dann werden die aktuellen eingetragen
+        foreach ($Associations as $Association) {
+            $icon = $Association[2]??'';
+            $color = $Association[3]??-1;
+            IPS_SetVariableProfileAssociation($Name, $Association[0], $Association[1], $icon, $color);
         }
     }
 
@@ -1863,8 +1822,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * checks, if configuration is complete.
      *
      * @return bool
-     * @throws \JsonException
-     * @throws \JsonException
      */
     private function CheckConfiguration()
     {
@@ -1883,7 +1840,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         return true;
     }
 
-    public function SendPushNotificationTest(int $state_id, int $error_id, bool $force_send)
+    public function SendPushNotificationTest(int $state_id, int $error_id, bool $force_send): void
     {
         $this->SendPushNotification($state_id, $error_id, $force_send);
     }
@@ -1897,7 +1854,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @return bool
      */
-    protected function SendPushNotification($state_id = 'errors', $error_id = 0, $force_send = false)
+    protected function SendPushNotification($state_id = 'errors', $error_id = 0, bool $force_send = false)
     {
         // get codes by state_id
         if ($state_id === 'errors') {
@@ -1923,12 +1880,12 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         }
 
         // check notification instance (webfront)
-        if ($instance_id = $this->ReadPropertyInteger('notification_instance')) {
-            // get notification settings
-            if ($notifications = @json_decode($this->ReadPropertyString('notifications'), true)) {
+        // get notification settings
+        if (($instance_id = $this->ReadPropertyInteger('notification_instance'))
+            && $notifications = @json_decode($this->ReadPropertyString('notifications'), true)) {
                 // loop notifications and search for current state
                 foreach ($notifications as $notification) {
-                    if ($notification['state_id'] == $state_id) {
+                    if ($notification['state_id'] === $state_id) {
                         // check if notification is enabled
                         if ($notification['enabled'] || $force_send) {
                             // send notification
@@ -1947,7 +1904,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
                     }
                 }
             }
-        }
 
         return false;
     }
@@ -1972,7 +1928,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
             foreach ($current_notifications as $current) {
                 // loop and replace settings
                 foreach ($notifications as &$n) {
-                    if ($n['state_id'] == $current['state_id']) {
+                    if ($n['state_id'] === $current['state_id']) {
                         $n['sound']   = $current['sound'];
                         $n['enabled'] = $current['enabled'];
 
@@ -2220,6 +2176,11 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
                                      'caption' => 'Water Quantity'
                                  ],
                                  [
+                                     'name'    => self::PROPERTY_MAP_STATUS,
+                                     'type'    => 'CheckBox',
+                                     'caption' => 'Active Map'
+                                 ],
+                                 [
                                      'name'    => 'error_code',
                                      'type'    => 'CheckBox',
                                      'caption' => 'Error Code'
@@ -2382,10 +2343,10 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         return $number;
     }
 
-    protected function GetZoneID()
+    protected function GetZoneID(): int
     {
         $zoneid = $this->GetNumberZones() + 1;
-        $this->_debug('Zones ID', strval($zoneid));
+        $this->_debug('Zones ID', (string) $zoneid);
         return $zoneid;
     }
 
@@ -2393,7 +2354,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     {
         $zones_json = $this->ReadPropertyString('zonecoordinates');
         $this->_debug('Zones', $zones_json);
-        if ($zones_json == '') {
+        if ($zones_json === '') {
             $zones = [];
         } else {
             $zones = json_decode($zones_json, true);
@@ -2455,7 +2416,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         return $result;
     }
 
-    protected function SelectionSkripts()
+    protected function SelectionSkripts(): array
     {
         $setup_scripts = $this->ReadPropertyBoolean('setup_scripts');
         $form          = [
@@ -2593,7 +2554,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     /**
      * updates remote variable with joystick html.
      */
-    public function SetJoystickHtml()
+    public function SetJoystickHtml(): void
     {
         $joystick = file_get_contents(dirname(__FILE__, 2) . '/libs/joystick.html');
         $joystick = str_replace('[instance_id]', $this->InstanceID, $joystick);
@@ -2627,36 +2588,36 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         $secondsInADay    = 24 * $secondsInAnHour;
 
         // extract days
-        $days = floor($inputSeconds / $secondsInADay);
+        $days = (int) floor($inputSeconds / $secondsInADay);
 
         // extract hours
         $hourSeconds = $inputSeconds % $secondsInADay;
-        $hours       = floor($hourSeconds / $secondsInAnHour);
+        $hours       = (int) floor($hourSeconds / $secondsInAnHour);
 
         // extract minutes
         $minuteSeconds = $hourSeconds % $secondsInAnHour;
-        $minutes       = floor($minuteSeconds / $secondsInAMinute);
+        $minutes       = (int) floor($minuteSeconds / $secondsInAMinute);
 
         // extract the remaining seconds
         $remainingSeconds = $minuteSeconds % $secondsInAMinute;
-        $seconds          = ceil($remainingSeconds);
+        $seconds          = (int) ceil($remainingSeconds);
 
         // build time
         $time = '';
         if ($days) {
-            $time .= ', ' . $days . ' ' . $this->Translate('Day' . ($days == 1 ? '' : 's'));
+            $time .= ', ' . $days . ' ' . $this->Translate('Day' . ($days === 1 ? '' : 's'));
         }
 
         if ($hours) {
-            $time .= ', ' . $hours . ' ' . $this->Translate('Hour' . ($hours == 1 ? '' : 's'));
+            $time .= ', ' . $hours . ' ' . $this->Translate('Hour' . ($hours === 1 ? '' : 's'));
         }
 
         if ($minutes) {
-            $time .= ', ' . $minutes . ' ' . $this->Translate('Minute' . ($minutes == 1 ? '' : 's'));
+            $time .= ', ' . $minutes . ' ' . $this->Translate('Minute' . ($minutes === 1 ? '' : 's'));
         }
 
         if (empty($time)) {
-            $time .= ', ' . $seconds . ' ' . $this->Translate('Second' . ($seconds == 1 ? '' : 's'));
+            $time .= ', ' . $seconds . ' ' . $this->Translate('Second' . ($seconds === 1 ? '' : 's'));
         }
 
         return substr($time, 2);
@@ -2682,7 +2643,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param string $message
      * @param int    $format 0 = Text, 1 = Hex
      */
-    private function _debug(string $notification = null, string $message = null, $format = 0)
+    private function _debug(string $notification = null, string $message = null, int $format = 0): void
     {
         $this->SendDebug($notification, $message, $format);
     }
@@ -2695,7 +2656,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @return array Merged array
      */
-    private function _merge(array $data, $merge)
+    private function _merge(array $data, array $merge)
     {
         $args   = array_slice(func_get_args(), 1);
         $return = $data;
@@ -3223,8 +3184,6 @@ EOF;
                 }
             }
 
-            $this->UpdateFormField(self::PROPERTY_MODEL, 'Caption', 'AAAA');
-
             $mac = $info['mac'];
             $this->SetRoborockValue('mac', $mac);
 
@@ -3314,6 +3273,13 @@ EOF;
             $this->SetRoborockValue(self::IDENT_WATER_BOX_CARRIAGE_STATUS, $water_box_carriage_status);
             $ret['water_box_carriage_status'] = $water_box_carriage_status;
         }
+
+        if (isset($result['map_status'])) {
+            $map_status = (int)$result['map_status']>>2;
+            $this->SetRoborockValue(self::IDENT_MAP_STATUS, $map_status);
+            $ret['map_status'] = $map_status;
+        }
+
 
         // send push notifications
         $this->SendPushNotification($state);
@@ -3483,6 +3449,29 @@ EOF;
             'cleanups'            => $cleanups,
             'clean_records'       => $clean_records
         ];
+    }
+
+
+    /**
+     * Callback: Get Multi Maps List
+     *
+     * @param array $data
+     */
+    protected function get_multi_maps_list_callback(array $data)
+    {
+
+        $ass = [];
+        if (isset($data['result'][0]['multi_map_count'])){
+            $result = $data['result'][0];
+            foreach ($result['map_info'] as $index => $mapInfo){
+                $ass[] = [$index, $mapInfo['name'], '', -1];
+            }
+
+            $this->RegisterProfileAssociation(
+                'Roborock.Maps', '', '', '', 0, count($ass), 0, 0, VARIABLETYPE_INTEGER, $ass
+            );
+
+        }
     }
 
 
