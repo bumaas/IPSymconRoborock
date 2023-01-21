@@ -46,6 +46,20 @@ class Roborock extends IPSModule
     private const PROPERTY_XIAOMI_USER     = 'xiaomi_user';
     private const PROPERTY_XIAOMI_PASSWORD = 'xiaomi_password';
 
+    private const PROFILE_COMMAND = 'Roborock.Command';
+    private const PROFILE_ERRORCODE = 'Roborock.Errorcode';
+    private const PROFILE_STATE = 'Roborock.State';
+    private const PROFILE_FINDME = 'Roborock.Findme';
+    private const PROFILE_FANPOWER = 'Roborock.Fanpower';
+    private const PROFILE_WATERQUANTITY = 'Roborock.WaterQuantity';
+    private const PROFILE_MAPS = 'Roborock.Maps';
+    private const PROFILE_CLEANAREA = 'Roborock.Cleanarea';
+    private const PROFILE_TOTALCLEANS = 'Roborock.Totalcleans';
+    private const PROFILE_VOLUME = 'Roborock.Volume';
+    private const PROFILE_BATTERY = 'Roborock.Battery';
+    private const PROFILE_CONSUMABLE = 'Roborock.Consumable';
+    private const PROFILE_DURATION = 'Roborock.Duration';
+
     private const IDENT_VOLUME                    = 'volume';
     private const IDENT_COMMAND                   = 'command';
     private const IDENT_FAN_POWER                 = 'fan_power';
@@ -236,7 +250,7 @@ class Roborock extends IPSModule
 
         //  register profiles
         $this->RegisterProfileAssociation(
-            'Roborock.Command', 'Execute', '', '', 0, 4, 0, 0, VARIABLETYPE_INTEGER, [
+            self::PROFILE_COMMAND, 'Execute', '', '', 0, 4, 0, 0, VARIABLETYPE_INTEGER, [
                                   [0, $this->Translate('Start'), 'HollowLargeArrowRight', -1, 1],
                                   [1, $this->Translate('Pause'), 'Close', -1],
                                   [2, $this->Translate('Stop'), 'Close', -1],
@@ -251,7 +265,7 @@ class Roborock extends IPSModule
             $ass[] = [$code, $error, '', -1];
         }
         $this->RegisterProfileAssociation(
-            'Roborock.Errorcode',
+            self::PROFILE_ERRORCODE,
             'Information',
             '',
             '',
@@ -268,7 +282,7 @@ class Roborock extends IPSModule
             $ass[] = [$code, $state, '', -1];
         }
         $this->RegisterProfileAssociation(
-            'Roborock.State',
+            self::PROFILE_STATE,
             'Information',
             '',
             '',
@@ -281,14 +295,14 @@ class Roborock extends IPSModule
         );
 
         $this->RegisterProfileAssociation(
-            'Roborock.Findme', 'Robot', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, [
+            self::PROFILE_FINDME, 'Robot', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, [
                                  [0, $this->Translate('find robot'), '', 0x3ADF00]
                              ]
         );
 
-        $this->RegisterProfile('Roborock.Fanpower', 'Speedo', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
+        $this->RegisterProfile(self::PROFILE_FANPOWER, 'Speedo', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
         $this->RegisterProfileAssociation(
-            'Roborock.WaterQuantity', 'Drops', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, [
+            self::PROFILE_WATERQUANTITY, 'Drops', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, [
                                         [200, $this->Translate('Off'), '', -1],
                                         [201, $this->Translate('Low'), '', -1],
                                         [202, $this->Translate('Medium'), '', -1],
@@ -296,12 +310,13 @@ class Roborock extends IPSModule
                                         [204, $this->Translate('Customize (Auto)'), '', -1],
                                     ]
         );
-        $this->RegisterProfile('Roborock.Cleanarea', 'Shuffle', '', ' m²', 0, 0, 0, 1, VARIABLETYPE_FLOAT);
-        $this->RegisterProfile('Roborock.Totalcleans', 'Gauge', '', '', 0, 0, 0, 2, VARIABLETYPE_INTEGER);
-        $this->RegisterProfile('Roborock.Volume', 'Speaker', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
-        $this->RegisterProfile('Roborock.Battery', 'Battery', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
-        $this->RegisterProfile('Roborock.Consumable', 'Gear', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
-        $this->RegisterProfile('Roborock.Duration', '', '', ' s', 0, 0, 0, 0, VARIABLETYPE_INTEGER);
+        $this->RegisterProfile(self::PROFILE_CLEANAREA, 'Shuffle', '', ' m²', 0, 0, 0, 1, VARIABLETYPE_FLOAT);
+        $this->RegisterProfile(self::PROFILE_TOTALCLEANS, 'Gauge', '', '', 0, 0, 0, 2, VARIABLETYPE_INTEGER);
+        $this->RegisterProfile(self::PROFILE_VOLUME, 'Speaker', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
+        $this->RegisterProfile(self::PROFILE_BATTERY, 'Battery', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
+        $this->RegisterProfile(self::PROFILE_CONSUMABLE, 'Gear', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
+        $this->RegisterProfile(self::PROFILE_DURATION, '', '', ' s', 0, 0, 0, 0, VARIABLETYPE_INTEGER);
+        $this->RegisterProfile(self::PROFILE_MAPS, '', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER);
 
         // Remote Control
         if ($this->ReadPropertyBoolean('remote')) {
@@ -313,18 +328,18 @@ class Roborock extends IPSModule
         }
 
         // command
-        $this->RegisterVariableInteger(self::IDENT_COMMAND, $this->Translate('command'), 'Roborock.Command', $this->_getPosition());
+        $this->RegisterVariableInteger(self::IDENT_COMMAND, $this->Translate('command'), self::PROFILE_COMMAND, $this->_getPosition());
         $this->EnableAction(self::IDENT_COMMAND);
 
         // current state
-        $this->RegisterVariableInteger('state', $this->Translate('State'), 'Roborock.State', $this->_getPosition());
+        $this->RegisterVariableInteger('state', $this->Translate('State'), self::PROFILE_STATE, $this->_getPosition());
 
         // current battery level
-        $this->RegisterVariableInteger('battery', $this->Translate('Battery'), 'Roborock.Battery', $this->_getPosition());
+        $this->RegisterVariableInteger('battery', $this->Translate('Battery'), self::PROFILE_BATTERY, $this->_getPosition());
 
         // fan power
         if ($this->ReadPropertyBoolean(self::PROPERTY_FAN_POWER)) {
-            $this->RegisterVariableInteger(self::IDENT_FAN_POWER, $this->Translate('Fan Power'), 'Roborock.Fanpower', $this->_getPosition());
+            $this->RegisterVariableInteger(self::IDENT_FAN_POWER, $this->Translate('Fan Power'), self::PROFILE_FANPOWER, $this->_getPosition());
             $this->EnableAction(self::IDENT_FAN_POWER);
         } else {
             $this->UnregisterVariable(self::IDENT_FAN_POWER);
@@ -335,7 +350,7 @@ class Roborock extends IPSModule
             $this->RegisterVariableInteger(
                 self::IDENT_WATER_QUANTITY,
                 $this->Translate('Water Quantity'),
-                'Roborock.WaterQuantity',
+                self::PROFILE_WATERQUANTITY,
                 $this->_getPosition()
             );
             $this->RegisterVariableBoolean(self::IDENT_WATER_BOX_STATUS, $this->Translate('Water Box installed'), '~Switch', $this->_getPosition());
@@ -354,7 +369,7 @@ class Roborock extends IPSModule
 
         // map_status
         if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS)) {
-            $this->RegisterVariableInteger(self::IDENT_MAP_STATUS, $this->Translate('Active Map'), 'Roborock.Maps', $this->_getPosition());
+            $this->RegisterVariableInteger(self::IDENT_MAP_STATUS, $this->Translate('Active Map'), self::PROFILE_MAPS, $this->_getPosition());
             $this->EnableAction(self::IDENT_MAP_STATUS);
         } else {
             $this->UnregisterVariable(self::IDENT_MAP_STATUS);
@@ -362,7 +377,7 @@ class Roborock extends IPSModule
 
         // volume
         if ($this->ReadPropertyBoolean(self::PROPERTY_VOLUME)) {
-            $this->RegisterVariableInteger(self::IDENT_VOLUME, $this->Translate('Volume'), 'Roborock.Volume', $this->_getPosition());
+            $this->RegisterVariableInteger(self::IDENT_VOLUME, $this->Translate('Volume'), self::PROFILE_VOLUME, $this->_getPosition());
             $this->EnableAction(self::IDENT_VOLUME);
         } else {
             $this->UnregisterVariable(self::IDENT_VOLUME);
@@ -370,7 +385,7 @@ class Roborock extends IPSModule
 
         // error code
         if ($this->ReadPropertyBoolean('error_code')) {
-            $this->RegisterVariableInteger('error_code', $this->Translate('Error Code'), 'Roborock.Errorcode', $this->_getPosition());
+            $this->RegisterVariableInteger('error_code', $this->Translate('Error Code'), self::PROFILE_ERRORCODE, $this->_getPosition());
         } else {
             $this->UnregisterVariable('error_code');
         }
@@ -384,10 +399,10 @@ class Roborock extends IPSModule
 
         // consumables separate
         if ($this->ReadPropertyBoolean('consumables_separate')) {
-            $this->RegisterVariableInteger('main_brush', $this->Translate('Main Brush'), 'Roborock.Consumable', $this->_getPosition());
-            $this->RegisterVariableInteger('side_brush', $this->Translate('Side Brush'), 'Roborock.Consumable', $this->_getPosition());
-            $this->RegisterVariableInteger('filter', $this->Translate('Filter'), 'Roborock.Consumable', $this->_getPosition());
-            $this->RegisterVariableInteger('sensor', $this->Translate('Sensor'), 'Roborock.Consumable', $this->_getPosition());
+            $this->RegisterVariableInteger('main_brush', $this->Translate('Main Brush'), self::PROFILE_CONSUMABLE, $this->_getPosition());
+            $this->RegisterVariableInteger('side_brush', $this->Translate('Side Brush'), self::PROFILE_CONSUMABLE, $this->_getPosition());
+            $this->RegisterVariableInteger('filter', $this->Translate('Filter'), self::PROFILE_CONSUMABLE, $this->_getPosition());
+            $this->RegisterVariableInteger('sensor', $this->Translate('Sensor'), self::PROFILE_CONSUMABLE, $this->_getPosition());
         } else {
             $this->UnregisterVariable('main_brush');
             $this->UnregisterVariable('side_brush');
@@ -411,8 +426,8 @@ class Roborock extends IPSModule
 
         // clean area
         if ($this->ReadPropertyBoolean('clean_area')) {
-            $this->RegisterVariableFloat('clean_area', $this->Translate('Clean Area'), 'Roborock.Cleanarea', $this->_getPosition());
-            $this->RegisterVariableFloat('total_clean_area', $this->Translate('Total Clean Area'), 'Roborock.Cleanarea', $this->_getPosition());
+            $this->RegisterVariableFloat('clean_area', $this->Translate('Clean Area'), self::PROFILE_CLEANAREA, $this->_getPosition());
+            $this->RegisterVariableFloat('total_clean_area', $this->Translate('Total Clean Area'), self::PROFILE_CLEANAREA, $this->_getPosition());
         } else {
             $this->UnregisterVariable('clean_area');
             $this->UnregisterVariable('total_clean_area');
@@ -420,8 +435,8 @@ class Roborock extends IPSModule
 
         // clean_time
         if ($this->ReadPropertyBoolean('clean_time')) {
-            $this->RegisterVariableInteger('clean_time', $this->Translate('Clean Time'), 'Roborock.Duration', $this->_getPosition());
-            $this->RegisterVariableInteger('total_clean_time', $this->Translate('Total Clean Time'), 'Roborock.Duration', $this->_getPosition());
+            $this->RegisterVariableInteger('clean_time', $this->Translate('Clean Time'), self::PROFILE_DURATION, $this->_getPosition());
+            $this->RegisterVariableInteger('total_clean_time', $this->Translate('Total Clean Time'), self::PROFILE_DURATION, $this->_getPosition());
             $this->RegisterVariableString('cleaning_records', $this->Translate('Cleaning Records'), '~HTMLBox', $this->_getPosition());
         } else {
             $this->UnregisterVariable('clean_time');
@@ -431,7 +446,7 @@ class Roborock extends IPSModule
 
         // total cleans
         if ($this->ReadPropertyBoolean('total_cleans')) {
-            $this->RegisterVariableInteger('total_cleans', $this->Translate('Total Cleans'), 'Roborock.Totalcleans', $this->_getPosition());
+            $this->RegisterVariableInteger('total_cleans', $this->Translate('Total Cleans'), self::PROFILE_TOTALCLEANS, $this->_getPosition());
         } else {
             $this->UnregisterVariable('total_cleans');
         }
@@ -3468,7 +3483,7 @@ EOF;
             }
 
             $this->RegisterProfileAssociation(
-                'Roborock.Maps', '', '', '', 0, count($ass), 0, 0, VARIABLETYPE_INTEGER, $ass
+                self::PROFILE_MAPS, '', '', '', 0, count($ass), 0, 0, VARIABLETYPE_INTEGER, $ass
             );
 
         }
