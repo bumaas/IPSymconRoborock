@@ -10,11 +10,11 @@ require_once __DIR__ . '/roborock_vacuum.php';
  *
  * a very useful API documentation: https://github.com/marcelrv/XiaomiRobotVacuumProtocol
  *
- * also https://python-miio.readthedocs.io/en/latest/_modules/miio/integrations/vacuum/roborock/vacuum.html is very helpful
- *  with vacuum.enums:      https://python-miio.readthedocs.io/en/latest/_modules/miio/integrations/vacuum/roborock/vacuum_enums.html
+ * also https://python-miio.readthedocs.io/en/latest/device_docs/vacuum.html is very helpful
+ *  with vacuum.enums:      https://github.com/rytilahti/python-miio/blob/master/miio/integrations/roborock/vacuum/vacuum_enums.py
  *  with vacuum.containers:
- *  github: https://github.com/rytilahti/python-miio
- *          https://github.com/rytilahti/python-miio/blob/master/miio/integrations/vacuum/roborock/vacuum.py
+ *  github: https://github.com/rytilahti/python-miio/tree/master/miio/integrations/roborock/vacuum
+ *          https://github.com/rytilahti/python-miio/blob/master/miio/integrations/roborock/vacuum/vacuum.py
  *
  * another implementation: https://github.com/iobroker-community-adapters/ioBroker.mihome-vacuum
  * https://github.com/openhab/openhab-addons/tree/main/bundles/org.openhab.binding.miio
@@ -36,29 +36,30 @@ class Roborock extends IPSModule
     private const ATTRIBUTE_CLEANING_RECORDS        = 'cleaning_records';
     private const ATTRIBUTE_MODEL                   = 'model';
 
-    private const PROPERTY_IP              = 'ip';
-    private const PROPERTY_MODEL           = 'model';
-    private const PROPERTY_VOLUME          = 'volume';
-    private const PROPERTY_FAN_POWER       = 'fan_power';
-    private const PROPERTY_WATER_QUANTITY  = 'water_quantity';
-    private const PROPERTY_MAP_STATUS      = 'map_status';
-    private const PROPERTY_CONSUMABLES     = 'consumables';
-    private const PROPERTY_XIAOMI_USER     = 'xiaomi_user';
-    private const PROPERTY_XIAOMI_PASSWORD = 'xiaomi_password';
+    private const PROPERTY_IP                   = 'ip';
+    private const PROPERTY_MODEL                = 'model';
+    private const PROPERTY_VOLUME               = 'volume';
+    private const PROPERTY_FAN_POWER            = 'fan_power';
+    private const PROPERTY_WATER_QUANTITY       = 'water_quantity';
+    private const PROPERTY_MAP_STATUS           = 'map_status';
+    private const PROPERTY_CONSUMABLES          = 'consumables';
+    private const PROPERTY_CONSUMABLES_SEPARATE = 'consumables_separate';
+    private const PROPERTY_XIAOMI_USER          = 'xiaomi_user';
+    private const PROPERTY_XIAOMI_PASSWORD      = 'xiaomi_password';
 
-    private const PROFILE_COMMAND = 'Roborock.Command';
-    private const PROFILE_ERRORCODE = 'Roborock.Errorcode';
-    private const PROFILE_STATE = 'Roborock.State';
-    private const PROFILE_FINDME = 'Roborock.Findme';
-    private const PROFILE_FANPOWER = 'Roborock.Fanpower';
+    private const PROFILE_COMMAND       = 'Roborock.Command';
+    private const PROFILE_ERRORCODE     = 'Roborock.Errorcode';
+    private const PROFILE_STATE         = 'Roborock.State';
+    private const PROFILE_FINDME        = 'Roborock.Findme';
+    private const PROFILE_FANPOWER      = 'Roborock.Fanpower';
     private const PROFILE_WATERQUANTITY = 'Roborock.WaterQuantity';
-    private const PROFILE_MAPS = 'Roborock.Maps';
-    private const PROFILE_CLEANAREA = 'Roborock.Cleanarea';
-    private const PROFILE_TOTALCLEANS = 'Roborock.Totalcleans';
-    private const PROFILE_VOLUME = 'Roborock.Volume';
-    private const PROFILE_BATTERY = 'Roborock.Battery';
-    private const PROFILE_CONSUMABLE = 'Roborock.Consumable';
-    private const PROFILE_DURATION = 'Roborock.Duration';
+    private const PROFILE_MAPS          = 'Roborock.Maps';
+    private const PROFILE_CLEANAREA     = 'Roborock.Cleanarea';
+    private const PROFILE_TOTALCLEANS   = 'Roborock.Totalcleans';
+    private const PROFILE_VOLUME        = 'Roborock.Volume';
+    private const PROFILE_BATTERY       = 'Roborock.Battery';
+    private const PROFILE_CONSUMABLE    = 'Roborock.Consumable';
+    private const PROFILE_DURATION      = 'Roborock.Duration';
 
     private const IDENT_VOLUME                    = 'volume';
     private const IDENT_COMMAND                   = 'command';
@@ -167,20 +168,23 @@ class Roborock extends IPSModule
     ];
 
     // helper properties
-    private int $position = 0;
+    private int             $position = 0;
+
     private roborock_vacuum $device;
 
     public function __construct($InstanceID)
     {
         parent::__construct($InstanceID);
 
-        if (($model = @$this->ReadAttributeString(self::ATTRIBUTE_MODEL)) && ($modelClassName = str_replace('.', '_', $model)) && class_exists($modelClassName)) {
+        if (($model = @$this->ReadAttributeString(self::ATTRIBUTE_MODEL)) && ($modelClassName = str_replace('.', '_', $model))
+            && class_exists(
+                $modelClassName
+            )) {
             $this->device = new $modelClassName();
         } else {
             $this->device = new roborock_vacuum();
         }
-
-//        $this->SendDebug(__FUNCTION__, 'Model: ' . $this->device->GetName(), 0);
+        //        $this->SendDebug(__FUNCTION__, 'Model: ' . $this->device->GetName(), 0);
     }
 
     /**
@@ -202,7 +206,7 @@ class Roborock extends IPSModule
         $this->RegisterPropertyBoolean(self::PROPERTY_MAP_STATUS, false);
         $this->RegisterPropertyBoolean('error_code', false);
         $this->RegisterPropertyBoolean(self::PROPERTY_CONSUMABLES, false);
-        $this->RegisterPropertyBoolean('consumables_separate', false);
+        $this->RegisterPropertyBoolean(self::PROPERTY_CONSUMABLES_SEPARATE, false);
         $this->RegisterPropertyBoolean('dnd_mode', false);
         $this->RegisterPropertyBoolean('clean_area', false);
         $this->RegisterPropertyBoolean('clean_time', false);
@@ -236,7 +240,6 @@ class Roborock extends IPSModule
         $this->RegisterAttributeString(self::ATTRIBUTE_LAST_NOTIFICATION_ERROR, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_MODEL, '');
-
     }
 
     /**
@@ -251,17 +254,17 @@ class Roborock extends IPSModule
         //  register profiles
         $this->RegisterProfileAssociation(
             self::PROFILE_COMMAND, 'Execute', '', '', 0, 4, 0, 0, VARIABLETYPE_INTEGER, [
-                                  [0, $this->Translate('Start'), 'HollowLargeArrowRight', -1, 1],
-                                  [1, $this->Translate('Pause'), 'Close', -1],
-                                  [2, $this->Translate('Stop'), 'Close', -1],
-                                  [3, $this->Translate('Spot'), 'Climate', -1],
-                                  [4, $this->Translate('Charge'), 'Battery', -1],
-                                  [5, $this->Translate('Locate'), 'Motion', -1]
-                              ]
+                                     [0, $this->Translate('Start'), 'HollowLargeArrowRight', -1, 1],
+                                     [1, $this->Translate('Pause'), 'Close', -1],
+                                     [2, $this->Translate('Stop'), 'Close', -1],
+                                     [3, $this->Translate('Spot'), 'Climate', -1],
+                                     [4, $this->Translate('Charge'), 'Battery', -1],
+                                     [5, $this->Translate('Locate'), 'Motion', -1]
+                                 ]
         );
 
         $ass = [];
-        foreach ($this->error_codes as $code => $error){
+        foreach ($this->error_codes as $code => $error) {
             $ass[] = [$code, $error, '', -1];
         }
         $this->RegisterProfileAssociation(
@@ -278,7 +281,7 @@ class Roborock extends IPSModule
         );
 
         $ass = [];
-        foreach ($this->state_codes as $code => $state){
+        foreach ($this->state_codes as $code => $state) {
             $ass[] = [$code, $state, '', -1];
         }
         $this->RegisterProfileAssociation(
@@ -296,19 +299,19 @@ class Roborock extends IPSModule
 
         $this->RegisterProfileAssociation(
             self::PROFILE_FINDME, 'Robot', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, [
-                                 [0, $this->Translate('find robot'), '', 0x3ADF00]
-                             ]
+                                    [0, $this->Translate('find robot'), '', 0x3ADF00]
+                                ]
         );
 
         $this->RegisterProfile(self::PROFILE_FANPOWER, 'Speedo', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
         $this->RegisterProfileAssociation(
             self::PROFILE_WATERQUANTITY, 'Drops', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, [
-                                        [200, $this->Translate('Off'), '', -1],
-                                        [201, $this->Translate('Low'), '', -1],
-                                        [202, $this->Translate('Medium'), '', -1],
-                                        [203, $this->Translate('High'), '', -1],
-                                        [204, $this->Translate('Customize (Auto)'), '', -1],
-                                    ]
+                                           [200, $this->Translate('Off'), '', -1],
+                                           [201, $this->Translate('Low'), '', -1],
+                                           [202, $this->Translate('Medium'), '', -1],
+                                           [203, $this->Translate('High'), '', -1],
+                                           [204, $this->Translate('Customize (Auto)'), '', -1],
+                                       ]
         );
         $this->RegisterProfile(self::PROFILE_CLEANAREA, 'Shuffle', '', ' m²', 0, 0, 0, 1, VARIABLETYPE_FLOAT);
         $this->RegisterProfile(self::PROFILE_TOTALCLEANS, 'Gauge', '', '', 0, 0, 0, 2, VARIABLETYPE_INTEGER);
@@ -398,16 +401,19 @@ class Roborock extends IPSModule
         }
 
         // consumables separate
-        if ($this->ReadPropertyBoolean('consumables_separate')) {
-            $this->RegisterVariableInteger('main_brush', $this->Translate('Main Brush'), self::PROFILE_CONSUMABLE, $this->_getPosition());
-            $this->RegisterVariableInteger('side_brush', $this->Translate('Side Brush'), self::PROFILE_CONSUMABLE, $this->_getPosition());
-            $this->RegisterVariableInteger('filter', $this->Translate('Filter'), self::PROFILE_CONSUMABLE, $this->_getPosition());
-            $this->RegisterVariableInteger('sensor', $this->Translate('Sensor'), self::PROFILE_CONSUMABLE, $this->_getPosition());
+        if ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES_SEPARATE)) {
+            foreach ($this->device::CONSUMABLES as $ident => $consumable) {
+                $this->RegisterVariableInteger(
+                    $ident,
+                    $this->Translate(consumable::GetName($ident)),
+                    self::PROFILE_CONSUMABLE,
+                    $this->_getPosition()
+                );
+            }
         } else {
-            $this->UnregisterVariable('main_brush');
-            $this->UnregisterVariable('side_brush');
-            $this->UnregisterVariable('filter');
-            $this->UnregisterVariable('sensor');
+            foreach ($this->device::CONSUMABLES as $ident => $consumable) {
+                $this->UnregisterVariable($ident);
+            }
         }
 
         // dnd mode
@@ -534,7 +540,7 @@ class Roborock extends IPSModule
         // check if configuration is complete
         if (!$this->CheckConfiguration()) {
             $this->SetStatus(self::STATUS_INST_CONFIGURATION_INCOMPLETE);
-            $this->SendDebug(__FUNCTION__, (string) $this->GetStatus(), 0);
+            $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
             return false;
         }
 
@@ -544,14 +550,14 @@ class Roborock extends IPSModule
         // check for valid ip address
         if (filter_var(gethostbyname($ip), FILTER_VALIDATE_IP) === false) {
             $this->SetStatus(self::STATUS_INST_IP_ADDRESS_IS_INVALID);
-            $this->SendDebug(__FUNCTION__, (string) $this->GetStatus(), 0);
+            $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
             return false;
         }
 
         // check token
         if (!$this->ValidateToken()) {
             $this->SetStatus(self::STATUS_INST_TOKEN_IS_INVALID);
-            $this->SendDebug(__FUNCTION__, (string) $this->GetStatus(), 0);
+            $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
             return false;
         }
 
@@ -562,7 +568,7 @@ class Roborock extends IPSModule
 
         if (!$info) {
             $this->SetStatus(self::STATUS_INST_NO_ROBOROCK_FOUND);
-            $this->SendDebug(__FUNCTION__, (string) $this->GetStatus(), 0);
+            $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
             return false;
         }
 
@@ -571,7 +577,7 @@ class Roborock extends IPSModule
         // check category
         if ($this->ReadPropertyBoolean('setup_scripts') && $this->ReadPropertyInteger('script_category') === 0) {
             $this->SetStatus(self::STATUS_INST_MISSING_CATEGORY);
-            $this->SendDebug(__FUNCTION__, (string) $this->GetStatus(), 0);
+            $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
             return false;
         }
 
@@ -581,7 +587,7 @@ class Roborock extends IPSModule
 
         // yay, configuration is valid! =)
         $this->SetStatus(IS_ACTIVE);
-        $this->SendDebug(__FUNCTION__, (string) $this->GetStatus(), 0);
+        $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
         return true;
     }
 
@@ -622,7 +628,7 @@ class Roborock extends IPSModule
      *
      * @return void
      */
-    protected function CreateRoborockScript(string $Scriptname, string $Ident, string $Content):void
+    protected function CreateRoborockScript(string $Scriptname, string $Ident, string $Content): void
     {
         $MainCatID = $this->ReadPropertyInteger('script_category');
 
@@ -720,7 +726,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
             }
 
             // update consumables
-            if ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES) || $this->ReadPropertyBoolean('consumables_separate')) {
+            if ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES) || $this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES_SEPARATE)) {
                 $this->Get_Consumables();
             }
 
@@ -789,9 +795,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
 
         if ($io =
             @$this->SendDataToParent(json_encode(['DataID' => '{F7DC50D6-DCE6-27CE-49B2-A363593EBB3B}', 'Buffer' => $buffer], JSON_THROW_ON_ERROR))) {
-
-                // return data
-                return json_decode($io, true, 512, JSON_THROW_ON_ERROR);
+            // return data
+            return json_decode($io, true, 512, JSON_THROW_ON_ERROR);
         }
 
         return false;
@@ -838,13 +843,12 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
             // receive data on immediately requests
             if ($buffer['immediate']) {
                 $io = json_decode($io_json, true, 512, JSON_THROW_ON_ERROR);
-                if ($io){
+                if ($io) {
                     // merge buffer
                     $buffer = $this->_merge($buffer, $io);
 
                     // return data
                     return $this->ExecuteCallback($buffer);
-
                 }
                 return false;
             }
@@ -1368,7 +1372,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     /**
      * load map
      *
-     * @param int      $mapIndex
+     * @param int $mapIndex
      *
      * @return bool
      */
@@ -1685,10 +1689,29 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      */
     public function Start_Segment_Clean_Ex(string $segmentIds)
     {
-        $segments = json_decode($segmentIds, true, 512, JSON_THROW_ON_ERROR);
+        $arr = json_decode($segmentIds, true, 512, JSON_THROW_ON_ERROR);
+        if (isset($arr['segments'])) {
+            $params = $segmentIds;
+        } else {
+            $params = $arr;
+        }
         return $this->RequestData('app_segment_clean', [
-            'params' => $segments
+            'params' => json_decode($segmentIds, true, 512, JSON_THROW_ON_ERROR)
         ]);
+    }
+
+    /**
+     * get room mapping
+     *
+     * @return array
+     */
+    public function Get_Room_Mapping(): array
+    {
+        if ($mapping = $this->RequestData('get_room_mapping', ['immediate' => true])) {
+            return $mapping['result'];
+        }
+
+        return [];
     }
 
     /**
@@ -1812,8 +1835,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         $Digits,
         $Vartype,
         array $Associations
-    ): void
-    {
+    ): void {
         if (count($Associations) === 0) {
             $MinValue = 0;
             $MaxValue = 0;
@@ -1827,8 +1849,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
 
         //dann werden die aktuellen eingetragen
         foreach ($Associations as $Association) {
-            $icon = $Association[2]??'';
-            $color = $Association[3]??-1;
+            $icon  = $Association[2] ?? '';
+            $color = $Association[3] ?? -1;
             IPS_SetVariableProfileAssociation($Name, $Association[0], $Association[1], $icon, $color);
         }
     }
@@ -1898,27 +1920,27 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         // get notification settings
         if (($instance_id = $this->ReadPropertyInteger('notification_instance'))
             && $notifications = @json_decode($this->ReadPropertyString('notifications'), true)) {
-                // loop notifications and search for current state
-                foreach ($notifications as $notification) {
-                    if ($notification['state_id'] === $state_id) {
-                        // check if notification is enabled
-                        if ($notification['enabled'] || $force_send) {
+            // loop notifications and search for current state
+            foreach ($notifications as $notification) {
+                if ($notification['state_id'] === $state_id) {
+                    // check if notification is enabled
+                    if ($notification['enabled'] || $force_send) {
+                        // send notification
+                        if ($state_id > 0 && isset($codes[$state_id])) {
+                            // build message
+                            $title   = IPS_GetName($this->InstanceID); // instance name
+                            $message = $prefix . $this->Translate($codes[$state_id]);
+
                             // send notification
-                            if ($state_id > 0 && isset($codes[$state_id])) {
-                                // build message
-                                $title   = IPS_GetName($this->InstanceID); // instance name
-                                $message = $prefix . $this->Translate($codes[$state_id]);
-
-                                // send notification
-                                WFC_PushNotification($instance_id, $title, $message, $notification['sound'], 0);
-                            }
+                            WFC_PushNotification($instance_id, $title, $message, $notification['sound'], 0);
                         }
-
-                        // break loop
-                        return true;
                     }
+
+                    // break loop
+                    return true;
                 }
             }
+        }
 
         return false;
     }
@@ -1991,7 +2013,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     {
         $token = $this->ReadAttributeString(self::ATTRIBUTE_TOKEN);
         $model = $this->ReadAttributeString(self::ATTRIBUTE_MODEL);
-        if ($model !== ''){
+        if ($model !== '') {
             $model = $this->device->GetName();
         }
 
@@ -2206,7 +2228,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
                                      'caption' => 'Consumables'
                                  ],
                                  [
-                                     'name'    => 'consumables_separate',
+                                     'name'    => self::PROPERTY_CONSUMABLES_SEPARATE,
                                      'type'    => 'CheckBox',
                                      'caption' => 'Consumables (Separate Variables)'
                                  ],
@@ -2361,7 +2383,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     protected function GetZoneID(): int
     {
         $zoneid = $this->GetNumberZones() + 1;
-        $this->_debug('Zones ID', (string) $zoneid);
+        $this->_debug('Zones ID', (string)$zoneid);
         return $zoneid;
     }
 
@@ -2475,11 +2497,17 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         if ($token) {
             $form = [
                 [
-                    'type' => 'TestCenter'],
+                    'type' => 'TestCenter'
+                ],
                 [
                     'type'    => 'Button',
                     'label'   => 'Update',
                     'onClick' => 'Roborock_Update($id);'
+                ],
+                [
+                    'type'    => 'Button',
+                    'label'   => 'Show Room Mapping',
+                    'onClick' => 'print_r(Roborock_Get_Room_Mapping($id));'
                 ],
                 [
                     'type'    => 'Button',
@@ -2603,19 +2631,19 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         $secondsInADay    = 24 * $secondsInAnHour;
 
         // extract days
-        $days = (int) floor($inputSeconds / $secondsInADay);
+        $days = (int)floor($inputSeconds / $secondsInADay);
 
         // extract hours
         $hourSeconds = $inputSeconds % $secondsInADay;
-        $hours       = (int) floor($hourSeconds / $secondsInAnHour);
+        $hours       = (int)floor($hourSeconds / $secondsInAnHour);
 
         // extract minutes
         $minuteSeconds = $hourSeconds % $secondsInAnHour;
-        $minutes       = (int) floor($minuteSeconds / $secondsInAMinute);
+        $minutes       = (int)floor($minuteSeconds / $secondsInAMinute);
 
         // extract the remaining seconds
         $remainingSeconds = $minuteSeconds % $secondsInAMinute;
-        $seconds          = (int) ceil($remainingSeconds);
+        $seconds          = (int)ceil($remainingSeconds);
 
         // build time
         $time = '';
@@ -2718,10 +2746,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @return string
      */
-    private function _convertDataToTable($data = [])
+    private function _convertDataToTable(array $data = []): string
     {
-        $prepend = isset($values['prepend']) ? $data['prepend'] : '';
-
         // build table
         $html = <<<EOF
                 <style>
@@ -2737,7 +2763,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
                     .unicode.green {color:green}
                     .separator { background: rgba(0,0,0,0.3);font-weight:bold;font-size:1.2em }
                 </style>
-                $prepend
 			<table class="robotable">
 EOF;
 
@@ -3189,7 +3214,7 @@ EOF;
 
             $model = $info['model'];
             $this->SetRoborockValue(self::IDENT_MODEL, $model);
-            if ($model !== $this->ReadAttributeString(self::ATTRIBUTE_MODEL)){
+            if ($model !== $this->ReadAttributeString(self::ATTRIBUTE_MODEL)) {
                 $this->WriteAttributeString(self::ATTRIBUTE_MODEL, $model);
                 $this->SendDebug(__FUNCTION__, 'new attribute Model: ' . $model, 0);
                 if (($modelClassName = str_replace('.', '_', $model)) && class_exists($modelClassName)) {
@@ -3290,7 +3315,7 @@ EOF;
         }
 
         if (isset($result['map_status'])) {
-            $map_status = (int)$result['map_status']>>2;
+            $map_status = (int)$result['map_status'] >> 2;
             $this->SetRoborockValue(self::IDENT_MAP_STATUS, $map_status);
             $ret['map_status'] = $map_status;
         }
@@ -3311,84 +3336,49 @@ EOF;
      *
      * @return array
      */
-    protected function get_consumable_callback(array $data)
+    private function get_consumable_callback(array $data): array
     {
         if (isset($data['result'][0])) {
-            $total_main_brush_work_time = 300; // hours
-            $total_side_brush_work_time = 200; // hours
-            $total_filter_work_time     = 150; // hours
-            $total_sensor_dirty_time    = 30; // hours
-            //todo: dust_collection_work_times beim S7 (Anzahl)
-            //todo: filter_element_work_time beim S6 und beim S7
+            $consumables = [];
+            $ret         = [];
 
-            $main_brush_work_time = $data['result'][0]['main_brush_work_time'];
-            $side_brush_work_time = $data['result'][0]['side_brush_work_time'];
-            $filter_work_time     = $data['result'][0]['filter_work_time'];
-            $sensor_dirty_time    = $data['result'][0]['sensor_dirty_time'];
+            foreach ($this->device::CONSUMABLES as $ident => $name) {
+                $max_work_time     = consumable::GetMaxWorkTime($ident);
+                $work_time         = $data['result'][0][$name];
+                $work_time_percent = round(100 - (100 / ($max_work_time * 3600) * $work_time));
+                $consumables[]     = [
+                    $this->Translate(consumable::GetName($ident)),
+                    $work_time_percent . '%'
+                ];
 
-            $main_brush_work_percent = round(100 - (100 / ($total_main_brush_work_time * 3600) * $main_brush_work_time));
-            $side_brush_work_percent = round(100 - (100 / ($total_side_brush_work_time * 3600) * $side_brush_work_time));
-            $filter_work_percent     = round(100 - (100 / ($total_filter_work_time * 3600) * $filter_work_time));
-            $sensor_dirty_percent    = round(100 - (100 / ($total_sensor_dirty_time * 3600) * $sensor_dirty_time));
+                $ret[$ident] = $work_time_percent;
 
-            $consumables = [
-                [
-                    $this->Translate('main brush'),
-                    $main_brush_work_percent . '%'
-                ],
-                [
-                    $this->Translate('side brush'),
-                    $side_brush_work_percent . '%'
-                ],
-                [
-                    $this->Translate('filter'),
-                    $filter_work_percent . '%'
-                ],
-                [
-                    $this->Translate('sensor'),
-                    $sensor_dirty_percent . '%'
-                ]
-            ];
+                // consumables separate
+                if ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES_SEPARATE)) {
+                    $this->SetRoborockValue($ident, $work_time_percent);
+                }
+            }
 
             // consumables
             if ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES)) {
                 $html = $this->_convertDataToTable([
-                                                   'table' => [
-                                                       'head' => [
-                                                           $this->Translate('Consumable'),
-                                                           $this->Translate('Residual (%)')
-                                                       ],
-                                                       'body' => $consumables
-                                                   ]
-                                               ]);
+                                                       'table' => [
+                                                           'head' => [
+                                                               $this->Translate('Consumable'),
+                                                               $this->Translate('Residual (%)')
+                                                           ],
+                                                           'body' => $consumables
+                                                       ]
+                                                   ]);
 
                 $this->SetRoborockValue(self::IDENT_CONSUMABLES, $html);
             }
 
-            // consumables separate
-            if ($this->ReadPropertyBoolean('consumables_separate')) {
-                $this->SetRoborockValue('main_brush', $main_brush_work_percent);
-                $this->SetRoborockValue('side_brush', $side_brush_work_percent);
-                $this->SetRoborockValue('filter', $filter_work_percent);
-                $this->SetRoborockValue('sensor', $sensor_dirty_percent);
-            }
-
-            // return values
-            return [
-                'main_brush'   => $main_brush_work_percent,
-                'side_brush'   => $side_brush_work_percent,
-                'filter'       => $filter_work_percent,
-                'sensor_dirty' => $sensor_dirty_percent
-            ];
+            return $ret;
         }
 
         // fallback
-        return [
-            'main_brush_work_time' => null,
-            'side_brush_work_time' => null,
-            'filter_work_time'     => null,
-            'sensor_dirty_time'    => null
-        ];
+        return [];
     }
 
     /**
@@ -3474,18 +3464,25 @@ EOF;
      */
     protected function get_multi_maps_list_callback(array $data)
     {
-
         $ass = [];
-        if (isset($data['result'][0]['multi_map_count'])){
+        if (isset($data['result'][0]['multi_map_count'])) {
             $result = $data['result'][0];
-            foreach ($result['map_info'] as $index => $mapInfo){
+            foreach ($result['map_info'] as $index => $mapInfo) {
                 $ass[] = [$index, $mapInfo['name'], '', -1];
             }
 
             $this->RegisterProfileAssociation(
-                self::PROFILE_MAPS, '', '', '', 0, count($ass), 0, 0, VARIABLETYPE_INTEGER, $ass
+                self::PROFILE_MAPS,
+                '',
+                '',
+                '',
+                0,
+                count($ass),
+                0,
+                0,
+                VARIABLETYPE_INTEGER,
+                $ass
             );
-
         }
     }
 
@@ -3567,7 +3564,7 @@ EOF;
                 ];
 
                 if ($tmp_data = $this->ReadAttributeString(self::ATTRIBUTE_CLEANING_RECORDS)) {
-                    $tmp_data = json_decode($tmp_data, true, 512,JSON_THROW_ON_ERROR);
+                    $tmp_data = json_decode($tmp_data, true, 512, JSON_THROW_ON_ERROR);
 
                     // merge temporary data with html data
                     $html_data = $this->_merge(

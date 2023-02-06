@@ -4,9 +4,9 @@
 	"name": "Roborock",
 	"url": "https://www.roborock.com/",
 	"compatibility": {
-		"version": "6.0"
+		"version": "6.3"
 	},
 	"version": "2.0",
-	"build": 5 ,
-	"date": 1674303638
+	"build": 6 ,
+	"date": 1675690435
 }

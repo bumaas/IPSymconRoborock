@@ -266,8 +266,36 @@ Der rote Punkt stellt dabei die aktuelle Position des Staubsaugers dar.
  Roborock_Start($InstanceID);
  ```   
  
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
-	
+ _**Startet die Reinigung eines Raumes**_
+  
+ ```php
+ Roborock_Start_Segment_Clean(int $InstanceID, int $segmentid);
+ ```   
+  
+ $segmentid: ID des zu reinigenden Raumes
+
+_**Startet die Reinigung einer Liste von Räumen**_
+
+ ```php
+ Roborock_Start_Segment_Clean_ex(int $InstanceID, string $segmentIds);
+ ```   
+
+Es kann entweder eine JSON kodierte Liste der zu reinigenden Räume (Segmente) angegeben werden
+$segmentIDs = json_encode ([16, 17, 18]);
+
+oder es kann zusätzlich noch eine Anzahl an Wiederholungen mitgegeben werden
+$segmentIds = json_encode ([[{'segments': [16, 17, 18], 'repeat': 2]]);
+
+Die vorhandenen Räume lassen sich über Roborock_Get_Room_Mapping ermitteln.
+
+_**Liste von Räumen holen**_
+
+ ```php
+ Roborock_Get_Room_Mapping(int $InstanceID): array;
+ ```   
+
+
+
  _**Stoppt den Reinigungsvorgang**_
   
  ```php
