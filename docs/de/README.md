@@ -286,7 +286,7 @@ $segmentIDs = json_encode ([16, 17, 18]);
 oder es kann zusätzlich noch eine Anzahl an Wiederholungen mitgegeben werden
 $segmentIds = json_encode ([[{'segments': [16, 17, 18], 'repeat': 2]]);
 
-Die vorhandenen Räume lassen sich über Roborock_Get_Room_Mapping ermitteln.
+Die vorhandenen Räume lassen sich über die Funktion Roborock_Get_Room_Mapping ermitteln.
 
 _**Liste von Räumen holen**_
 
