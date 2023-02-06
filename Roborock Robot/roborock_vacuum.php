@@ -65,6 +65,7 @@ class roborock_vacuum
         'roborock.vacuum'     => 'Roborock Generic Vacuum Cleaner',
         'roborock.vacuum.a10' => 'Roborock S6 MaxV',
         'roborock.vacuum.a15' => 'Roborock S7',
+        'roborock.vacuum.a27' => 'Roborock S7 MaxV',
     ];
 
     public function GetName(): string
