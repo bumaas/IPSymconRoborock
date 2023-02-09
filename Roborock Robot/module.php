@@ -238,8 +238,8 @@ class Roborock extends IPSModule
 
         // register attributes
         $this->RegisterAttributeString(self::ATTRIBUTE_TOKEN, '');
-        $this->RegisterAttributeString(self::ATTRIBUTE_LOGIN_LOCATION_DATA, json_encode([]));
-        $this->RegisterAttributeString(self::ATTRIBUTE_LOGIN_ACCOUNT_DATA, json_encode([]));
+        $this->RegisterAttributeString(self::ATTRIBUTE_LOGIN_LOCATION_DATA, json_encode([], JSON_THROW_ON_ERROR));
+        $this->RegisterAttributeString(self::ATTRIBUTE_LOGIN_ACCOUNT_DATA, json_encode([], JSON_THROW_ON_ERROR));
         $this->RegisterAttributeString(self::ATTRIBUTE_LAST_NOTIFICATION_STATE, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_LAST_NOTIFICATION_ERROR, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, '');
@@ -715,6 +715,16 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
 ';
     }
 
+    public function SetDeviceToken(string $token){
+        $this->WriteAttributeString(self::ATTRIBUTE_TOKEN, $token);
+
+        // validate configuration
+        $valid_config = $this->ValidateConfiguration();
+
+        // set interval
+        $this->SetUpdateInterval($valid_config);
+
+    }
     /**
      * Update data.
      */
@@ -1007,7 +1017,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     /**
      * locate vacuum cleaner by voice message.
      *
-     * @return mixed
+     * @return array|bool
      */
     public function Locate()
     {
@@ -1145,7 +1155,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     /**
      * get serial number.
      *
-     * @return string
+     * @return array|bool
      */
     public function Get_Serial_Number()
     {
@@ -1155,7 +1165,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     /**
      * get current dnd mode.
      *
-     * @return array
+     * @return array|bool
      */
     public function Get_DND_Mode()
     {
@@ -1312,7 +1322,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     /**
      * Get fan power.
      *
-     * @return int
+     * @return array|bool
      */
     public function Get_Fan_Power()
     {
@@ -1337,7 +1347,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     /**
      * Get the water quantity control during the cleaning process.
      *
-     * @return int
+     * @return array|bool
      */
     public function Get_Water_Quantity_Control()
     {
@@ -1349,7 +1359,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      *
      * @param int $mode
      *
-     * @return bool
+     * @return array|bool
      */
     public function Set_Water_Quantity_Control(int $mode)
     {
@@ -1366,7 +1376,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      * @param int      $velocity  0..100
      * @param int|null $time      in ms
      *
-     * @return bool
+     * @return array|bool
      */
     public function Move_Direction(int $direction, int $velocity, int $time = 1000)
     {
@@ -1705,11 +1715,7 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
     public function Start_Segment_Clean_Ex(string $segmentIds)
     {
         $arr = json_decode($segmentIds, true, 512, JSON_THROW_ON_ERROR);
-        if (isset($arr['segments'])) {
-            $params = $segmentIds;
-        } else {
-            $params = $arr;
-        }
+
         return $this->RequestData('app_segment_clean', [
             'params' => json_decode($segmentIds, true, 512, JSON_THROW_ON_ERROR)
         ]);
@@ -2939,7 +2945,7 @@ EOF;
             0
         );
 
-        // -- getDeviceStatus --
+        // -- token of device by getDeviceStatus --
         $deviceData = $this->getDeviceStatus();
         if ($deviceData === false) {
             return false;
@@ -2952,7 +2958,7 @@ EOF;
         foreach ($deviceData['result']['list'] as $key => $device) {
             $this->SendDebug(
                 __FUNCTION__,
-                "deviceData[$key]: " . json_encode(['did' => $device['did'], 'token' => $device['token']], JSON_THROW_ON_ERROR),
+                "deviceData[$key]: " . json_encode(['did' => $device['did'],'name' => $device['name'], 'token' => $device['token']], JSON_THROW_ON_ERROR),
                 0
             );
             if ($device['localip'] === $host) {
@@ -3126,8 +3132,10 @@ EOF;
 
     private function getDeviceStatus()
     {
-        return $this->getApiIO('/home/device_list', '{"getVirtualModel":false,"getHuamiDevices":0}');
+        $device_list = $this->getApiIO('/home/device_list', '{"getVirtualModel":false,"getHuamiDevices":0}');
+        $this->_debug(__FUNCTION__, sprintf('device_list: %s', json_encode($device_list)));
 
+        return $device_list;
     }
 
     private function encodePassword(string $password): string
