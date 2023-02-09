@@ -506,6 +506,9 @@ class Roborock extends IPSModule
         // receive data only for this instance
         $this->SetReceiveDataFilter('.*"InstanceID":' . $this->InstanceID . '.*');
 
+        // set summary
+        $this->SetSummary(sprintf('%s (%s)', $this->ReadPropertyString(self::PROPERTY_IP), str_replace('Roborock', '', $this->device->GetName())));
+
         // run only, when kernel is ready
         if (IPS_GetKernelRunlevel() === KR_READY) {
             // validate configuration
@@ -592,6 +595,12 @@ class Roborock extends IPSModule
         // yay, configuration is valid! =)
         $this->SetStatus(IS_ACTIVE);
         $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
+        if (get_class($this->device) === 'roborock_vacuum') {
+            $this->_debug(
+                __FUNCTION__,
+                sprintf('The device ist operational, but the model \'%s\' is not yet well supported.', $this->GetValue('model'))
+            );
+        }
         return true;
     }
 
@@ -715,7 +724,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
 ';
     }
 
-    public function SetDeviceToken(string $token){
+    public function SetDeviceToken(string $token)
+    {
         $this->WriteAttributeString(self::ATTRIBUTE_TOKEN, $token);
 
         // validate configuration
@@ -723,8 +733,8 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
 
         // set interval
         $this->SetUpdateInterval($valid_config);
-
     }
+
     /**
      * Update data.
      */
@@ -2517,13 +2527,13 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
 
         if ($token) {
             $form = [
-/*
-                [
-                    'type'    => 'Button',
-                    'label'   => 'Xiaomi Login Test',
-                    'onClick' => 'Roborock_GetTokenFromXiaomi($id);'
-                ],
-*/
+                /*
+                                [
+                                    'type'    => 'Button',
+                                    'label'   => 'Xiaomi Login Test',
+                                    'onClick' => 'Roborock_GetTokenFromXiaomi($id);'
+                                ],
+                */
                 [
                     'type' => 'TestCenter'
                 ],
@@ -2958,7 +2968,8 @@ EOF;
         foreach ($deviceData['result']['list'] as $key => $device) {
             $this->SendDebug(
                 __FUNCTION__,
-                "deviceData[$key]: " . json_encode(['did' => $device['did'],'name' => $device['name'], 'token' => $device['token']], JSON_THROW_ON_ERROR),
+                "deviceData[$key]: " . json_encode(['did' => $device['did'], 'name' => $device['name'], 'token' => $device['token']],
+                                                   JSON_THROW_ON_ERROR),
                 0
             );
             if ($device['localip'] === $host) {
@@ -3091,14 +3102,14 @@ EOF;
     private function getApiIO(string $path, string $obj)
     {
         $loginLocationData = json_decode($this->ReadAttributeString(self::ATTRIBUTE_LOGIN_LOCATION_DATA), true);
-        $server = 'de';
+        $server            = 'de';
 
         $headers = [
             'Content-Type: application/x-www-form-urlencoded',
             'x-xiaomi-protocal-flag-cli: PROTOCAL-HTTP2',
             'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-9D28921C354D7 APP/xiaomi.smarthome APPV/62830',
-            'Cookie: userId=' . $loginLocationData['userId'] . '; yetAnotherServiceToken=' . $loginLocationData['serviceToken'] . '; serviceToken=' . $loginLocationData['serviceToken']
-            . '; locale=de_DE; timezone=GMT%2B01%3A00; is_daylight=1; dst_offset=3600000; channel=MI_APP_STORE'
+            'Cookie: userId=' . $loginLocationData['userId'] . '; yetAnotherServiceToken=' . $loginLocationData['serviceToken'] . '; serviceToken='
+            . $loginLocationData['serviceToken'] . '; locale=de_DE; timezone=GMT%2B01%3A00; is_daylight=1; dst_offset=3600000; channel=MI_APP_STORE'
         ];
 
         $url    = 'https://' . $server . '.api.io.mi.com/app' . $path;
@@ -3108,8 +3119,8 @@ EOF;
         ];
 
         $loginAccountData = json_decode($this->ReadAttributeString(self::ATTRIBUTE_LOGIN_ACCOUNT_DATA), true);
-        $body = $this->generateSignature($loginAccountData['ssecurity'], $params, $path);
-        $body = http_build_query($body);
+        $body             = $this->generateSignature($loginAccountData['ssecurity'], $params, $path);
+        $body             = http_build_query($body);
 
         $ch = curl_init($url);
 
@@ -3127,7 +3138,6 @@ EOF;
             return false;
         }
         return json_decode($result, true, 512, JSON_THROW_ON_ERROR);
-
     }
 
     private function getDeviceStatus()
