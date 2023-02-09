@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+include __DIR__ . '/../libs/picture.php';
+
+
 /**
  * Class RoborockIO
  * Xiaomi Mi Vacuum Cleaner I/O Device.

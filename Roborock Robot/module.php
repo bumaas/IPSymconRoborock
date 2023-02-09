@@ -31,6 +31,8 @@ class Roborock extends IPSModule
     private const STATUS_INST_MISSING_CATEGORY         = 209;
 
     private const ATTRIBUTE_TOKEN                   = 'token';
+    private const ATTRIBUTE_LOGIN_LOCATION_DATA     = 'loginLocationData';
+    private const ATTRIBUTE_LOGIN_ACCOUNT_DATA      = 'loginAccountData';
     private const ATTRIBUTE_LAST_NOTIFICATION_STATE = 'last_notification_state';
     private const ATTRIBUTE_LAST_NOTIFICATION_ERROR = 'last_notification_error';
     private const ATTRIBUTE_CLEANING_RECORDS        = 'cleaning_records';
@@ -236,6 +238,8 @@ class Roborock extends IPSModule
 
         // register attributes
         $this->RegisterAttributeString(self::ATTRIBUTE_TOKEN, '');
+        $this->RegisterAttributeString(self::ATTRIBUTE_LOGIN_LOCATION_DATA, json_encode([]));
+        $this->RegisterAttributeString(self::ATTRIBUTE_LOGIN_ACCOUNT_DATA, json_encode([]));
         $this->RegisterAttributeString(self::ATTRIBUTE_LAST_NOTIFICATION_STATE, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_LAST_NOTIFICATION_ERROR, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, '');
@@ -838,17 +842,21 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         // send to i/o device
         $this->_debug('send', json_encode($buffer, JSON_THROW_ON_ERROR));
 
-        if ($io_json =
-            @$this->SendDataToParent(json_encode(['DataID' => '{F7DC50D6-DCE6-27CE-49B2-A363593EBB3B}', 'Buffer' => $buffer], JSON_THROW_ON_ERROR))) {
+        if ($io_json = @$this->SendDataToParent(
+            json_encode(['DataID' => '{F7DC50D6-DCE6-27CE-49B2-A363593EBB3B}', 'Buffer' => $buffer], JSON_THROW_ON_ERROR)
+        )) {
             // receive data on immediately requests
+            $this->_debug('returned io_json', $io_json);
+
             if ($buffer['immediate']) {
+                $this->_debug('returned io_json', $io_json);
                 $io = json_decode($io_json, true, 512, JSON_THROW_ON_ERROR);
                 if ($io) {
                     // merge buffer
-                    $buffer = $this->_merge($buffer, $io);
+                    $data = $this->_merge($buffer, $io);
 
                     // return data
-                    return $this->ExecuteCallback($buffer);
+                    return $this->ExecuteCallback($data);
                 }
                 return false;
             }
@@ -1114,7 +1122,14 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
      */
     public function GetMap()
     {
-        return $this->RequestData('get_map_v1');
+        do {
+            $mapName = $this->RequestData('get_map_v1');
+        } while ($mapName === 'retry');
+
+        $ret = $this->getApiIO('/home/getmapfileurl', '{"obj_name":"' . $mapName . '"}');
+
+        //$this->RequestData('')
+        return $ret;
     }
 
     /**
@@ -2496,6 +2511,13 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
 
         if ($token) {
             $form = [
+/*
+                [
+                    'type'    => 'Button',
+                    'label'   => 'Xiaomi Login Test',
+                    'onClick' => 'Roborock_GetTokenFromXiaomi($id);'
+                ],
+*/
                 [
                     'type' => 'TestCenter'
                 ],
@@ -2858,6 +2880,7 @@ EOF;
         // read properties
         $user     = $this->ReadPropertyString(self::PROPERTY_XIAOMI_USER);
         $password = $this->ReadPropertyString(self::PROPERTY_XIAOMI_PASSWORD);
+
         $clientId = $this->randomClientId();
         $this->SendDebug(__FUNCTION__, 'user/password: ' . json_encode([$user, $password], JSON_THROW_ON_ERROR), 0);
 
@@ -2865,6 +2888,7 @@ EOF;
         $loginData = $this->login($user, $clientId);
 
         if (!$loginData || !isset($loginData['qs'], $loginData['callback'], $loginData['_sign'])) {
+            $this->SendDebug(__FUNCTION__ . ': ERROR', 'Login failed, please check account at https://account.xiaomi.com', 0);
             return false;
         }
 
@@ -2879,8 +2903,11 @@ EOF;
         $loginAccountData = $this->login_account($user, $password, $clientId, $loginData['qs'], $loginData['callback'], $loginData['_sign']);
 
         if (!$loginAccountData || !isset($loginAccountData['ssecurity'], $loginAccountData['userId'], $loginAccountData['location'])) {
+            $this->SendDebug(__FUNCTION__ . ': ERROR', 'Login failed, please check user/password at https://account.xiaomi.com', 0);
             return false;
         }
+
+        $this->WriteAttributeString(self::ATTRIBUTE_LOGIN_ACCOUNT_DATA, json_encode($loginAccountData));
 
         $this->SendDebug(
             __FUNCTION__,
@@ -2898,8 +2925,10 @@ EOF;
         // -- login_location --
         $loginLocationData = $this->login_location($clientId, $loginAccountData['location']);
         if (!$loginLocationData || !isset($loginLocationData['userId'], $loginLocationData['serviceToken'])) {
+            $this->SendDebug(__FUNCTION__ . ': ERROR', 'Login Location failed', 0);
             return false;
         }
+        $this->WriteAttributeString(self::ATTRIBUTE_LOGIN_LOCATION_DATA, json_encode($loginLocationData));
 
         $this->SendDebug(
             __FUNCTION__,
@@ -2911,7 +2940,7 @@ EOF;
         );
 
         // -- getDeviceStatus --
-        $deviceData = $this->getDeviceStatus($loginLocationData['userId'], $loginLocationData['serviceToken'], 'de', $loginAccountData['ssecurity']);
+        $deviceData = $this->getDeviceStatus();
         if ($deviceData === false) {
             return false;
         }
@@ -3053,18 +3082,18 @@ EOF;
         return false;
     }
 
-    function getDeviceStatus(string $userid, string $serviceToken, string $server, string $ssecurity)
+    private function getApiIO(string $path, string $obj)
     {
-        $path    = '/home/device_list';
-        $obj     = '{"getVirtualModel":false,"getHuamiDevices":0}';
+        $loginLocationData = json_decode($this->ReadAttributeString(self::ATTRIBUTE_LOGIN_LOCATION_DATA), true);
+        $server = 'de';
+
         $headers = [
             'Content-Type: application/x-www-form-urlencoded',
             'x-xiaomi-protocal-flag-cli: PROTOCAL-HTTP2',
             'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-9D28921C354D7 APP/xiaomi.smarthome APPV/62830',
-            'Cookie: userId=' . $userid . '; yetAnotherServiceToken=' . $serviceToken . '; serviceToken=' . $serviceToken
+            'Cookie: userId=' . $loginLocationData['userId'] . '; yetAnotherServiceToken=' . $loginLocationData['serviceToken'] . '; serviceToken=' . $loginLocationData['serviceToken']
             . '; locale=de_DE; timezone=GMT%2B01%3A00; is_daylight=1; dst_offset=3600000; channel=MI_APP_STORE'
         ];
-
 
         $url    = 'https://' . $server . '.api.io.mi.com/app' . $path;
         $params = [
@@ -3072,7 +3101,8 @@ EOF;
             'value' => $obj
         ];
 
-        $body = $this->generateSignature($ssecurity, $params, $path);
+        $loginAccountData = json_decode($this->ReadAttributeString(self::ATTRIBUTE_LOGIN_ACCOUNT_DATA), true);
+        $body = $this->generateSignature($loginAccountData['ssecurity'], $params, $path);
         $body = http_build_query($body);
 
         $ch = curl_init($url);
@@ -3086,11 +3116,18 @@ EOF;
         $httpcode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
 
         curl_close($ch);
-        if (($httpcode === false) || ($httpcode !== 200)) {
+        if (($httpcode !== 200)) {
             trigger_error(sprintf('%s: httpcode: %s', __FUNCTION__, (int)$httpcode));
             return false;
         }
         return json_decode($result, true, 512, JSON_THROW_ON_ERROR);
+
+    }
+
+    private function getDeviceStatus()
+    {
+        return $this->getApiIO('/home/device_list', '{"getVirtualModel":false,"getHuamiDevices":0}');
+
     }
 
     private function encodePassword(string $password): string
@@ -3872,12 +3909,15 @@ EOF;
     }
 
     /**
-     * Callback: Map v1 (currently not working, only returns "retry").
+     * Callback: Map v1
      *
      * @param array $data
      */
-    protected function get_map_v1_callback(array $data)
+    protected function get_map_v1_callback(array $data): string
     {
+        $ret = urldecode($data['result'][0]);
+        $this->_debug(__FUNCTION__, $ret);
+        return $ret;
     }
 
     /**

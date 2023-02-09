@@ -1,7 +1,7 @@
 # Roborock Staubsauger Roboter
 [![Version](https://img.shields.io/badge/Symcon-PHPModul-red.svg)](https://www.symcon.de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/)
 
-Modul für IP-Symcon ab Version 6.0
+Modul für IP-Symcon ab Version 6.3
 
 ## Dokumentation
 
@@ -52,9 +52,9 @@ Mit dem Modul ist es möglich einen [Roborock](https://www.roborock.com/ "Roboro
 
 ## 2. Voraussetzungen
 
- - IP-Symcon 6.0
- - MI App (Xiaomi) 
- - Roborock Staubsauger Roboter (Xiaomi)
+- IP-Symcon 6.3
+- Roborock Staubsauger Roboter (Xiaomi)
+- Das Gerät muss in der **Xiaomi Home App** (nicht Roborock App(!)) angelernt sein.
 
 ## 3. Installation
 
