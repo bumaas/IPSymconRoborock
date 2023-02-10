@@ -28,7 +28,6 @@ class Roborock extends IPSModule
     private const STATUS_INST_IP_ADDRESS_IS_INVALID    = 203;
     private const STATUS_INST_TOKEN_IS_INVALID         = 205;
     private const STATUS_INST_NO_ROBOROCK_FOUND        = 206;
-    private const STATUS_INST_MISSING_CATEGORY         = 209;
 
     private const ATTRIBUTE_TOKEN                   = 'token';
     private const ATTRIBUTE_LOGIN_LOCATION_DATA     = 'loginLocationData';
@@ -223,8 +222,6 @@ class Roborock extends IPSModule
         $this->RegisterPropertyInteger('notification_instance', 0);
         $this->RegisterPropertyString('notifications', $this->GetPushNotifications());
         $this->RegisterPropertyString('zonecoordinates', '');
-        $this->RegisterPropertyBoolean('setup_scripts', false);
-        $this->RegisterPropertyInteger('script_category', 0);
 
         $this->RegisterPropertyString(self::PROPERTY_XIAOMI_USER, '');
         $this->RegisterPropertyString(self::PROPERTY_XIAOMI_PASSWORD, '');
@@ -581,17 +578,6 @@ class Roborock extends IPSModule
 
         $this->_debug('info', json_encode($info, JSON_THROW_ON_ERROR));
 
-        // check category
-        if ($this->ReadPropertyBoolean('setup_scripts') && $this->ReadPropertyInteger('script_category') === 0) {
-            $this->SetStatus(self::STATUS_INST_MISSING_CATEGORY);
-            $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
-            return false;
-        }
-
-        if ($this->ReadPropertyBoolean('setup_scripts')) {
-            $this->SetupScripts();
-        }
-
         // yay, configuration is valid! =)
         $this->SetStatus(IS_ACTIVE);
         $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
@@ -615,114 +601,6 @@ class Roborock extends IPSModule
         $this->SetTimerInterval('RoborockTimerUpdate', $interval);
     }
 
-    /**
-     * Setup Scripts.
-     */
-    protected function SetupScripts(): void
-    {
-        $this->CreateRoborockScript('Roborock Start', 'Roborock_Start_Script', $this->CreateStartScript());
-        $this->CreateRoborockScript('Roborock Stop', 'Roborock_Stop_Script', $this->CreateStopScript());
-        $this->CreateRoborockScript('Roborock Pause', 'Roborock_Pause_Script', $this->CreatePauseScript());
-        $this->CreateRoborockScript('Roborock Locate', 'Roborock_Locate_Script', $this->CreateLocateScript());
-        $this->CreateRoborockScript('Roborock Charge', 'Roborock_Charge_Script', $this->CreateChargeScript());
-        $this->CreateRoborockScript('Roborock Clean Spot', 'Roborock_CleanSpot_Script', $this->CreateCleanSpotScript());
-        $this->CreateRoborockScript('Roborock Reset Mainbrush', 'Roborock_ResetMainbrush_Script', $this->CreateResetMainbrushScript());
-        $this->CreateRoborockScript('Roborock Reset Filter', 'Roborock_ResetFilter_Script', $this->CreateResetFilterScript());
-        $this->CreateRoborockScript('Roborock Reset Sensors', 'Roborock_ResetSensors_Script', $this->CreateResetSensorsScript());
-        $this->CreateRoborockScript('Roborock Reset Sidebrush', 'Roborock_ResetSidebrush_Script', $this->CreateResetSideBrushScript());
-    }
-
-    /**
-     * Create a Roborock Script.
-     *
-     * @param string $Scriptname
-     * @param string $Ident
-     * @param string $Content
-     *
-     * @return void
-     */
-    protected function CreateRoborockScript(string $Scriptname, string $Ident, string $Content): void
-    {
-        $MainCatID = $this->ReadPropertyInteger('script_category');
-
-        if (!@IPS_GetObjectIDByIdent($Ident, $MainCatID)) {
-            $ScriptID = IPS_CreateScript(SCRIPTTYPE_PHP);
-            IPS_SetName($ScriptID, $Scriptname);
-            IPS_SetParent($ScriptID, $MainCatID);
-            IPS_SetIdent($ScriptID, $Ident);
-            IPS_SetScriptContent($ScriptID, $Content);
-        }
-    }
-
-    private function CreateStartScript(): string
-    {
-        return '<?
-Roborock_Start(' . $this->InstanceID . ');
-';
-    }
-
-    private function CreateStopScript(): string
-    {
-        return '<?
-Roborock_Stop(' . $this->InstanceID . ');		
-';
-    }
-
-    private function CreatePauseScript(): string
-    {
-        return '<?
-Roborock_Pause(' . $this->InstanceID . ');		
-';
-    }
-
-    private function CreateLocateScript(): string
-    {
-        return '<?
-Roborock_Locate(' . $this->InstanceID . ');		
-';
-    }
-
-    private function CreateChargeScript(): string
-    {
-        return '<?
-Roborock_Charge(' . $this->InstanceID . ');		
-';
-    }
-
-    private function CreateCleanSpotScript(): string
-    {
-        return '<?
-Roborock_CleanSpot(' . $this->InstanceID . ');		
-';
-    }
-
-    private function CreateResetFilterScript(): string
-    {
-        return '<?
-Roborock_Reset_Filter(' . $this->InstanceID . ');		
-';
-    }
-
-    private function CreateResetMainbrushScript(): string
-    {
-        return '<?
-Roborock_Reset_Mainbrush(' . $this->InstanceID . ');		
-';
-    }
-
-    private function CreateResetSideBrushScript(): string
-    {
-        return '<?
-Roborock_Reset_Sidebrush(' . $this->InstanceID . ');		
-';
-    }
-
-    private function CreateResetSensorsScript(): string
-    {
-        return '<?
-Roborock_Reset_Sensors(' . $this->InstanceID . ');		
-';
-    }
 
     public function SetDeviceToken(string $token)
     {
@@ -2317,11 +2195,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
                          ],
                          [
                              'type'    => 'ExpansionPanel',
-                             'caption' => 'Install scripts',
-                             'items'   => $this->SelectionSkripts()
-                         ],
-                         [
-                             'type'    => 'ExpansionPanel',
                              'caption' => 'Zones',
                              'items'   => [
                                  [
@@ -2484,29 +2357,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
         return $result;
     }
 
-    protected function SelectionSkripts(): array
-    {
-        $setup_scripts = $this->ReadPropertyBoolean('setup_scripts');
-        $form          = [
-            [
-                'name'    => 'setup_scripts',
-                'type'    => 'CheckBox',
-                'caption' => 'Setup scripts'
-            ]
-        ];
-        if ($setup_scripts) {
-            $form = array_merge_recursive(
-                $form, [
-                         [
-                             'name'    => 'script_category',
-                             'type'    => 'SelectCategory',
-                             'caption' => 'Script category'
-                         ]
-                     ]
-            );
-        }
-        return $form;
-    }
 
     /**
      * return form actions by token.
@@ -2617,11 +2467,6 @@ Roborock_Reset_Sensors(' . $this->InstanceID . ');
                 'code'    => self::STATUS_INST_NO_ROBOROCK_FOUND,
                 'icon'    => 'inactive',
                 'caption' => 'no roborock was found on that ip and token.'
-            ],
-            [
-                'code'    => self::STATUS_INST_MISSING_CATEGORY,
-                'icon'    => 'error',
-                'caption' => 'no category selected.'
             ]
         ];
 
