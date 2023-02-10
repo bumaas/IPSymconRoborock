@@ -72,6 +72,7 @@ class Roborock extends IPSModule
     private const IDENT_MAP_STATUS                = 'map_status';
     private const IDENT_MODEL                     = 'model';
 
+    private const TIMER_UPDATE                  = 'RoborockTimerUpdate';
 
     // state code mapper
     protected array $state_codes = [
@@ -228,7 +229,7 @@ class Roborock extends IPSModule
 
         // register update timer
         $this->RegisterPropertyInteger('UpdateInterval', 15);
-        $this->RegisterTimer('RoborockTimerUpdate', 0, 'Roborock_Update(' . $this->InstanceID . ');');
+        $this->RegisterTimer(self::TIMER_UPDATE, 0, 'Roborock_Update(' . $this->InstanceID . ');');
 
         // register kernel messages
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
@@ -584,8 +585,10 @@ class Roborock extends IPSModule
         if (get_class($this->device) === 'roborock_vacuum') {
             $this->_debug(
                 __FUNCTION__,
-                sprintf('The device ist operational, but the model \'%s\' is not yet well supported.', $this->GetValue('model'))
+                sprintf('The device ist operational (102), but the model \'%s\' is not yet well supported.', $this->GetValue('model'))
             );
+        } else {
+            $this->_debug(__FUNCTION__, 'The device ist operational (102)');
         }
         return true;
     }
@@ -598,7 +601,7 @@ class Roborock extends IPSModule
     protected function SetUpdateInterval(bool $enable = true): void
     {
         $interval = $enable ? ($this->ReadPropertyInteger('UpdateInterval') * 1000) : 0;
-        $this->SetTimerInterval('RoborockTimerUpdate', $interval);
+        $this->SetTimerInterval(self::TIMER_UPDATE, $interval);
     }
 
 
@@ -744,10 +747,8 @@ class Roborock extends IPSModule
             json_encode(['DataID' => '{F7DC50D6-DCE6-27CE-49B2-A363593EBB3B}', 'Buffer' => $buffer], JSON_THROW_ON_ERROR)
         )) {
             // receive data on immediately requests
-            $this->_debug('returned io_json', $io_json);
 
             if ($buffer['immediate']) {
-                $this->_debug('returned io_json', $io_json);
                 $io = json_decode($io_json, true, 512, JSON_THROW_ON_ERROR);
                 if ($io) {
                     // merge buffer
