@@ -41,11 +41,9 @@ class Consumable extends stdClass
             case self::SENSOR:
                 return 30; //Sensoren
             case self::STRAINER:
+            case self::DUSTCOLLECTOR://Staubbeutel?
+            case self::CLEANINGBRUSH://Reinigungsbürste
                 return 999;
-            case self::DUSTCOLLECTOR:
-                return 999; //Staubbeutel?
-            case self::CLEANINGBRUSH:
-                return 999; //Reinigungsbürste
         }
         trigger_error('Unexpected consumable: ' . $consumable, E_USER_WARNING);
         return 0;
@@ -72,7 +70,23 @@ class Fanpower extends stdClass
         self::TURBO    => 103, //Turbo
         self::MAXIMUM  => 104, //Max.
     ];
+}
 
+class Waterquantity extends stdClass
+{
+    public const OFF     = 'Off';
+    public const LOW     = 'Low';
+    public const HIGH    = 'Medium';
+    public const MAXIMUM = 'High';
+    public const CUSTOM  = 'Custom';
+
+    public const V2 = [
+        self::OFF     => 200, //aus
+        self::LOW     => 201, //wenig
+        self::HIGH    => 202, //mittel
+        self::MAXIMUM => 203, //hoch
+        self::CUSTOM  => 204, //benutzerdefiniert
+    ];
 }
 class roborock_vacuum
 {
@@ -92,7 +106,8 @@ class roborock_vacuum
         'roborock.vacuum.a27' => 'Roborock S7 MaxV',
     ];
 
-    public const FANPOWER = Fanpower::V2;
+    public const FANPOWER      = Fanpower::V2;
+    public const WATERQUANTITY = Waterquantity::V2;
 
     public function GetName(string $classname): string
     {
@@ -101,11 +116,7 @@ class roborock_vacuum
 
     public function GetModelType(string $classname): string
     {
-        $arr = explode('_', $classname);
-        if (isset($arr[2])){
-            return $arr[2];
-        }
-        return 'generic';
+        return explode('_', $classname)[2] ?? 'generic';
     }
 }
 class roborock_vacuum_s5 extends roborock_vacuum

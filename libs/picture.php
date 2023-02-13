@@ -382,6 +382,6 @@ function createPicture($data)
                 echo "write file\r\n";
             }
         }
-        echo "\r\n";
+        //echo "\r\n";
     }
 }

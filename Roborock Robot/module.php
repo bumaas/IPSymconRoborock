@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/roborock_vacuum.php';
+require_once __DIR__ . '/RRMapFileParser.php';
+require_once __DIR__ . '/RRMapDraw.php';
 
 /**
  * Class Roborock
@@ -256,7 +258,7 @@ class Roborock extends IPSModule
         parent::ApplyChanges();
 
         $classname = get_class($this->device);
-        if ($classname !== 'roborock_vacuum'){
+        if ($classname !== 'roborock_vacuum') {
             $profileSuffix = '.' . $this->device->GetModelType($classname);
         } else {
             $profileSuffix = '';
@@ -314,24 +316,22 @@ class Roborock extends IPSModule
                                 ]
         );
 
-        if ($this->ReadPropertyBoolean(self::PROPERTY_FAN_POWER)){
+        if ($this->ReadPropertyBoolean(self::PROPERTY_FAN_POWER)) {
             $ass = [];
-            foreach ($this->device::FANPOWER as $name=>$value){
+            foreach ($this->device::FANPOWER as $name => $value) {
                 $ass[] = [$value, $this->Translate($name), '', -1];
             }
             $this->RegisterProfileAssociation(self::PROFILE_FANPOWER . $profileSuffix, 'Speedo', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, $ass);
-
         }
 
-        $this->RegisterProfileAssociation(
-            self::PROFILE_WATERQUANTITY, 'Drops', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, [
-                                           [200, $this->Translate('Off'), '', -1],
-                                           [201, $this->Translate('Low'), '', -1],
-                                           [202, $this->Translate('Medium'), '', -1],
-                                           [203, $this->Translate('High'), '', -1],
-                                           [204, $this->Translate('Customize (Auto)'), '', -1],
-                                       ]
-        );
+        if ($this->ReadPropertyBoolean(self::PROPERTY_WATER_QUANTITY)) {
+            $ass = [];
+            foreach ($this->device::WATERQUANTITY as $name => $value) {
+                $ass[] = [$value, $this->Translate($name), '', -1];
+            }
+            $this->RegisterProfileAssociation(self::PROFILE_WATERQUANTITY . $profileSuffix, 'Drops', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, $ass);
+        }
+
         $this->RegisterProfile(self::PROFILE_CLEANAREA, 'Shuffle', '', ' m²', 0, 0, 0, 1, VARIABLETYPE_FLOAT);
         $this->RegisterProfile(self::PROFILE_TOTALCLEANS, 'Gauge', '', '', 0, 0, 0, 2, VARIABLETYPE_INTEGER);
         $this->RegisterProfile(self::PROFILE_VOLUME, 'Speaker', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
@@ -361,7 +361,12 @@ class Roborock extends IPSModule
 
         // fan power
         if ($this->ReadPropertyBoolean(self::PROPERTY_FAN_POWER)) {
-            $this->RegisterVariableInteger(self::IDENT_FAN_POWER, $this->Translate('Fan Power'), self::PROFILE_FANPOWER . $profileSuffix, $this->_getPosition());
+            $this->RegisterVariableInteger(
+                self::IDENT_FAN_POWER,
+                $this->Translate('Fan Power'),
+                self::PROFILE_FANPOWER . $profileSuffix,
+                $this->_getPosition()
+            );
             $this->EnableAction(self::IDENT_FAN_POWER);
         } else {
             $this->UnregisterVariable(self::IDENT_FAN_POWER);
@@ -372,7 +377,7 @@ class Roborock extends IPSModule
             $this->RegisterVariableInteger(
                 self::IDENT_WATER_QUANTITY,
                 $this->Translate('Water Quantity'),
-                self::PROFILE_WATERQUANTITY,
+                self::PROFILE_WATERQUANTITY . $profileSuffix,
                 $this->_getPosition()
             );
             $this->RegisterVariableBoolean(self::IDENT_WATER_BOX_STATUS, $this->Translate('Water Box installed'), '~Switch', $this->_getPosition());
@@ -528,7 +533,13 @@ class Roborock extends IPSModule
         $this->SetReceiveDataFilter('.*"InstanceID":' . $this->InstanceID . '.*');
 
         // set summary
-        $this->SetSummary(sprintf('%s (%s)', $this->ReadPropertyString(self::PROPERTY_IP), trim(str_replace('Roborock', '', $this->device->GetName(get_class($this->device))))));
+        $this->SetSummary(
+            sprintf(
+                '%s (%s)',
+                $this->ReadPropertyString(self::PROPERTY_IP),
+                trim(str_replace('Roborock', '', $this->device->GetName(get_class($this->device))))
+            )
+        );
 
         // run only, when kernel is ready
         if (IPS_GetKernelRunlevel() === KR_READY) {
@@ -759,7 +770,7 @@ class Roborock extends IPSModule
 
         //wenn ein Aufruf direkt erfolgt und nicht aus der Instanz heraus, dann soll er sofort ausgeführt werden
         /** @noinspection PhpUndefinedVariableInspection */
-        $this->SendDebug('IPS', json_encode($_IPS, JSON_THROW_ON_ERROR), 0);
+        //$this->SendDebug('IPS', json_encode($_IPS, JSON_THROW_ON_ERROR), 0);
         if (($_IPS['SELF'] > 0 && $_IPS['SELF'] !== $this->InstanceID)
             || in_array($_IPS['SENDER'], ['Execute', 'Variable', 'RunScript', 'PHPModule'])) {
             $payload['immediate'] = true;
@@ -774,6 +785,7 @@ class Roborock extends IPSModule
         $data = json_encode(['DataID' => '{F7DC50D6-DCE6-27CE-49B2-A363593EBB3B}', 'Buffer' => $buffer], JSON_THROW_ON_ERROR);
         if ($io_json = @$this->SendDataToParent($data)) {
             // receive data on immediately requests
+            $this->_debug('send (return)', $io_json);
 
             if ($buffer['immediate']) {
                 $io = json_decode($io_json, true, 512, JSON_THROW_ON_ERROR);
@@ -1080,36 +1092,53 @@ class Roborock extends IPSModule
      *
      * @return bool
      */
-    public function GetMap(): void
+    public function GetMap(): bool
     {
-        $count = 0;
-        do {
-            $mapName = $this->RequestData('get_map_v1');
-            $count++;
-        } while (($mapName === 'retry') && $count < 3);
+        $url = '';
 
-        $data = $this->getApiIO('/home/getmapfileurl', ['obj_name' => $mapName]);
+        if (!$url) {
+            $count = 0;
+            do {
+                $mapName = $this->RequestData('get_map_v1');
+                $count++;
+            } while ((!$mapName || ($mapName === 'retry')) && $count < 3);
 
-        $this->_debug(__FUNCTION__, sprintf('getmapfile: %s', json_encode($data)));
+            $data = $this->getApiIO('/home/getmapfileurl', ['obj_name' => $mapName]);
 
-        if (!isset($data['result']['url'])) {
-            return;
+            $this->_debug(__FUNCTION__, sprintf('getmapfile: %s', json_encode($data)));
+
+            if (!isset($data['result']['url'])) {
+                return false;
+            }
+            $url = ($data['result']['url']);
+
+            $this->_debug(__FUNCTION__.'URL', $url);
         }
-        $url = ($data['result']['url']);
-
-        $this->_debug(__FUNCTION__, sprintf('url: %s', $url));
 
         $data = $this->getMapdata($url);
 
         ini_set('memory_limit', '48M');
-        $picture = $this->createPicture($data);
+        $pic = new RRMapFileParser($data);
+        if (!$pic->isValid()) {
+            return false;
+        }
+
+        $draw = new RRMapDraw($pic);
+        //echo '--------------GetImage!!!-----------------' . PHP_EOL;
+        $picture = $draw->getImage(2.0);
+
+        //echo '--------------Get OLD Image!!!-----------------'.PHP_EOL;
+        //$picture = $this->createPicture_old($data);
+
         if ($picture === '') {
-            return;
+            return false;
         }
 
         $this->CreateMapPictureVariable();
 
         IPS_SetMediaContent(IPS_GetObjectIDByIdent(self::IDENT_MAP_PICTURE, $this->InstanceID), base64_encode($picture));
+
+        return true;
     }
 
     private function CreateMapPictureVariable()
@@ -1769,6 +1798,9 @@ class Roborock extends IPSModule
                 break;
             case self::IDENT_MAP_STATUS:
                 $this->LoadMap($Value);
+                break;
+            case 'ReloadForm':
+                $this->ReloadForm();
                 break;
             default:
                 $this->_debug('request action', 'Invalid $Ident <' . $Ident . '>');
@@ -2481,6 +2513,31 @@ class Roborock extends IPSModule
                 'onClick' => '$module = new IPSModule($id); if (Roborock_GetTokenFromXiaomi($id)){echo $module->Translate(\'OK\');} else {echo $module->Translate(\'Login not successful.\');};'
             ],
             [
+                'type'  => 'RowLayout',
+                'items' => [
+                    [
+                        'type'    => 'Button',
+                        'caption' => 'Get Map',
+                        'onClick' => '$module = new IPSModule($id); if (Roborock_GetMap($id)){echo $module->Translate(\'OK\');IPS_RequestAction($id, "ReloadForm", true);} else {echo $module->Translate(\'Error\');};'
+                    ],
+                    [
+                        'type'    => 'PopupButton',
+                        'name'    => 'PopupButton',
+                        'caption' => 'Show Map',
+                        'popup'   => [
+                            'caption' => 'Map',
+                            'items'   => [
+                                [
+                                    'type'    => 'Image',
+                                    'width'   => '30%',
+                                    'mediaID' => @IPS_GetObjectIDByIdent(self::IDENT_MAP_PICTURE, $this->InstanceID)
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ],
+            [
                 'type'    => 'Button',
                 'label'   => 'Update',
                 'onClick' => 'Roborock_Update($id);'
@@ -2494,20 +2551,6 @@ class Roborock extends IPSModule
                 'type'    => 'Button',
                 'label'   => 'Clean Spot',
                 'onClick' => 'Roborock_CleanSpot($id);'
-            ],
-            [
-                'type'    => 'PopupButton',
-                'name'    => 'PopupButton',
-                'caption' => 'Get Map',
-                'popup'   => [
-                    'caption' => 'Titel',
-                    'items'   => [
-                        [
-                            'type'    => 'Image',
-                            'mediaID' => @IPS_GetObjectIDByIdent(self::IDENT_MAP_PICTURE, $this->InstanceID)
-                        ]
-                    ]
-                ]
             ],
             [
                 'type'    => 'Button',
@@ -3192,9 +3235,9 @@ EOF;
      */
     protected function load_multi_map_callback(array $data)
     {
- //       $this->SendDebug(__FUNCTION__, json_encode($data), 0);
+        //       $this->SendDebug(__FUNCTION__, json_encode($data), 0);
 
-        if ($data['result'][0] === 'ok'){
+        if ($data['result'][0] === 'ok') {
             $map_status = $data['params'][0];
             $this->SetRoborockValue(self::IDENT_MAP_STATUS, $map_status);
             return $map_status;
@@ -3926,13 +3969,14 @@ EOF;
         return $data['result']['progress'] ?? false;
     }
 
-    private function createPicture($data): string
+    private function createPicture_old($data): string
     {
         // see also https://github.com/marcelrv/XiaomiRobotVacuumProtocol/tree/master/RRMapFile
         // Viewer: https://community.openhab.org/t/xiaomi-vacuum-map-viewer-to-find-coordinates-for-zone-cleaning/103500
+        // https://github.com/marcelrv/openhab2/commits/276a4cfc0512d9a44d87d43505c01d66561ea65e/bundles/org.openhab.binding.miio/src/main/java/org/openhab/binding/miio/internal/robot/RRMapFileParser.java
 
         $newImage        = null;
-        $multi           = 4;
+        $multi           = 1;
         $picsize         = 30;
         $divsize         = 50 / $multi;
         $pic_zonen       = 0;
@@ -3975,21 +4019,23 @@ EOF;
         $pngStream = '';
 
         while ($filedatapos < strlen($data)) {
-            $i                 = $filedatapos;
+            $i = $filedatapos;
+            //  echo $blocktype;
             $blocktype         = ord($data[$i++]) | (ord($data[$i++]) << 8);
             $blockheaderlength = ord($data[$i++]) | (ord($data[$i++]) << 8);
             $blockdatlength    = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
+            echo sprintf("block type: %s, headerlength: %s, datalength: %s", $blocktype, $blockheaderlength, $blockdatlength) . "\r\n";
+            echo 'Header: ' . bin2hex(substr($data, $filedatapos, $headerlength)) . "\r\n";
             //echo "Filedatapos       :" . $filedatapos . "\r\n";
 
             $filedatapos = $filedatapos + $blockheaderlength + $blockdatlength;
-            //echo "Blocktype         :" . $blocktype . "\r\n";
-            //echo "Blockheaderlength :" . $blockheaderlength . "\r\n";
-            //echo "Blockdatlength    :" . $blockdatlength . "\r\n";
 
             switch ($blocktype) {
                 case 1: //Charger POS
-                    $chargerposx    = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
-                    $chargerposy    = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
+                    $chargerposx = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
+                    $chargerposy = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
+                    echo sprintf("chargerposx: %s, chargerposY: %s", $chargerposx, $chargerposy) . "\r\n";
+
                     $picchargerposx = (int)(($chargerposx - ($pic_leftpos * $divsize)) / $divsize);
                     $picchargerposy = (int)($pic_imageheight - (($chargerposy - ($pic_toppos * $divsize)) / $divsize));
                     $im1            = imagecreatefromstring(
@@ -4023,7 +4069,7 @@ EOF;
                     */
                     break;
 
-                case 2: //PICTURE
+                case 2: //image
                     $pic_zonen       = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
                     $pic_toppos      = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
                     $pic_leftpos     = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
@@ -4063,44 +4109,16 @@ EOF;
                     echo "-----------\r\n";
 
                     echo "Zonen             :".$pic_zonen. "\r\n";
-                    echo "Toppos            :".$pic_toppos. "\r\n";
-                    echo "Leftpos           :".$pic_leftpos. "\r\n";
-                    echo "Imageheight       :".$pic_imageheight. "\r\n";
-                    echo "Imagewidth        :".$pic_imagewidth. "\r\n";
                     */
+                    echo "Toppos            :" . $pic_toppos . "\r\n";
+                    echo "Leftpos           :" . $pic_leftpos . "\r\n";
+                    echo "Imageheight       :" . $pic_imageheight . "\r\n";
+                    echo "Imagewidth        :" . $pic_imagewidth . "\r\n";
+                    //*/
                     break;
 
-                case 3: //Vakuumpfad
-                    $pointlengths = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
-                    $pointsize    = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
-                    $angle        = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
-
-                    $xold = ord($data[$i++]) | (ord($data[$i++]) << 8);
-                    $yold = ord($data[$i++]) | (ord($data[$i++]) << 8);
-
-                    for ($pointlength = 1; $pointlength < $pointlengths; $pointlength++) {
-                        $x               = ord($data[$i++]) | (ord($data[$i++]) << 8);
-                        $y               = ord($data[$i++]) | (ord($data[$i++]) << 8);
-                        $pointlengthxold = (int)(($xold - ($pic_leftpos * $divsize)) / $divsize);
-                        $pointlengthyold = (int)($pic_imageheight - (($yold - ($pic_toppos * $divsize)) / $divsize));
-                        $pointlengthx    = (int)(($x - ($pic_leftpos * $divsize)) / $divsize);
-                        $pointlengthy    = (int)($pic_imageheight - (($y - ($pic_toppos * $divsize)) / $divsize));
-                        $xold            = $x;
-                        $yold            = $y;
-
-                        $color = imagecolorallocate($newImage, 255, 255, 255);
-                        imageline($newImage, $pointlengthxold, $pointlengthyold, $pointlengthx, $pointlengthy, $color);
-                    }
-
-                    /*
-                                    echo "Vakuumpfad\r\n";
-                                    echo "----------\r\n";
-                                    echo "PointLengths      :" . $pointlengths . "\r\n";
-                                    echo "PointSize         :" . $pointsize . "\r\n";
-                                    echo "Winkel            :" . $angle . "\r\n";
-                    */
-                    break;
-
+                case 3: //path
+                case 4: //goto path
                 case 5: //predicted goto path
                     $pointlengths = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
                     $pointsize    = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
@@ -4122,7 +4140,7 @@ EOF;
                         $color = imagecolorallocate($newImage, 255, 255, 0);
                         imageline($newImage, $pointlengthxold, $pointlengthyold, $pointlengthx, $pointlengthy, $color);
                     }
-                    /*echo "vorhergesagter Goto-Pfad\r\n";
+                    /*echo "Pfad (".$blocktype. ") \r\n";
                     echo "----------\r\n";
                     echo "PointLengths      :".$pointlengths. "\r\n";
                     echo "PointSize         :".$pointsize. "\r\n";
@@ -4130,7 +4148,7 @@ EOF;
                     */
                     break;
 
-                case 6: //Clean zone
+                case 6: //currently cleaned zones
                     $counters = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
                     for ($counter = 0; $counter < $counters; $counter++) {
                         $x1 = ord($data[$i++]) | (ord($data[$i++]) << 8);
@@ -4276,7 +4294,9 @@ EOF;
                     */
                     break;
 
-                case 9: //Sperrzonen
+                case 9: //no go areas
+                case 12: //mob forbidden area
+                case 19: //Carpet forbidden area
                     $counters = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
                     for ($counter = 0; $counter < $counters; $counter++) {
                         $x1 = ord($data[$i++]) | (ord($data[$i++]) << 8);
@@ -4287,6 +4307,7 @@ EOF;
                         $y3 = ord($data[$i++]) | (ord($data[$i++]) << 8);
                         $x4 = ord($data[$i++]) | (ord($data[$i++]) << 8);
                         $y4 = ord($data[$i++]) | (ord($data[$i++]) << 8);
+                        echo sprintf('%s, %s, %s, %s, %s', __FUNCTION__, $x1, $y1, $x3, $y3) . PHP_EOL;
 
                         $x1pic = (int)(($x1 - ($pic_leftpos * $divsize)) / $divsize);
                         $y1pic = (int)($pic_imageheight - (($y1 - ($pic_toppos * $divsize)) / $divsize));
@@ -4296,6 +4317,7 @@ EOF;
                         $y3pic = (int)($pic_imageheight - (($y3 - ($pic_toppos * $divsize)) / $divsize));
                         $x4pic = (int)(($x4 - ($pic_leftpos * $divsize)) / $divsize);
                         $y4pic = (int)($pic_imageheight - (($y4 - ($pic_toppos * $divsize)) / $divsize));
+                        echo sprintf('%s, %s, %s, %s, %s', __FUNCTION__, $x1pic, $y1pic, $x3pic, $y3pic) . PHP_EOL;
 
                         imagefilledrectangle($newImage, $x1pic, $y1pic, $x3pic, $y3pic, imagecolorallocatealpha($newImage, 255, 0, 0, 64));
                         ImageRectangle($newImage, $x1pic, $y1pic, $x3pic, $y3pic, imagecolorallocate($newImage, 255, 0, 0));
@@ -4306,10 +4328,13 @@ EOF;
                     */
                     break;
 
-                case 10: //unknown
-                case 12: //unknown
-                case 15: //unknown
-                case 16: //unknown
+                case 10: //Virtual Walls
+                case 11: //blocks
+                case 13: //Obstacles
+                case 15: //Obstacles II
+                case 16: //Ignored Obstacles
+                case 17: //Carpet Map
+                case 18: //Mop path
                 case 21: //unknown
                     break;
 
@@ -4346,4 +4371,10 @@ EOF;
         return $result;
     }
 
+    private function getUInt16(string $bytes, int $pos)
+    {
+        $i = $pos;
+        return ord($bytes[$i++]) | (ord($bytes[$i++]) << 8);
+    }
 }
+
