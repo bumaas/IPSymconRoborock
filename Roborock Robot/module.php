@@ -38,6 +38,7 @@ class Roborock extends IPSModule
     private const ATTRIBUTE_LAST_NOTIFICATION_ERROR = 'last_notification_error';
     private const ATTRIBUTE_CLEANING_RECORDS        = 'cleaning_records';
     private const ATTRIBUTE_MODEL                   = 'model';
+    private const ATTRIBUTE_MAPFILE_URL             = 'mapfile_url';
 
     private const PROPERTY_IP                   = 'ip';
     private const PROPERTY_MODEL                = 'model';
@@ -220,7 +221,7 @@ class Roborock extends IPSModule
         $this->RegisterPropertyBoolean('serial_number', false);
         $this->RegisterPropertyBoolean('timer_details', false);
         $this->RegisterPropertyBoolean('extended_info', false);
-        $this->RegisterPropertyBoolean(self::IDENT_VOLUME, false);
+        $this->RegisterPropertyBoolean(self::PROPERTY_VOLUME, false);
         $this->RegisterPropertyBoolean('timezone', false);
         $this->RegisterPropertyBoolean('remote', false);
 
@@ -246,6 +247,7 @@ class Roborock extends IPSModule
         $this->RegisterAttributeString(self::ATTRIBUTE_LAST_NOTIFICATION_ERROR, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_MODEL, '');
+        $this->RegisterAttributeString(self::ATTRIBUTE_MAPFILE_URL, '');
     }
 
     /**
@@ -768,9 +770,9 @@ class Roborock extends IPSModule
 
         // force immediate option on ips sender
 
-        //wenn ein Aufruf direkt erfolgt und nicht aus der Instanz heraus, dann soll er sofort ausgeführt werden
-        /** @noinspection PhpUndefinedVariableInspection */
+        //wenn ein Aufruf direkt erfolgt und nicht aus der Instanz heraus, dann soll er sofort ausgeführt werden /** @noinspection PhpUndefinedVariableInspection */
         //$this->SendDebug('IPS', json_encode($_IPS, JSON_THROW_ON_ERROR), 0);
+        /** @noinspection PhpUndefinedVariableInspection */
         if (($_IPS['SELF'] > 0 && $_IPS['SELF'] !== $this->InstanceID)
             || in_array($_IPS['SENDER'], ['Execute', 'Variable', 'RunScript', 'PHPModule'])) {
             $payload['immediate'] = true;
@@ -1094,7 +1096,16 @@ class Roborock extends IPSModule
      */
     public function GetMap(): bool
     {
-        $url = '';
+        $url = $this->ReadAttributeString(self::ATTRIBUTE_MAPFILE_URL);
+
+        if ($url) {
+            parse_str(parse_url($url, PHP_URL_QUERY), $output);
+            if ($output['Expires'] / 1000 < time()) {
+                $url = '';
+            } else {
+                $this->_debug(__FUNCTION__ . 'URL (cached)', $url);
+            }
+        }
 
         if (!$url) {
             $count = 0;
@@ -1112,10 +1123,15 @@ class Roborock extends IPSModule
             }
             $url = ($data['result']['url']);
 
-            $this->_debug(__FUNCTION__.'URL', $url);
+            $this->_debug(__FUNCTION__ . 'URL', $url);
+            $this->WriteAttributeString(self::ATTRIBUTE_MAPFILE_URL, $url);
         }
 
+
         $data = $this->getMapdata($url);
+        if (!$data) {
+            return false;
+        }
 
         ini_set('memory_limit', '48M');
         $pic = new RRMapFileParser($data);
@@ -2070,8 +2086,8 @@ class Roborock extends IPSModule
                 ]
             ],
             [
-                'type'  => 'Label',
-                'label' => 'Enter the credentials of your Xiaomi Home Account below.'
+                'type'    => 'Label',
+                'caption' => 'Enter the credentials of your Xiaomi Home Account below.'
             ],
             [
                 'name'    => self::PROPERTY_XIAOMI_USER,
@@ -2118,106 +2134,106 @@ class Roborock extends IPSModule
                                      ],
                                      'columns'  => [
                                          [
-                                             'name'  => 'enabled',
-                                             'label' => 'Enabled',
-                                             'width' => '100px',
-                                             'edit'  => [
+                                             'name'    => 'enabled',
+                                             'caption' => 'Enabled',
+                                             'width'   => '100px',
+                                             'edit'    => [
                                                  'type'    => 'CheckBox',
                                                  'caption' => 'Enable Push Notification'
                                              ]
                                          ],
                                          [
-                                             'name'  => 'name',
-                                             'label' => 'Notification',
-                                             'width' => 'auto',
-                                             'save'  => true
+                                             'name'    => 'name',
+                                             'caption' => 'Notification',
+                                             'width'   => 'auto',
+                                             'save'    => true
                                          ],
                                          [
-                                             'name'  => 'sound',
-                                             'label' => 'Notification Sound',
-                                             'width' => '170px',
-                                             'edit'  => [
+                                             'name'    => 'sound',
+                                             'caption' => 'Notification Sound',
+                                             'width'   => '170px',
+                                             'edit'    => [
                                                  'type'    => 'Select',
                                                  'options' => [
                                                      [
-                                                         'label' => 'default',
-                                                         'value' => ''
+                                                         'caption' => 'default',
+                                                         'value'   => ''
                                                      ],
                                                      [
-                                                         'label' => 'alarm',
-                                                         'value' => 'alarm'
+                                                         'caption' => 'alarm',
+                                                         'value'   => 'alarm'
                                                      ],
                                                      [
-                                                         'label' => 'bell',
-                                                         'value' => 'bell'
+                                                         'caption' => 'bell',
+                                                         'value'   => 'bell'
                                                      ],
                                                      [
-                                                         'label' => 'boom',
-                                                         'value' => 'boom'
+                                                         'caption' => 'boom',
+                                                         'value'   => 'boom'
                                                      ],
                                                      [
-                                                         'label' => 'buzzer',
-                                                         'value' => 'buzzer'
+                                                         'caption' => 'buzzer',
+                                                         'value'   => 'buzzer'
                                                      ],
                                                      [
-                                                         'label' => 'connected',
-                                                         'value' => 'connected'
+                                                         'caption' => 'connected',
+                                                         'value'   => 'connected'
                                                      ],
                                                      [
-                                                         'label' => 'dark',
-                                                         'value' => 'dark'
+                                                         'caption' => 'dark',
+                                                         'value'   => 'dark'
                                                      ],
                                                      [
-                                                         'label' => 'digital',
-                                                         'value' => 'digital'
+                                                         'caption' => 'digital',
+                                                         'value'   => 'digital'
                                                      ],
                                                      [
-                                                         'label' => 'drums',
-                                                         'value' => 'drums'
+                                                         'caption' => 'drums',
+                                                         'value'   => 'drums'
                                                      ],
                                                      [
-                                                         'label' => 'duck',
-                                                         'value' => 'duck'
+                                                         'caption' => 'duck',
+                                                         'value'   => 'duck'
                                                      ],
                                                      [
-                                                         'label' => 'full',
-                                                         'value' => 'full'
+                                                         'caption' => 'full',
+                                                         'value'   => 'full'
                                                      ],
                                                      [
-                                                         'label' => 'happy',
-                                                         'value' => 'happy'
+                                                         'caption' => 'happy',
+                                                         'value'   => 'happy'
                                                      ],
                                                      [
-                                                         'label' => 'horn',
-                                                         'value' => 'horn'
+                                                         'caption' => 'horn',
+                                                         'value'   => 'horn'
                                                      ],
                                                      [
-                                                         'label' => 'inception',
-                                                         'value' => 'inception'
+                                                         'caption' => 'inception',
+                                                         'value'   => 'inception'
                                                      ],
                                                      [
-                                                         'label' => 'kazoo',
-                                                         'value' => 'kazoo'
+                                                         'caption' => 'kazoo',
+                                                         'value'   => 'kazoo'
                                                      ],
                                                      [
-                                                         'label' => 'roll',
-                                                         'value' => 'roll'
+                                                         'caption' => 'roll',
+                                                         'value'   => 'roll'
                                                      ],
                                                      [
-                                                         'label' => 'siren',
-                                                         'value' => 'siren'
+                                                         'caption' => 'siren',
+                                                         'value'   => 'siren'
                                                      ],
                                                      [
-                                                         'label' => 'space',
-                                                         'value' => 'space'
+                                                         'caption' => 'space',
+                                                         'value'   => 'space'
                                                      ],
                                                      [
-                                                         'label' => 'trickling',
-                                                         'value' => 'trickling'
+                                                         'caption' => 'trickling',
+                                                         'value'   => 'trickling'
                                                      ],
                                                      [
-                                                         'label' => 'turn',
-                                                         'value' => 'turn'
+                                                         'caption' => 'turn',
+                                                         'value'   => 'turn'
                                                      ]
                                                  ]
                                              ]
@@ -2341,59 +2357,59 @@ class Roborock extends IPSModule
                                      ],
                                      'columns'  => [
                                          [
-                                             'name'  => 'zone',
-                                             'label' => 'zone',
-                                             'width' => '100px',
-                                             'add'   => $this->GetZoneID(),
-                                             'save'  => true
+                                             'name'    => 'zone',
+                                             'caption' => 'zone',
+                                             'width'   => '100px',
+                                             'add'     => $this->GetZoneID(),
+                                             'save'    => true
                                          ],
                                          [
-                                             'name'  => 'roomname',
-                                             'label' => 'room name',
-                                             'width' => 'auto',
-                                             'add'   => 'room name',
-                                             'save'  => true,
-                                             'edit'  => [
+                                             'name'    => 'roomname',
+                                             'caption' => 'room name',
+                                             'width'   => 'auto',
+                                             'add'     => 'room name',
+                                             'save'    => true,
+                                             'edit'    => [
                                                  'type' => 'ValidationTextBox'
                                              ]
                                          ],
                                          [
-                                             'name'  => 'lx',
-                                             'label' => 'lower left corner x',
-                                             'width' => '150px',
-                                             'add'   => 25000,
-                                             'save'  => true,
-                                             'edit'  => [
+                                             'name'    => 'lx',
+                                             'caption' => 'lower left corner x',
+                                             'width'   => '150px',
+                                             'add'     => 25000,
+                                             'save'    => true,
+                                             'edit'    => [
                                                  'type' => 'NumberSpinner'
                                              ]
                                          ],
                                          [
-                                             'name'  => 'ly',
-                                             'label' => 'lower left corner y',
-                                             'width' => '150px',
-                                             'add'   => 25000,
-                                             'save'  => true,
-                                             'edit'  => [
+                                             'name'    => 'ly',
+                                             'caption' => 'lower left corner y',
+                                             'width'   => '150px',
+                                             'add'     => 25000,
+                                             'save'    => true,
+                                             'edit'    => [
                                                  'type' => 'NumberSpinner'
                                              ]
                                          ],
                                          [
-                                             'name'  => 'ux',
-                                             'label' => 'upper right corner x',
-                                             'width' => '150px',
-                                             'add'   => 25000,
-                                             'save'  => true,
-                                             'edit'  => [
+                                             'name'    => 'ux',
+                                             'caption' => 'upper right corner x',
+                                             'width'   => '150px',
+                                             'add'     => 25000,
+                                             'save'    => true,
+                                             'edit'    => [
                                                  'type' => 'NumberSpinner'
                                              ]
                                          ],
                                          [
-                                             'name'  => 'uy',
-                                             'label' => 'upper right corner y',
-                                             'width' => '150px',
-                                             'add'   => 25000,
-                                             'save'  => true,
-                                             'edit'  => [
+                                             'name'    => 'uy',
+                                             'caption' => 'upper right corner y',
+                                             'width'   => '150px',
+                                             'add'     => 25000,
+                                             'save'    => true,
+                                             'edit'    => [
                                                  'type' => 'NumberSpinner'
                                              ]
                                          ]
@@ -2580,7 +2596,7 @@ class Roborock extends IPSModule
             /*
                 [
                     'type' => 'Button',
-                    'label' => 'Update Joystick - TEST',
+                    'caption' => 'Update Joystick - TEST',
                     'onClick' => 'Roborock_SetJoystickHtml($id);'
                 ]
             */
@@ -3419,10 +3435,14 @@ EOF;
             $ret         = [];
 
             foreach ($this->device::CONSUMABLES as $ident => $name) {
-                $max_work_time     = consumable::GetMaxWorkTime($ident);
-                $work_time         = $data['result'][0][$name];
-                $work_time_percent = round(100 - (100 / ($max_work_time * 3600) * $work_time));
-                $consumables[]     = [
+                $max_work_time = consumable::GetMaxWorkTime($ident);
+                $work_time     = $data['result'][0][$name];
+                if ($max_work_time['unit'] === 'hours') {
+                    $work_time_percent = round(100 - (100 / ($max_work_time['value'] * 3600) * $work_time));
+                } else {
+                    $work_time_percent = round(100 - (100 / ($max_work_time['value']) * $work_time));
+                }
+                $consumables[] = [
                     $this->Translate(consumable::GetName($ident)),
                     $work_time_percent . '%'
                 ];

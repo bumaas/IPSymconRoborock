@@ -1,4 +1,10 @@
 <?php
+// see also https://github.com/marcelrv/XiaomiRobotVacuumProtocol/tree/master/RRMapFile
+// Viewer: https://community.openhab.org/t/xiaomi-vacuum-map-viewer-to-find-coordinates-for-zone-cleaning/103500
+
+// parsen: https://github.com/marcelrv/openhab2/commits/276a4cfc0512d9a44d87d43505c01d66561ea65e/bundles/org.openhab.binding.miio/src/main/java/org/openhab/binding/miio/internal/robot/RRMapFileParser.java
+// zeichnen: https://github.com/marcelrv/openhab2/blob/276a4cfc0512d9a44d87d43505c01d66561ea65e/bundles/org.openhab.binding.miio/src/main/java/org/openhab/binding/miio/internal/robot/RRMapDraw.java
+
 
 class RRMapFileParser
 {
@@ -46,6 +52,8 @@ class RRMapFileParser
 
     private array  $zones        = [];
 
+    private array  $obstacles    = [];
+
     private string $blocks       = '';
 
     private int    $majorVersion;
@@ -81,12 +89,6 @@ class RRMapFileParser
 
     public function __construct($raw)
     {
-        // see also https://github.com/marcelrv/XiaomiRobotVacuumProtocol/tree/master/RRMapFile
-        // Viewer: https://community.openhab.org/t/xiaomi-vacuum-map-viewer-to-find-coordinates-for-zone-cleaning/103500
-        // https://github.com/marcelrv/openhab2/commits/276a4cfc0512d9a44d87d43505c01d66561ea65e/bundles/org.openhab.binding.miio/src/main/java/org/openhab/binding/miio/internal/robot/RRMapFileParser.java
-
-        // zeichnen: https://github.com/marcelrv/openhab2/blob/276a4cfc0512d9a44d87d43505c01d66561ea65e/bundles/org.openhab.binding.miio/src/main/java/org/openhab/binding/miio/internal/robot/RRMapDraw.java
-
         $printBlockDetails  = false;
         $mapHeaderLength    = $this->getUInt16($raw, 0x02);
         $mapDataLength      = $this->getUInt32LE($raw, 0x04);
@@ -189,13 +191,52 @@ class RRMapFileParser
                     $this->blocks = substr($data, 0, $blocksPairs);
                     break;
 
+                case self::OBSTACLES2:
+                    $obstacle2Pairs = $this->getUInt16($header, 0x08);
+                    if ($obstacle2Pairs === 0) {
+                        break;
+                    }
+                    $obstacleDataLenght = $blockDataLength / $obstacle2Pairs;
+                    $obstacle2          = [];
+                    for ($obstaclePair = 0; $obstaclePair < $obstacle2Pairs; $obstaclePair++) {
+                        $x0 = $this->getUInt16($data, $obstaclePair * $obstacleDataLenght + 0);
+                        $y0 = $this->getUInt16($data, $obstaclePair * $obstacleDataLenght + 2);
+                        $u0 = $this->getUInt16($data, $obstaclePair * $obstacleDataLenght + 4);
+                        $u1 = $this->getUInt16($data, $obstaclePair * $obstacleDataLenght + 6);
+                        $u2 = $this->getUInt32LE($data, $obstaclePair * $obstacleDataLenght + 8);
+                        if ($obstacleDataLenght === 28) {
+                            if (($data[$obstaclePair * $obstacleDataLenght + 12]) === '') {
+                                //echo "obstacle with photo: No text" . PHP_EOL;
+                            } else {
+                                $txt = substr($data, $obstaclePair * $obstacleDataLenght + 12, 16);
+                                //echo "obstacle with photo: {}" . $txt . PHP_EOL;
+                            }
+                            $obstacle2[] = [$x0, $y0, $u0, $u1, $u2];
+                        } else {
+                            $u3          = $this->getUInt32LE($data, $obstaclePair * $obstacleDataLenght + 12);
+                            $obstacle2[] = [$x0, $y0, $u0, $u1, $u2, $u3];
+                            //echo "obstacle without photo." . PHP_EOL;
+                        }
+                    }
+                    $this->obstacles[$blocktype] = $obstacle2;
+                    //echo print_r($this->obstacles, true) . PHP_EOL;
+                    break;
+
                 case self::DIGEST:
                     $this->isValid = bin2hex($data) === sha1(substr($raw, 0, $mapHeaderLength + $mapDataLength - 20));
                     break;
 
                 default:
-                    if ($blockDataLength > 0){
-                        IPS_LogMessage(__FUNCTION__, sprintf ('The blocktype %s is not yet supported. (header length: %s, data length: %s)', $blocktype, $blockHeaderLength, $blockDataLength));
+                    if ($blockDataLength > 0) {
+                        IPS_LogMessage(
+                            __FUNCTION__,
+                            sprintf(
+                                'The blocktype %s is not yet supported. (header length: %s, data length: %s)',
+                                $blocktype,
+                                $blockHeaderLength,
+                                $blockDataLength
+                            )
+                        );
                     }
             }
             $blockStartPos += $blockDataLength + $blockHeaderLength;
@@ -276,9 +317,15 @@ class RRMapFileParser
     {
         return $this->blocks;
     }
-   public function getZones(): array
+
+    public function getZones(): array
     {
         return $this->zones;
+    }
+
+    public function getObstacles(): array
+    {
+        return $this->obstacles;
     }
 
     public function isValid(): bool

@@ -27,26 +27,28 @@ class Consumable extends stdClass
         ]);
     }
 
-    public static function GetMaxWorkTime(string $consumable): int
+    public static function GetMaxWorkTime(string $consumable): array
     {
+        //max work times in hours
         switch ($consumable) {
             case self::MAINBRUSH:
-                return 300;
+                return ['value' => 300, 'unit' => 'hours'];
             case self::SIDEBRUSH:
-                return 200;
+                return ['value' => 200, 'unit' => 'hours'];
             case self::FILTER:
-                return 150;
+                return ['value' => 150, 'unit' => 'hours'];
             case self::FILTERELEMENT:
-                return 999;
+                return ['value' => 999, 'unit' => 'hours'];
             case self::SENSOR:
-                return 30; //Sensoren
+                return ['value' => 30, 'unit' => 'hours']; //Sensoren
             case self::STRAINER:
+                return ['value' => 300, 'unit' => 'counter'];
             case self::DUSTCOLLECTOR://Staubbeutel?
             case self::CLEANINGBRUSH://Reinigungsbürste
-                return 999;
+                return ['value' => 999, 'unit' => 'counter'];
         }
         trigger_error('Unexpected consumable: ' . $consumable, E_USER_WARNING);
-        return 0;
+        return [];
     }
 }
 

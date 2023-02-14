@@ -79,6 +79,7 @@ class RRMapDraw
         $this->drawRobo($newImage, $scale);
         $this->drawPath($newImage, $scale);
         $this->drawZones($newImage, $scale);
+        $this->drawObstacles($newImage, $scale);
 
         /*
          * todo:
@@ -86,7 +87,7 @@ class RRMapDraw
                 drawWalls(g2d, scale);
                 drawRobo(g2d, scale);
                 drawGoTo(g2d, scale);
-                drawObstacles(g2d, scale);
+                drawObstacles(g2d, scale); ok
          */
         ob_start();
         imagepng(imagerotate($newImage, 180, 0), null, 9, PNG_NO_FILTER);      //imagepng() creates a PNG file from the given image.
@@ -153,7 +154,7 @@ class RRMapDraw
         //imageflip($gdImage, IMG_FLIP_HORIZONTAL);
     }
 
-    private function drawZones($gdImage, float $scale): void
+    private function drawZones(&$gdImage, float $scale): void
     {
         foreach ($this->rmfp->getZones() as $point) {
             //echo sprintf('%s: %s, %s, %s, %s', __FUNCTION__, $point[0], $point[1], $point[2], $point[3]) . PHP_EOL;
@@ -282,11 +283,33 @@ class RRMapDraw
         }
     }
 
+    private function drawObstacles(&$gdImage, float $scale)
+    {
+        $radius = 2 * $scale;
+        imagesetthickness($gdImage, 3 * $scale);
+
+        $color = imagecolorallocate($gdImage, 255, 0, 255); //magenta
+
+        foreach ($this->rmfp->getObstacles() as $obstacle) {
+            foreach ($obstacle as $entry) {
+                $obstacleX = $this->toXCoord($entry[0]) * $scale;
+                $obstacleY = $this->toYCoord($entry[1]) * $scale;
+                imagefilledellipse($gdImage, $obstacleX, $obstacleY, $radius, $radius, $color);
+                if ($scale > 1.0) {
+                    $imgFile = dirname(__DIR__, 1) . '/imgs/obstacle-' . $entry[2] . '.png';
+                    if (!file_exists($imgFile)){
+                        $imgFile = dirname(__DIR__, 1) . '/imgs/obstacle-18.png';
+                    }
+                    $this->drawCenteredImg($gdImage, $scale / 3, $imgFile, $obstacleX, $obstacleY);
+                }
+            }
+        }
+    }
     private function drawCenteredImg(&$gdImage, float $scale, string $imgFile, float $x, float $y)
     {
         if ($addImage = @imagecreatefrompng($imgFile)) {
             $addImage = imagescale($addImage, imagesx($addImage) * $scale, -1, IMG_BILINEAR_FIXED);
-            $addImage = $this->rotate_transparent_img($addImage, 0);
+            $addImage = $this->rotate_transparent_img($addImage, 180);
             $xpos     = round($x - (imagesx($addImage) / 2));
             $ypos     = round($y - (imagesy($addImage) / 2));
             //echo sprintf('%s: x: %s, y: %s, xpos: %s, ypos: %s', __FUNCTION__, $x, $y, $xpos, $ypos) . PHP_EOL;
