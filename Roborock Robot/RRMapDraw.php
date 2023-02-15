@@ -7,14 +7,21 @@ class RRMapDraw
 
     private const MM = 50.0;
 
-    private const COLOR_MAP_OUTSIDE  = [19, 87, 148];
-    private const COLOR_MAP_INSIDE   = [32, 115, 185];
-    private const COLOR_MAP_WALL     = [100, 196, 254];
+    private const CYAN = [214, 0, 214];
+    private const WHITE = [255, 255, 255];
+    private const RED = [255, 0, 0];
+    private const TRANSPARENT = [1, 0, 0];
+
+    private const COLOR_MAP_OUTSIDE  = self::TRANSPARENT;
+    //private const COLOR_MAP_INSIDE   = [32, 115, 185];
+    private const COLOR_MAP_INSIDE   = self::CYAN;
+    private const COLOR_MAP_WALL     = self::COLOR_BLACK_WALL;
     private const COLOR_CARPET       = [0xDF, 0xDF, 0xDF, 0xA0];
-    private const COLOR_GREY_WALL    = [93, 109, 126];
+    private const COLOR_GREY_WALL    = self::TRANSPARENT;
+    private const COLOR_BLACK_WALL   = [86, 101, 115]; //grey
     private const COLOR_PATH         = [147, 194, 238];
     private const COLOR_ZONES        = [0xAD, 0xD8, 0xFF, 0x8F];
-    private const COLOR_NO_GO_ZONES  = [255, 33, 55, 127];
+    private const COLOR_NO_GO_ZONES  = [255, 33, 55, 110];
     private const COLOR_CHARGER_HALO = [0x66, 0xfe, 0xda, 0x7f];
     private const COLOR_ROBO         = [75, 235, 149];
     private const COLOR_SCAN         = [0xDF, 0xDF, 0xDF];
@@ -54,14 +61,25 @@ class RRMapDraw
         self::ROOM16
     ];
 
-    private RRMapFileParser $rmfp;
-
     private const MAP_OUTSIDE = 0x00;
     private const MAP_WALL    = 0x01;
     private const MAP_INSIDE  = 0xFF;
     private const MAP_SCAN    = 0x07;
 
-    private bool $multicolor = false;
+    private const CROPBORDER = 10;
+
+
+    private RRMapFileParser $rmfp;
+
+    private int             $firstX     = 0;
+
+    private int             $lastX      = 0;
+
+    private int             $firstY     = 0;
+
+    private int             $lastY      = 0;
+
+    private bool            $multicolor = false;
 
     public function __construct(RRMapFileParser $rmfp)
     {
@@ -71,11 +89,13 @@ class RRMapDraw
 
     public function getImage(float $scale = 1): string
     {
-        $width    = (int)$scale * $this->rmfp->getImgWidth();
-        $height   = (int)$scale * $this->rmfp->getImgHeight();
+        $width    = floor($scale * $this->rmfp->getImgWidth());
+        $height   = floor($scale * $this->rmfp->getImgHeight());
         $newImage = imagecreatetruecolor($width, $height);
         $this->drawMap($newImage, $scale);
+
         $this->drawNoGo($newImage, $scale);
+        $this->drawWalls($newImage, $scale);
         $this->drawRobo($newImage, $scale);
         $this->drawPath($newImage, $scale);
         $this->drawZones($newImage, $scale);
@@ -85,17 +105,58 @@ class RRMapDraw
          * todo:
                 drawCarpetMap(g2d, scale);
                 drawWalls(g2d, scale);
-                drawRobo(g2d, scale);
+                drawRobo(g2d, scale);   ok
                 drawGoTo(g2d, scale);
                 drawObstacles(g2d, scale); ok
          */
+
+        // crop the image to the used perimeter
+        $this->getMapArea();
+        $firstX = ($this->firstX - self::CROPBORDER) > 0 ? $this->firstX - self::CROPBORDER : 0;
+        $lastX  = (($this->lastX + self::CROPBORDER) < $this->rmfp->getImgWidth())? $this->lastX + self::CROPBORDER : $this->rmfp->getImgWidth();
+        $firstY = ($this->firstY - self::CROPBORDER) > 0 ? $this->firstY - self::CROPBORDER : 0;
+        $lastY  =
+            (($this->lastY + self::CROPBORDER + (int)(8 * $scale)) < $this->rmfp->getImgHeight()) ? $this->lastY + self::CROPBORDER + (int)(8 * $scale)
+                : $this->rmfp->getImgHeight();
+        $nwidth = (int) floor(($lastX- $firstX) * $scale);
+        $nheight = (int) floor(($lastY - $firstY) * $scale);
+
+
+        /*
+        echo sprintf('width: %s, hight: %s', $this->rmfp->getImgWidth(), $this->rmfp->getImgHeight()). PHP_EOL;
+        echo sprintf('firstX: %s, lastX: %s, firstY: %s, lastY: %s', $firstX, $lastX, $firstY, $lastY). PHP_EOL;
+        echo sprintf('nwidth: %s, nheight: %s', $nwidth, $nheight). PHP_EOL;
+
+        imagefilledrectangle(
+            $newImage,
+            ($this->rmfp->getImgWidth() - $lastX) * $scale,
+            ($this->rmfp->getImgHeight() - $lastY) * $scale,
+            ($this->rmfp->getImgWidth() - $lastX) * $scale + $nwidth,
+            ($this->rmfp->getImgHeight() - $lastY) * $scale + $nheight,
+            imagecolorallocatealpha(
+                $newImage,
+                255, 0, 0, 60
+
+            ));
+        */
+
+        $newImage = imagecrop($newImage, ['x' => ($this->rmfp->getImgWidth() - $lastX) * $scale, 'y' => ($this->rmfp->getImgHeight() - $lastY) * $scale, 'width' => $nwidth, 'height' => $nheight]);
+        $newImage = imagerotate($newImage, 180, 0);
+
+        imagecolortransparent(
+            $newImage,
+            imagecolorallocate($newImage, self::TRANSPARENT[0], self::TRANSPARENT[1], self::TRANSPARENT[2])
+        );
+
         ob_start();
-        imagepng(imagerotate($newImage, 180, 0), null, 9, PNG_NO_FILTER);      //imagepng() creates a PNG file from the given image.
+        imagepng($newImage, null, 9, PNG_NO_FILTER);      //imagepng() creates a PNG file from the given image.
         return ob_get_clean();
     }
 
     private function drawMap(&$gdImage, float $scale)
     {
+        imagesetthickness($gdImage, $scale * 1.1);
+
         $rmfpImage = $this->rmfp->getImage();
 
         for ($y = 0; $y < ($this->rmfp->getImgHeight() - 1); $y++) {
@@ -124,7 +185,7 @@ class RRMapDraw
                                 break;
 
                             case 1:
-                                $color = imagecolorallocate($gdImage, 0, 0, 0); //black
+                                $color = imagecolorallocate($gdImage, self::COLOR_BLACK_WALL[0],  self::COLOR_BLACK_WALL[1],  self::COLOR_BLACK_WALL[0]); //black
                                 break;
 
                             case 7:
@@ -139,19 +200,13 @@ class RRMapDraw
                                 echo sprintf('-%s-', $obstacle);
                         }
                 }
-                //imagesetpixel($gdImage, $x, $y, $color);
+
                 $xPos = $scale * ($this->rmfp->getImgWidth() - $x);;
                 $yP = $scale * $y;
-                //imagesetpixel($gdImage, $xPos, $yP, $color);
-                //imagesetthickness($gdImage, $scale*1.1);
-                $t = $scale / 2 - 0.5;
+                $t = $scale/2 - 0.5;
                 imagefilledrectangle($gdImage, round($xPos - $t), round($yP - $t), round($xPos + $t), round($yP + $t), $color);
-                //imagefilledrectangle($gdImage, )
-                //imageline($gdImage, $xPos, $yP, $xPos, $yP, $color);
             }
         }
-        //imageflip(imagescale($gdImage, $this->rmfp->getImgWidth() * $scale), IMG_FLIP_HORIZONTAL);
-        //imageflip($gdImage, IMG_FLIP_HORIZONTAL);
     }
 
     private function drawZones(&$gdImage, float $scale): void
@@ -181,6 +236,8 @@ class RRMapDraw
 
     private function drawNoGo(&$gdImage, float $scale)
     {
+        imagesetthickness($gdImage, $scale * 0.5);
+
         foreach ($this->rmfp->getAreas() as $blocktype => $arealist) {
             //echo sprintf('%s, %s', __FUNCTION__, $blocktype) . PHP_EOL;
             foreach ($arealist as $key => $area) {
@@ -215,7 +272,19 @@ class RRMapDraw
         }
     }
 
-    /**
+    private function drawWalls(&$gdImage, float $scale) {
+        imagesetthickness($gdImage, $scale * 3);
+        $color = imagecolorallocate($gdImage, self::RED[0], self::RED[1], self::RED[2]);
+        foreach ($this->rmfp->getWalls() as $point) {
+            $x = $this->toXCoord($point[0]) * $scale;
+            $y = $this->toYCoord($point[1]) * $scale;
+            $x1 = $this->toXCoord($point[2]) * $scale;
+            $y1 = $this->toYCoord($point[3]) * $scale;
+            imageline($gdImage, $x, $y, $x1, $y1, $color);
+        }
+}
+
+/**
      * draws the vacuum path
      */
     private function drawPath(&$gdImage, float $scale)
@@ -229,7 +298,7 @@ class RRMapDraw
                     if (!$this->multicolor) {
                         $color = imagecolorallocate($gdImage, self::COLOR_PATH[0], self::COLOR_PATH[1], self::COLOR_PATH[2]);
                     } else {
-                        $color = imagecolorallocate($gdImage, 255, 255, 255); //white
+                        $color = imagecolorallocate($gdImage, self::WHITE[0], self::WHITE[1], self::WHITE[2]);
                     }
                     break;
                 case RRMapFileParser::GOTO_PATH:
@@ -278,7 +347,7 @@ class RRMapDraw
         $roboX  = $this->toXCoord($this->rmfp->getRoboX()) * $scale;
         $roboY  = $this->toYCoord($this->rmfp->getRoboY()) * $scale;
         imagefilledellipse($gdImage, $roboX, $roboY, $radius, $radius, $color);
-        if ($scale > 1.5) {
+        if ($scale >= 1.5) {
             $this->drawCenteredImg($gdImage, $scale / 15, dirname(__DIR__, 1) . '/imgs/robo.png', $roboX, $roboY);
         }
     }
@@ -297,7 +366,7 @@ class RRMapDraw
                 imagefilledellipse($gdImage, $obstacleX, $obstacleY, $radius, $radius, $color);
                 if ($scale > 1.0) {
                     $imgFile = dirname(__DIR__, 1) . '/imgs/obstacle-' . $entry[2] . '.png';
-                    if (!file_exists($imgFile)){
+                    if (!file_exists($imgFile)) {
                         $imgFile = dirname(__DIR__, 1) . '/imgs/obstacle-18.png';
                     }
                     $this->drawCenteredImg($gdImage, $scale / 3, $imgFile, $obstacleX, $obstacleY);
@@ -305,6 +374,7 @@ class RRMapDraw
             }
         }
     }
+
     private function drawCenteredImg(&$gdImage, float $scale, string $imgFile, float $x, float $y)
     {
         if ($addImage = @imagecreatefrompng($imgFile)) {
@@ -329,6 +399,41 @@ class RRMapDraw
         imagesavealpha($result, true);
 
         return $result;
+    }
+
+    /**
+     * Finds the perimeter of the used area in the map
+     *
+     */
+    private function getMapArea()
+    {
+        $firstX = $this->rmfp->getImgWidth();
+        $lastX  = 0;
+        $firstY = $this->rmfp->getImgHeight();
+        $lastY  = 0;
+        for ($y = 0; $y < $this->rmfp->getImgHeight() - 1; $y++) {
+            for ($x = 0; $x < $this->rmfp->getImgWidth() + 1; $x++) {
+                $walltype = ord($this->rmfp->getImage()[$x + $this->rmfp->getImgWidth() * $y]);
+                if ($walltype > self::MAP_OUTSIDE) {
+                    if ($y < $firstY) {
+                        $firstY = $y;
+                    }
+                    if ($y > $lastY) {
+                        $lastY = $y;
+                    }
+                    if ($x < $firstX) {
+                        $firstX = $x;
+                    }
+                    if ($x > $lastX) {
+                        $lastX = $x;
+                    }
+                }
+            }
+        }
+        $this->firstX = $firstX;
+        $this->lastX  = $lastX;
+        $this->firstY = $this->rmfp->getImgHeight() - $lastY;
+        $this->lastY  = $this->rmfp->getImgHeight() - $firstY;
     }
 
 

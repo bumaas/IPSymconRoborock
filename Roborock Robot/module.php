@@ -47,6 +47,7 @@ class Roborock extends IPSModule
     private const PROPERTY_WATER_QUANTITY       = 'water_quantity';
     private const PROPERTY_MAP_STATUS           = 'map_status';
     private const PROPERTY_MAP_PICTURE          = 'map_picture';
+    private const PROPERTY_MAP_PICTURE_SCALE    = 'map_picture_scale';
     private const PROPERTY_CONSUMABLES          = 'consumables';
     private const PROPERTY_CONSUMABLES_SEPARATE = 'consumables_separate';
     private const PROPERTY_XIAOMI_USER          = 'xiaomi_user';
@@ -211,6 +212,7 @@ class Roborock extends IPSModule
         $this->RegisterPropertyBoolean(self::PROPERTY_WATER_QUANTITY, false);
         $this->RegisterPropertyBoolean(self::PROPERTY_MAP_STATUS, false);
         $this->RegisterPropertyBoolean(self::PROPERTY_MAP_PICTURE, false);
+        $this->RegisterPropertyInteger(self::PROPERTY_MAP_PICTURE_SCALE, 100);
         $this->RegisterPropertyBoolean('error_code', false);
         $this->RegisterPropertyBoolean(self::PROPERTY_CONSUMABLES, false);
         $this->RegisterPropertyBoolean(self::PROPERTY_CONSUMABLES_SEPARATE, false);
@@ -409,7 +411,6 @@ class Roborock extends IPSModule
             $this->CreateMapPictureVariable();
         }
 
-
         // volume
         if ($this->ReadPropertyBoolean(self::PROPERTY_VOLUME)) {
             $this->RegisterVariableInteger(self::IDENT_VOLUME, $this->Translate('Volume'), self::PROFILE_VOLUME, $this->_getPosition());
@@ -530,6 +531,7 @@ class Roborock extends IPSModule
         } else {
             $this->UnregisterVariable('timezone');
         }
+
 
         // receive data only for this instance
         $this->SetReceiveDataFilter('.*"InstanceID":' . $this->InstanceID . '.*');
@@ -1096,7 +1098,11 @@ class Roborock extends IPSModule
      */
     public function GetMap(): bool
     {
+        if (!$this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE)) {
+            return false;
+        }
         $url = $this->ReadAttributeString(self::ATTRIBUTE_MAPFILE_URL);
+        $url = '';
 
         if ($url) {
             parse_str(parse_url($url, PHP_URL_QUERY), $output);
@@ -1125,10 +1131,12 @@ class Roborock extends IPSModule
 
             $this->_debug(__FUNCTION__ . 'URL', $url);
             $this->WriteAttributeString(self::ATTRIBUTE_MAPFILE_URL, $url);
+            $this->ReloadForm();
         }
 
 
         $data = $this->getMapdata($url);
+        //var_dump($data);
         if (!$data) {
             return false;
         }
@@ -1141,7 +1149,7 @@ class Roborock extends IPSModule
 
         $draw = new RRMapDraw($pic);
         //echo '--------------GetImage!!!-----------------' . PHP_EOL;
-        $picture = $draw->getImage(2.0);
+        $picture = $draw->getImage($this->ReadPropertyInteger(self::PROPERTY_MAP_PICTURE_SCALE) / 100);
 
         //echo '--------------Get OLD Image!!!-----------------'.PHP_EOL;
         //$picture = $this->createPicture_old($data);
@@ -2046,10 +2054,12 @@ class Roborock extends IPSModule
         }
 
         $form = json_encode([
-                                'elements' => $this->FormHead(),
+                                'elements' => $this->FormElements(),
                                 'actions'  => $this->FormActions(),
                                 'status'   => $this->FormStatus()
                             ]);
+
+
         $this->_debug('Form', $form);
         // return current form
         return $form;
@@ -2060,7 +2070,7 @@ class Roborock extends IPSModule
      *
      * @return array
      */
-    private function FormHead(): array
+    private function FormElements(): array
     {
         $token = $this->ReadAttributeString(self::ATTRIBUTE_TOKEN);
         $model = $this->ReadAttributeString(self::ATTRIBUTE_MODEL);
@@ -2269,9 +2279,23 @@ class Roborock extends IPSModule
                                      'caption' => 'Active Map'
                                  ],
                                  [
-                                     'name'    => self::PROPERTY_MAP_PICTURE,
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Map Picture'
+                                     'type'  => 'RowLayout',
+                                     'items' => [
+                                         [
+                                             'name'    => self::PROPERTY_MAP_PICTURE,
+                                             'type'    => 'CheckBox',
+                                             'caption' => 'Map Picture'
+                                         ],
+                                         [
+                                             'name'    => self::PROPERTY_MAP_PICTURE_SCALE,
+                                             'type'    => 'NumberSpinner',
+                                             'visible' => $this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE),
+                                             'caption' => 'Map Picture Scale',
+                                             'minumum' => 10,
+                                             'maximum' => 200,
+                                             'suffix'  => '%'
+                                         ]
+                                     ]
                                  ],
                                  [
                                      'name'    => 'error_code',
@@ -2425,17 +2449,12 @@ class Roborock extends IPSModule
 
     protected function GetNumberZones()
     {
-        $zones  = $this->GetZones();
-        $number = count($zones);
-        $this->_debug('Zone numbers', strval($number));
-        return $number;
+        return count($this->GetZones());
     }
 
     protected function GetZoneID(): int
     {
-        $zoneid = $this->GetNumberZones() + 1;
-        $this->_debug('Zones ID', (string)$zoneid);
-        return $zoneid;
+        return $this->GetNumberZones() + 1;
     }
 
     public function GetZones()
@@ -2512,14 +2531,7 @@ class Roborock extends IPSModule
      */
     protected function FormActions(): array
     {
-        $form = [
-            /*
-                            [
-                                'type'    => 'Button',
-                                'label'   => 'Xiaomi Login Test',
-                                'onClick' => 'Roborock_GetTokenFromXiaomi($id);'
-                            ],
-            */
+        return [
             [
                 'type' => 'TestCenter'
             ],
@@ -2530,6 +2542,8 @@ class Roborock extends IPSModule
             ],
             [
                 'type'  => 'RowLayout',
+                'name'  => 'Row_HandleMap',
+                'visible' => $this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE),
                 'items' => [
                     [
                         'type'    => 'Button',
@@ -2538,7 +2552,6 @@ class Roborock extends IPSModule
                     ],
                     [
                         'type'    => 'PopupButton',
-                        'name'    => 'PopupButton',
                         'caption' => 'Show Map',
                         'popup'   => [
                             'caption' => 'Map',
@@ -2602,7 +2615,6 @@ class Roborock extends IPSModule
             */
         ];
 
-        return $form;
     }
 
     /**
@@ -3256,6 +3268,11 @@ EOF;
         if ($data['result'][0] === 'ok') {
             $map_status = $data['params'][0];
             $this->SetRoborockValue(self::IDENT_MAP_STATUS, $map_status);
+
+            //fetch the current map
+            $this->WriteAttributeString(self::ATTRIBUTE_MAPFILE_URL, '');
+            $this->GetMap();
+
             return $map_status;
         }
 

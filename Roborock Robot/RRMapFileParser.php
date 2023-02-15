@@ -45,6 +45,7 @@ class RRMapFileParser
     private string $image        = '';
 
     private array  $areas        = [];
+    private array  $walls        = [];
 
     private array  $paths        = [];
 
@@ -74,15 +75,15 @@ class RRMapFileParser
 
     private int    $left;
 
-    private int    $chargerX;
+    private int    $chargerX     = 0;
 
-    private int    $chargerY;
+    private int    $chargerY     = 0;
 
-    private int    $roboX;
+    private int    $roboX        = 0;
 
-    private int    $roboY;
+    private int    $roboY        = 0;
 
-    private int    $roboA; //angle
+    private int    $roboA        = 0; //angle
 
     private bool   $isValid      = false;
 
@@ -186,6 +187,18 @@ class RRMapFileParser
                     }
                     break;
 
+                case self::VIRTUAL_WALLS:
+                    $wallPairs = $this->getUInt16($header, 0x08);
+                    for ($wallPair = 0; $wallPair < $wallPairs; $wallPair++) {
+                        $x0            = $this->getUInt16($raw, $blockDataStart + $wallPair * 8);
+                        $y0            = $this->getUInt16($raw, $blockDataStart + $wallPair * 8 + 2);
+                        $x1            = $this->getUInt16($raw, $blockDataStart + $wallPair * 8 + 4);
+                        $y1            = $this->getUInt16($raw, $blockDataStart + $wallPair * 8 + 6);
+                        $this->walls[] = [$x0, $y0, $x1, $y1];
+                    }
+                    break;
+
+
                 case self::BLOCKS:
                     $blocksPairs  = $this->getUInt16($header, 0x08);
                     $this->blocks = substr($data, 0, $blocksPairs);
@@ -261,6 +274,10 @@ class RRMapFileParser
     public function getAreas(): array
     {
         return $this->areas;
+    }
+    public function getWalls(): array
+    {
+        return $this->walls;
     }
 
     public function getPaths(): array
