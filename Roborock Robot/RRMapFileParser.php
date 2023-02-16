@@ -2,8 +2,8 @@
 // see also https://github.com/marcelrv/XiaomiRobotVacuumProtocol/tree/master/RRMapFile
 // Viewer: https://community.openhab.org/t/xiaomi-vacuum-map-viewer-to-find-coordinates-for-zone-cleaning/103500
 
-// parsen: https://github.com/marcelrv/openhab2/commits/276a4cfc0512d9a44d87d43505c01d66561ea65e/bundles/org.openhab.binding.miio/src/main/java/org/openhab/binding/miio/internal/robot/RRMapFileParser.java
-// zeichnen: https://github.com/marcelrv/openhab2/blob/276a4cfc0512d9a44d87d43505c01d66561ea65e/bundles/org.openhab.binding.miio/src/main/java/org/openhab/binding/miio/internal/robot/RRMapDraw.java
+// parsen: https://github.com/openhab/openhab-addons/blob/4dd6d3a8a2134cec920f07cb0b73c5f224f8bc70/bundles/org.openhab.binding.miio/src/main/java/org/openhab/binding/miio/internal/robot/RRMapFileParser.java
+// zeichnen: https://github.com/openhab/openhab-addons/blob/4dd6d3a8a2134cec920f07cb0b73c5f224f8bc70/bundles/org.openhab.binding.miio/src/main/java/org/openhab/binding/miio/internal/robot/RRMapDraw.java
 
 
 class RRMapFileParser
@@ -45,6 +45,7 @@ class RRMapFileParser
     private string $image        = '';
 
     private array  $areas        = [];
+
     private array  $walls        = [];
 
     private array  $paths        = [];
@@ -54,6 +55,10 @@ class RRMapFileParser
     private array  $zones        = [];
 
     private array  $obstacles    = [];
+
+    private array  $carpetMap    = [];
+
+    private array  $mopPath      = [];
 
     private string $blocks       = '';
 
@@ -106,7 +111,10 @@ class RRMapFileParser
             $blocktype         = $this->getUInt16($header, 0x00);
             $blockDataLength   = $this->getUInt32LE($header, 0x04);
             $blockDataStart    = $blockStartPos + $blockHeaderLength;
-            //echo 'Header: ' . bin2hex($header) . "\r\n";
+
+            if ($blockDataLength) {
+                //echo sprintf('Blocktype: %s, headerLenght: %s, dataLength: %s', $blocktype, $blockHeaderLength, $blockDataLength) . "\r\n";
+            }
 
             $data = substr($raw, $blockDataStart, $blockDataLength);
 
@@ -232,7 +240,18 @@ class RRMapFileParser
                         }
                     }
                     $this->obstacles[$blocktype] = $obstacle2;
-                    //echo print_r($this->obstacles, true) . PHP_EOL;
+                    break;
+
+                case self::CARPET_MAP:
+                    for ($carpetNode = 0; $carpetNode < $blockDataLength; $carpetNode++) {
+                        $this->carpetMap[$carpetNode] = ord($data[$carpetNode]);
+                    }
+                    break;
+
+                case self::MOP_PATH:
+                    for ($mopNode = 0; $mopNode < $blockDataLength; $mopNode++) {
+                        $this->mopPath[$mopNode] = ord($data[$mopNode]);
+                    }
                     break;
 
                 case self::DIGEST:
@@ -275,6 +294,7 @@ class RRMapFileParser
     {
         return $this->areas;
     }
+
     public function getWalls(): array
     {
         return $this->walls;
@@ -343,6 +363,16 @@ class RRMapFileParser
     public function getObstacles(): array
     {
         return $this->obstacles;
+    }
+
+    public function getCarpetMap(): array
+    {
+        return $this->carpetMap;
+    }
+
+    public function getMopPath(): array
+    {
+        return $this->mopPath;
     }
 
     public function isValid(): bool

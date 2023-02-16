@@ -76,6 +76,7 @@ class Roborock extends IPSModule
     private const IDENT_WATER_BOX_CARRIAGE_STATUS = 'water_box_carriage_status'; //Anmerkung: der Unterschied zwischen 'water_box_status' und 'water_box_carriage_status' ist unklar
     private const IDENT_MAP_STATUS                = 'map_status';
     private const IDENT_MAP_PICTURE               = 'map_picture';
+    private const IDENT_MAP_PICTURE_FILE          = 'map_picture_file';
     private const IDENT_MODEL                     = 'model';
 
     private const TIMER_UPDATE = 'RoborockTimerUpdate';
@@ -408,7 +409,7 @@ class Roborock extends IPSModule
 
         // map_picture
         if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE)) {
-            $this->CreateMapPictureVariable();
+            $this->CreateMapPictureVariable(self::IDENT_MAP_PICTURE, 'Map', sprintf('Map_%s.png', $this->InstanceID));
         }
 
         // volume
@@ -622,7 +623,7 @@ class Roborock extends IPSModule
         if (get_class($this->device) === 'roborock_vacuum') {
             $this->_debug(
                 __FUNCTION__,
-                sprintf('The device ist operational (102), but the model \'%s\' is not yet well supported.', $this->GetValue('model'))
+                sprintf('The device ist operational (102), but the model \'%s\' is not yet well supported.', $this->ReadAttributeString(self::ATTRIBUTE_MODEL))
             );
         } else {
             $this->_debug(__FUNCTION__, 'The device ist operational (102)');
@@ -1059,6 +1060,38 @@ class Roborock extends IPSModule
         return $this->RequestData('get_clean_record_map');
     }
 
+    private function loadMapFileFromFile(string $filename): bool
+    {
+        if (file_exists($filename)){
+            $result = file_get_contents($filename);
+        } else {
+            return false;
+        }
+        if ($result){
+            $data = gzdecode($result);
+        } else {
+            return false;
+        }
+
+        ini_set('memory_limit', '48M');
+        $pic = new RRMapFileParser($data);
+        if (!$pic->isValid()) {
+            return false;
+        }
+
+        $draw = new RRMapDraw($pic);
+        $picture = $draw->getImage($this->ReadPropertyInteger(self::PROPERTY_MAP_PICTURE_SCALE) / 100);
+
+        if ($picture === '') {
+            return false;
+        }
+
+        $this->CreateMapPictureVariable(self::IDENT_MAP_PICTURE_FILE, 'Karte aus Datei', sprintf('Map_File_%s.png', $this->InstanceID));
+
+        return IPS_SetMediaContent(IPS_GetObjectIDByIdent(self::IDENT_MAP_PICTURE_FILE, $this->InstanceID), base64_encode($picture));
+
+    }
+
     private function getMapdata(string $url): string
     {
         $ch = curl_init($url);
@@ -1101,7 +1134,7 @@ class Roborock extends IPSModule
         if (!$this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE)) {
             return false;
         }
-        $url = $this->ReadAttributeString(self::ATTRIBUTE_MAPFILE_URL);
+        //$url = $this->ReadAttributeString(self::ATTRIBUTE_MAPFILE_URL);
         $url = '';
 
         if ($url) {
@@ -1141,6 +1174,8 @@ class Roborock extends IPSModule
             return false;
         }
 
+        //$data = $this->loadMapFileFromFile(IPS_GetKernelDir() . 'logs\s7karte');
+
         ini_set('memory_limit', '48M');
         $pic = new RRMapFileParser($data);
         if (!$pic->isValid()) {
@@ -1158,21 +1193,21 @@ class Roborock extends IPSModule
             return false;
         }
 
-        $this->CreateMapPictureVariable();
+        $this->CreateMapPictureVariable(self::IDENT_MAP_PICTURE, 'Map', sprintf('Map_%s.png', $this->InstanceID));
 
         IPS_SetMediaContent(IPS_GetObjectIDByIdent(self::IDENT_MAP_PICTURE, $this->InstanceID), base64_encode($picture));
 
         return true;
     }
 
-    private function CreateMapPictureVariable()
+    private function CreateMapPictureVariable(string $ident, string $name, string $FilePath = '')
     {
-        if (!$media_id = @IPS_GetObjectIDByIdent(self::IDENT_MAP_PICTURE, $this->InstanceID)) {
+        if (!@IPS_GetObjectIDByIdent($ident, $this->InstanceID)) {
             $media_id = IPS_CreateMedia(MEDIATYPE_IMAGE);
-            IPS_SetMediaFile($media_id, sprintf('Map_%s.png', $this->InstanceID), false);
+            IPS_SetMediaFile($media_id, $FilePath, false);
             IPS_SetParent($media_id, $this->InstanceID);
-            IPS_SetIdent($media_id, self::IDENT_MAP_PICTURE);
-            IPS_SetName($media_id, $this->Translate('Map'));
+            IPS_SetIdent($media_id, $ident);
+            IPS_SetName($media_id, $this->Translate($name));
         }
     }
 
@@ -1826,6 +1861,8 @@ class Roborock extends IPSModule
             case 'ReloadForm':
                 $this->ReloadForm();
                 break;
+            case 'LoadMapFile':
+                return $this->loadMapFileFromFile($Value);
             default:
                 $this->_debug('request action', 'Invalid $Ident <' . $Ident . '>');
         }
@@ -3453,6 +3490,10 @@ EOF;
 
             foreach ($this->device::CONSUMABLES as $ident => $name) {
                 $max_work_time = consumable::GetMaxWorkTime($ident);
+                if (!isset($data['result'][0][$name])){
+                    $this->_debug(__FUNCTION__, sprintf('Cunsumable \'%s\' not found.', $name));
+                    continue;
+                }
                 $work_time     = $data['result'][0][$name];
                 if ($max_work_time['unit'] === 'hours') {
                     $work_time_percent = round(100 - (100 / ($max_work_time['value'] * 3600) * $work_time));
