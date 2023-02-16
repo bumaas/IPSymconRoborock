@@ -15,7 +15,8 @@
       "Get Map": "Hole Karte",
       "Show Map": "Zeige Karte",
       "Command": "Befehl",
-      "Spot": "Spot",
+      "Spot": "Punktreinigung",
+      "Charge": "Laden",
       "Clean Spot": "Punktreinigung",
       "Show Room Mapping": "Zeige Liste an Räumen",
       "Off": "Aus",
@@ -76,7 +77,8 @@
       "Docking": "Docke an",
       "Go To": "Fahre zum Zielpunkt",
       "Zone Clean": "Zonenreinigung",
-      "Room Clean": "Zimmerreinigung",
+      "Room Clean": "Raumreinigung",
+      "Room": "Raum",
       "Dustbin Emptying": "Staubbehälter entleeren",
       "Mop Washing": "Mopp waschen",
       "Returning to base for mop washing": "Fahre zur Ladestation zum Mopp waschen",
@@ -148,7 +150,6 @@
       "Notification": "Benachrichtigung",
       "Notification Sound": "Benachrichtigungston",
       "Webfront Configurator": "Webfront Konfigurator",
-      "Error": "Fehler",
       "Enable Push Notification": "Pushbenachrichtigung aktivieren",
       "Days": "Tage",
       "Day": "Tag",
@@ -186,7 +187,9 @@
       "lower left corner y": " linke untere Ecke Y",
       "upper right corner x": "obere rechte Ecke X",
       "upper right corner y": "obere rechte Ecke Y",
-      "Please follow the instructions.": "Bitte der Anleitung folgen."
+      "Please follow the instructions.": "Bitte der Anleitung folgen.",
+      "OK": "OK",
+      "Error": "Nicht erfolgreich"
     }
   }
 }

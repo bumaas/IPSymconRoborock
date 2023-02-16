@@ -103,6 +103,7 @@ class roborock_vacuum
         'roborock.vacuum'     => 'Roborock Generic Vacuum Cleaner',
         'roborock.vacuum.s5'  => 'Roborock S5',
         'roborock.vacuum.s5e' => 'Roborock S5 Max',
+        'roborock.vacuum.s6'  => 'Roborock S6',
         'roborock.vacuum.a10' => 'Roborock S6 MaxV',
         'roborock.vacuum.a15' => 'Roborock S7',
         'roborock.vacuum.a27' => 'Roborock S7 MaxV',
@@ -143,7 +144,7 @@ class roborock_vacuum_s5e extends roborock_vacuum
 
 }
 
-class roborock_vacuum_a10 extends roborock_vacuum //S6 MaxV
+class roborock_vacuum_s6 extends roborock_vacuum //S6
 {
     public const CONSUMABLES = [
         Consumable::MAINBRUSH     => 'main_brush_work_time',
@@ -154,8 +155,9 @@ class roborock_vacuum_a10 extends roborock_vacuum //S6 MaxV
     ];
 
     public const FANPOWER = Fanpower::V2;
-
 }
+class roborock_vacuum_a10 extends roborock_vacuum_s6 //S6 MaxV
+{ }
 
 class roborock_vacuum_a15 extends roborock_vacuum //S7
 {

@@ -355,7 +355,7 @@ class Roborock extends IPSModule
         }
 
         // command
-        $this->RegisterVariableInteger(self::IDENT_COMMAND, $this->Translate('command'), self::PROFILE_COMMAND, $this->_getPosition());
+        $this->RegisterVariableInteger(self::IDENT_COMMAND, $this->Translate('Command'), self::PROFILE_COMMAND, $this->_getPosition());
         $this->EnableAction(self::IDENT_COMMAND);
 
         // current state
@@ -2109,13 +2109,12 @@ class Roborock extends IPSModule
      */
     private function FormElements(): array
     {
-        $token = $this->ReadAttributeString(self::ATTRIBUTE_TOKEN);
         $model = $this->ReadAttributeString(self::ATTRIBUTE_MODEL);
         if ($model !== '') {
             $model = $this->device->GetName(get_class($this->device));
         }
 
-        $form = [
+        return [
             [
                 'type'  => 'RowLayout',
                 'items' => [
@@ -2146,342 +2145,336 @@ class Roborock extends IPSModule
                 'type'    => 'PasswordTextBox',
                 'caption' => 'Password'
             ],
+            [
+                'name'    => 'UpdateInterval',
+                'type'    => 'NumberSpinner',
+                'caption' => 'Update Interval Roborock',
+                'suffix'  => 'Seconds',
+                'minimum' => 0
+            ],
+            [
+                'type'    => 'ExpansionPanel',
+                'caption' => 'Optional Status Variables',
+                'items'   => [
+                    [
+                        'name'    => self::PROPERTY_FAN_POWER,
+                        'type'    => 'CheckBox',
+                        'caption' => 'Fan Power'
+                    ],
+                    [
+                        'name'    => self::PROPERTY_WATER_QUANTITY,
+                        'type'    => 'CheckBox',
+                        'caption' => 'Water Quantity'
+                    ],
+                    [
+                        'name'    => self::PROPERTY_MAP_STATUS,
+                        'type'    => 'CheckBox',
+                        'caption' => 'Active Map'
+                    ],
+                    [
+                        'type'  => 'RowLayout',
+                        'items' => [
+                            [
+                                'name'    => self::PROPERTY_MAP_PICTURE,
+                                'type'    => 'CheckBox',
+                                'caption' => 'Map Picture'
+                            ],
+                            [
+                                'name'    => self::PROPERTY_MAP_PICTURE_SCALE,
+                                'type'    => 'NumberSpinner',
+                                'visible' => $this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE),
+                                'caption' => 'Map Picture Scale',
+                                'minumum' => 10,
+                                'maximum' => 200,
+                                'suffix'  => '%'
+                            ]
+                        ]
+                    ],
+                    [
+                        'name'    => 'error_code',
+                        'type'    => 'CheckBox',
+                        'caption' => 'Error Code'
+                    ],
+                    [
+                        'name'    => self::PROPERTY_CONSUMABLES,
+                        'type'    => 'CheckBox',
+                        'caption' => 'Consumables'
+                    ],
+                    [
+                        'name'    => self::PROPERTY_CONSUMABLES_SEPARATE,
+                        'type'    => 'CheckBox',
+                        'caption' => 'Consumables (Separate Variables)'
+                    ],
+                    [
+                        'name'    => 'dnd_mode',
+                        'type'    => 'CheckBox',
+                        'caption' => 'DND Mode (Do not disturb)'
+                    ],
+                    [
+                        'name'    => 'clean_area',
+                        'type'    => 'CheckBox',
+                        'caption' => 'Clean Area'
+                    ],
+                    [
+                        'name'    => 'clean_time',
+                        'type'    => 'CheckBox',
+                        'caption' => 'Clean Time'
+                    ],
+                    [
+                        'name'    => 'total_cleans',
+                        'type'    => 'CheckBox',
+                        'caption' => 'Total Cleans'
+                    ],
+                    [
+                        'name'    => 'serial_number',
+                        'type'    => 'CheckBox',
+                        'caption' => 'Serial Number'
+                    ],
+                    [
+                        'name'    => 'timer_details',
+                        'type'    => 'CheckBox',
+                        'caption' => 'Timer Details'
+                    ],
+                    [
+                        'name'    => 'extended_info',
+                        'type'    => 'CheckBox',
+                        'caption' => 'Extended Information (WLAN SSID, RSSI, firmware version, ip, model, mac)'
+                    ],
+                    [
+                        'name'    => 'volume',
+                        'type'    => 'CheckBox',
+                        'caption' => 'Volume'
+                    ],
+                    [
+                        'name'    => 'timezone',
+                        'type'    => 'CheckBox',
+                        'caption' => 'Timezone'
+                    ],
+                    [
+                        'name'    => 'remote',
+                        'type'    => 'CheckBox',
+                        'caption' => 'Remote Control'
+                    ]
+                ]
+            ],
+            [
+                'type'    => 'ExpansionPanel',
+                'caption' => 'Push Notifications',
+                'items'   => [
+                    [
+                        'name'    => 'notification_instance',
+                        'type'    => 'SelectInstance',
+                        'caption' => 'Webfront Configurator'
+                    ],
+                    [
+                        'type'     => 'List',
+                        'name'     => 'notifications',
+                        'caption'  => 'Push Notifications',
+                        'rowCount' => count(self::PUSH_NOTIFICATIONS),
+                        'add'      => false,
+                        'delete'   => false,
+                        'sort'     => [
+                            'column'    => 'name',
+                            'direction' => 'ascending'
+                        ],
+                        'columns'  => [
+                            [
+                                'name'    => 'enabled',
+                                'caption' => 'Enabled',
+                                'width'   => '100px',
+                                'edit'    => [
+                                    'type'    => 'CheckBox',
+                                    'caption' => 'Enable Push Notification'
+                                ]
+                            ],
+                            [
+                                'name'    => 'name',
+                                'caption' => 'Notification',
+                                'width'   => 'auto',
+                                'save'    => true
+                            ],
+                            [
+                                'name'    => 'sound',
+                                'caption' => 'Notification Sound',
+                                'width'   => '170px',
+                                'edit'    => [
+                                    'type'    => 'Select',
+                                    'options' => [
+                                        [
+                                            'caption' => 'default',
+                                            'value'   => ''
+                                        ],
+                                        [
+                                            'caption' => 'alarm',
+                                            'value'   => 'alarm'
+                                        ],
+                                        [
+                                            'caption' => 'bell',
+                                            'value'   => 'bell'
+                                        ],
+                                        [
+                                            'caption' => 'boom',
+                                            'value'   => 'boom'
+                                        ],
+                                        [
+                                            'caption' => 'buzzer',
+                                            'value'   => 'buzzer'
+                                        ],
+                                        [
+                                            'caption' => 'connected',
+                                            'value'   => 'connected'
+                                        ],
+                                        [
+                                            'caption' => 'dark',
+                                            'value'   => 'dark'
+                                        ],
+                                        [
+                                            'caption' => 'digital',
+                                            'value'   => 'digital'
+                                        ],
+                                        [
+                                            'caption' => 'drums',
+                                            'value'   => 'drums'
+                                        ],
+                                        [
+                                            'caption' => 'duck',
+                                            'value'   => 'duck'
+                                        ],
+                                        [
+                                            'caption' => 'full',
+                                            'value'   => 'full'
+                                        ],
+                                        [
+                                            'caption' => 'happy',
+                                            'value'   => 'happy'
+                                        ],
+                                        [
+                                            'caption' => 'horn',
+                                            'value'   => 'horn'
+                                        ],
+                                        [
+                                            'caption' => 'inception',
+                                            'value'   => 'inception'
+                                        ],
+                                        [
+                                            'caption' => 'kazoo',
+                                            'value'   => 'kazoo'
+                                        ],
+                                        [
+                                            'caption' => 'roll',
+                                            'value'   => 'roll'
+                                        ],
+                                        [
+                                            'caption' => 'siren',
+                                            'value'   => 'siren'
+                                        ],
+                                        [
+                                            'caption' => 'space',
+                                            'value'   => 'space'
+                                        ],
+                                        [
+                                            'caption' => 'trickling',
+                                            'value'   => 'trickling'
+                                        ],
+                                        [
+                                            'caption' => 'turn',
+                                            'value'   => 'turn'
+                                        ]
+                                    ]
+                                ]
+                            ],
+                            [
+                                'name'    => 'state_id',
+                                'label'   => 'State ID',
+                                'width'   => 'auto',
+                                'save'    => true,
+                                'visible' => false
+                            ]
+                        ]
+                    ]
+                ]
+            ],
+            [
+                'type'    => 'ExpansionPanel',
+                'caption' => 'Zones',
+                'visible' => false,   //zur Zeit deaktiviert. Nutzen ist fraglich
+                'items'   => [
+                    [
+                        'type'     => 'List',
+                        'name'     => 'zonecoordinates',
+                        'caption'  => 'zone coordinates',
+                        'rowCount' => $this->GetNumberZones() + 2,
+                        'add'      => true,
+                        'delete'   => true,
+                        'sort'     => [
+                            'column'    => 'zone',
+                            'direction' => 'ascending'
+                        ],
+                        'columns'  => [
+                            [
+                                'name'    => 'zone',
+                                'caption' => 'zone',
+                                'width'   => '100px',
+                                'add'     => $this->GetZoneID(),
+                                'save'    => true
+                            ],
+                            [
+                                'name'    => 'roomname',
+                                'caption' => 'room name',
+                                'width'   => 'auto',
+                                'add'     => 'room name',
+                                'save'    => true,
+                                'edit'    => [
+                                    'type' => 'ValidationTextBox'
+                                ]
+                            ],
+                            [
+                                'name'    => 'lx',
+                                'caption' => 'lower left corner x',
+                                'width'   => '150px',
+                                'add'     => 25000,
+                                'save'    => true,
+                                'edit'    => [
+                                    'type' => 'NumberSpinner'
+                                ]
+                            ],
+                            [
+                                'name'    => 'ly',
+                                'caption' => 'lower left corner y',
+                                'width'   => '150px',
+                                'add'     => 25000,
+                                'save'    => true,
+                                'edit'    => [
+                                    'type' => 'NumberSpinner'
+                                ]
+                            ],
+                            [
+                                'name'    => 'ux',
+                                'caption' => 'upper right corner x',
+                                'width'   => '150px',
+                                'add'     => 25000,
+                                'save'    => true,
+                                'edit'    => [
+                                    'type' => 'NumberSpinner'
+                                ]
+                            ],
+                            [
+                                'name'    => 'uy',
+                                'caption' => 'upper right corner y',
+                                'width'   => '150px',
+                                'add'     => 25000,
+                                'save'    => true,
+                                'edit'    => [
+                                    'type' => 'NumberSpinner'
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ],
 
         ];
 
-        if ($token) {
-            $form = array_merge_recursive(
-                $form, [
-                         [
-                             'name'    => 'UpdateInterval',
-                             'type'    => 'NumberSpinner',
-                             'caption' => 'Update Interval Roborock',
-                             'suffix'  => 'Seconds',
-                             'minimum' => 0
-                         ],
-                         [
-                             'type'    => 'ExpansionPanel',
-                             'caption' => 'Push Notifications',
-                             'items'   => [
-                                 [
-                                     'name'    => 'notification_instance',
-                                     'type'    => 'SelectInstance',
-                                     'caption' => 'Webfront Configurator'
-                                 ],
-                                 [
-                                     'type'     => 'List',
-                                     'name'     => 'notifications',
-                                     'caption'  => 'Push Notifications',
-                                     'rowCount' => count(self::PUSH_NOTIFICATIONS),
-                                     'add'      => false,
-                                     'delete'   => false,
-                                     'sort'     => [
-                                         'column'    => 'name',
-                                         'direction' => 'ascending'
-                                     ],
-                                     'columns'  => [
-                                         [
-                                             'name'    => 'enabled',
-                                             'caption' => 'Enabled',
-                                             'width'   => '100px',
-                                             'edit'    => [
-                                                 'type'    => 'CheckBox',
-                                                 'caption' => 'Enable Push Notification'
-                                             ]
-                                         ],
-                                         [
-                                             'name'    => 'name',
-                                             'caption' => 'Notification',
-                                             'width'   => 'auto',
-                                             'save'    => true
-                                         ],
-                                         [
-                                             'name'    => 'sound',
-                                             'caption' => 'Notification Sound',
-                                             'width'   => '170px',
-                                             'edit'    => [
-                                                 'type'    => 'Select',
-                                                 'options' => [
-                                                     [
-                                                         'caption' => 'default',
-                                                         'value'   => ''
-                                                     ],
-                                                     [
-                                                         'caption' => 'alarm',
-                                                         'value'   => 'alarm'
-                                                     ],
-                                                     [
-                                                         'caption' => 'bell',
-                                                         'value'   => 'bell'
-                                                     ],
-                                                     [
-                                                         'caption' => 'boom',
-                                                         'value'   => 'boom'
-                                                     ],
-                                                     [
-                                                         'caption' => 'buzzer',
-                                                         'value'   => 'buzzer'
-                                                     ],
-                                                     [
-                                                         'caption' => 'connected',
-                                                         'value'   => 'connected'
-                                                     ],
-                                                     [
-                                                         'caption' => 'dark',
-                                                         'value'   => 'dark'
-                                                     ],
-                                                     [
-                                                         'caption' => 'digital',
-                                                         'value'   => 'digital'
-                                                     ],
-                                                     [
-                                                         'caption' => 'drums',
-                                                         'value'   => 'drums'
-                                                     ],
-                                                     [
-                                                         'caption' => 'duck',
-                                                         'value'   => 'duck'
-                                                     ],
-                                                     [
-                                                         'caption' => 'full',
-                                                         'value'   => 'full'
-                                                     ],
-                                                     [
-                                                         'caption' => 'happy',
-                                                         'value'   => 'happy'
-                                                     ],
-                                                     [
-                                                         'caption' => 'horn',
-                                                         'value'   => 'horn'
-                                                     ],
-                                                     [
-                                                         'caption' => 'inception',
-                                                         'value'   => 'inception'
-                                                     ],
-                                                     [
-                                                         'caption' => 'kazoo',
-                                                         'value'   => 'kazoo'
-                                                     ],
-                                                     [
-                                                         'caption' => 'roll',
-                                                         'value'   => 'roll'
-                                                     ],
-                                                     [
-                                                         'caption' => 'siren',
-                                                         'value'   => 'siren'
-                                                     ],
-                                                     [
-                                                         'caption' => 'space',
-                                                         'value'   => 'space'
-                                                     ],
-                                                     [
-                                                         'caption' => 'trickling',
-                                                         'value'   => 'trickling'
-                                                     ],
-                                                     [
-                                                         'caption' => 'turn',
-                                                         'value'   => 'turn'
-                                                     ]
-                                                 ]
-                                             ]
-                                         ],
-                                         [
-                                             'name'    => 'state_id',
-                                             'label'   => 'State ID',
-                                             'width'   => 'auto',
-                                             'save'    => true,
-                                             'visible' => false
-                                         ]
-                                     ]
-                                 ]
-                             ]
-                         ],
-                         [
-                             'type'    => 'ExpansionPanel',
-                             'caption' => 'Optional Status Variables',
-                             'items'   => [
-                                 [
-                                     'name'    => self::PROPERTY_FAN_POWER,
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Fan Power'
-                                 ],
-                                 [
-                                     'name'    => self::PROPERTY_WATER_QUANTITY,
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Water Quantity'
-                                 ],
-                                 [
-                                     'name'    => self::PROPERTY_MAP_STATUS,
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Active Map'
-                                 ],
-                                 [
-                                     'type'  => 'RowLayout',
-                                     'items' => [
-                                         [
-                                             'name'    => self::PROPERTY_MAP_PICTURE,
-                                             'type'    => 'CheckBox',
-                                             'caption' => 'Map Picture'
-                                         ],
-                                         [
-                                             'name'    => self::PROPERTY_MAP_PICTURE_SCALE,
-                                             'type'    => 'NumberSpinner',
-                                             'visible' => $this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE),
-                                             'caption' => 'Map Picture Scale',
-                                             'minumum' => 10,
-                                             'maximum' => 200,
-                                             'suffix'  => '%'
-                                         ]
-                                     ]
-                                 ],
-                                 [
-                                     'name'    => 'error_code',
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Error Code'
-                                 ],
-                                 [
-                                     'name'    => self::PROPERTY_CONSUMABLES,
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Consumables'
-                                 ],
-                                 [
-                                     'name'    => self::PROPERTY_CONSUMABLES_SEPARATE,
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Consumables (Separate Variables)'
-                                 ],
-                                 [
-                                     'name'    => 'dnd_mode',
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'DND Mode (Do not disturb)'
-                                 ],
-                                 [
-                                     'name'    => 'clean_area',
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Clean Area'
-                                 ],
-                                 [
-                                     'name'    => 'clean_time',
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Clean Time'
-                                 ],
-                                 [
-                                     'name'    => 'total_cleans',
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Total Cleans'
-                                 ],
-                                 [
-                                     'name'    => 'serial_number',
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Serial Number'
-                                 ],
-                                 [
-                                     'name'    => 'timer_details',
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Timer Details'
-                                 ],
-                                 [
-                                     'name'    => 'extended_info',
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Extended Information (WLAN SSID, RSSI, firmware version, ip, model, mac)'
-                                 ],
-                                 [
-                                     'name'    => 'volume',
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Volume'
-                                 ],
-                                 [
-                                     'name'    => 'timezone',
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Timezone'
-                                 ],
-                                 [
-                                     'name'    => 'remote',
-                                     'type'    => 'CheckBox',
-                                     'caption' => 'Remote Control'
-                                 ]
-                             ]
-                         ],
-                         [
-                             'type'    => 'ExpansionPanel',
-                             'caption' => 'Zones',
-                             'items'   => [
-                                 [
-                                     'type'     => 'List',
-                                     'name'     => 'zonecoordinates',
-                                     'caption'  => 'zone coordinates',
-                                     'rowCount' => $this->GetNumberZones() + 2,
-                                     'add'      => true,
-                                     'delete'   => true,
-                                     'sort'     => [
-                                         'column'    => 'zone',
-                                         'direction' => 'ascending'
-                                     ],
-                                     'columns'  => [
-                                         [
-                                             'name'    => 'zone',
-                                             'caption' => 'zone',
-                                             'width'   => '100px',
-                                             'add'     => $this->GetZoneID(),
-                                             'save'    => true
-                                         ],
-                                         [
-                                             'name'    => 'roomname',
-                                             'caption' => 'room name',
-                                             'width'   => 'auto',
-                                             'add'     => 'room name',
-                                             'save'    => true,
-                                             'edit'    => [
-                                                 'type' => 'ValidationTextBox'
-                                             ]
-                                         ],
-                                         [
-                                             'name'    => 'lx',
-                                             'caption' => 'lower left corner x',
-                                             'width'   => '150px',
-                                             'add'     => 25000,
-                                             'save'    => true,
-                                             'edit'    => [
-                                                 'type' => 'NumberSpinner'
-                                             ]
-                                         ],
-                                         [
-                                             'name'    => 'ly',
-                                             'caption' => 'lower left corner y',
-                                             'width'   => '150px',
-                                             'add'     => 25000,
-                                             'save'    => true,
-                                             'edit'    => [
-                                                 'type' => 'NumberSpinner'
-                                             ]
-                                         ],
-                                         [
-                                             'name'    => 'ux',
-                                             'caption' => 'upper right corner x',
-                                             'width'   => '150px',
-                                             'add'     => 25000,
-                                             'save'    => true,
-                                             'edit'    => [
-                                                 'type' => 'NumberSpinner'
-                                             ]
-                                         ],
-                                         [
-                                             'name'    => 'uy',
-                                             'caption' => 'upper right corner y',
-                                             'width'   => '150px',
-                                             'add'     => 25000,
-                                             'save'    => true,
-                                             'edit'    => [
-                                                 'type' => 'NumberSpinner'
-                                             ]
-                                         ]
-                                     ]
-                                 ]
-                             ]
-                         ],
-                     ]
-            );
-        }
-        return $form;
     }
 
     protected function GetNumberZones()
@@ -2575,7 +2568,7 @@ class Roborock extends IPSModule
             [
                 'type'    => 'Button',
                 'label'   => 'Xiaomi Login Test',
-                'onClick' => '$module = new IPSModule($id); if (Roborock_GetTokenFromXiaomi($id)){echo $module->Translate(\'OK\');} else {echo $module->Translate(\'Login not successful.\');};'
+                'onClick' => '$module = new IPSModule($id); if (Roborock_GetTokenFromXiaomi($id)){echo $module->Translate(\'OK\');} else {echo $module->Translate(\'Error\');};'
             ],
             [
                 'type'  => 'RowLayout',
@@ -2614,31 +2607,33 @@ class Roborock extends IPSModule
                 'onClick' => 'print_r(Roborock_Get_Room_Mapping($id));'
             ],
             [
-                'type'    => 'Button',
-                'label'   => 'Clean Spot',
-                'onClick' => 'Roborock_CleanSpot($id);'
+                'type'  => 'RowLayout',
+                'visible' => $this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES) || $this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES_SEPARATE),
+                'items' => [
+                    [
+                        'type'    => 'Button',
+                        'label'   => 'Reset Filter',
+                        'onClick' => 'Roborock_Reset_Filter($id);'
+                    ],
+                    [
+                        'type'    => 'Button',
+                        'label'   => 'Reset Mainbrush',
+                        'onClick' => 'Roborock_Reset_Mainbrush($id);'
+                    ],
+                    [
+                        'type'    => 'Button',
+                        'label'   => 'Reset Sidebrush',
+                        'onClick' => 'Roborock_Reset_Sidebrush($id);'
+                    ],
+                    [
+                        'type'    => 'Button',
+                        'label'   => 'Reset Sensors',
+                        'onClick' => 'Roborock_Reset_Sensors($id);'
+                    ]
+                ]
             ],
-            [
-                'type'    => 'Button',
-                'label'   => 'Reset Filter',
-                'onClick' => 'Roborock_Reset_Filter($id);'
-            ],
-            [
-                'type'    => 'Button',
-                'label'   => 'Reset Mainbrush',
-                'onClick' => 'Roborock_Reset_Mainbrush($id);'
-            ],
-            [
-                'type'    => 'Button',
-                'label'   => 'Reset Sidebrush',
-                'onClick' => 'Roborock_Reset_Sidebrush($id);'
-            ],
-            [
-                'type'    => 'Button',
-                'label'   => 'Reset Sensors',
-                'onClick' => 'Roborock_Reset_Sensors($id);'
-            ],
-            [
+
+             [
                 'type'    => 'Button',
                 'label'   => 'Push Notification Test',
                 'onClick' => 'Roborock_SendPushNotificationTest($id, 5, 0, true);'
@@ -3622,21 +3617,27 @@ EOF;
         if (isset($data['result'][0]['multi_map_count'])) {
             $result = $data['result'][0];
             foreach ($result['map_info'] as $index => $mapInfo) {
-                $ass[] = [$index, $mapInfo['name'], '', -1];
+                if ($mapInfo['name']){
+                    $ass[] = [$index, $mapInfo['name'], '', -1];
+                } else {
+                    $ass[] = [$index, $this->Translate('Room') . $mapInfo['mapFlag'], '', -1];
+                }
             }
 
-            $this->RegisterProfileAssociation(
-                self::PROFILE_MAPS,
-                '',
-                '',
-                '',
-                0,
-                count($ass),
-                0,
-                0,
-                VARIABLETYPE_INTEGER,
-                $ass
-            );
+            if (count($ass)){
+                $this->RegisterProfileAssociation(
+                    self::PROFILE_MAPS,
+                    '',
+                    '',
+                    '',
+                    0,
+                    count($ass),
+                    0,
+                    0,
+                    VARIABLETYPE_INTEGER,
+                    $ass
+                );
+            }
         }
     }
 
