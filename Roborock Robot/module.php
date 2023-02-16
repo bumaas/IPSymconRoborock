@@ -52,6 +52,7 @@ class Roborock extends IPSModule
     private const PROPERTY_CONSUMABLES_SEPARATE = 'consumables_separate';
     private const PROPERTY_XIAOMI_USER          = 'xiaomi_user';
     private const PROPERTY_XIAOMI_PASSWORD      = 'xiaomi_password';
+    private const PROPERTY_REMOTE               = 'remote';
 
     private const PROFILE_COMMAND       = 'Roborock.Command';
     private const PROFILE_ERRORCODE     = 'Roborock.Errorcode';
@@ -78,11 +79,12 @@ class Roborock extends IPSModule
     private const IDENT_MAP_PICTURE               = 'map_picture';
     private const IDENT_MAP_PICTURE_FILE          = 'map_picture_file';
     private const IDENT_MODEL                     = 'model';
+    private const IDENT_REMOTE_CONTROL            = 'remote';
 
     private const TIMER_UPDATE = 'RoborockTimerUpdate';
 
     // state code mapper
-    protected array $state_codes = [
+    private const STATE_CODES = [
         0   => 'Unknown',
         1   => 'Starting up',
         2   => 'Sleeping',
@@ -109,7 +111,7 @@ class Roborock extends IPSModule
     ];
 
     // error code mapper
-    protected array $error_codes = [
+    private const ERROR_CODES = [
         0  => 'None',
         1  => 'Laser sensor fault',
         2  => 'Collision sensor error',
@@ -226,7 +228,7 @@ class Roborock extends IPSModule
         $this->RegisterPropertyBoolean('extended_info', false);
         $this->RegisterPropertyBoolean(self::PROPERTY_VOLUME, false);
         $this->RegisterPropertyBoolean('timezone', false);
-        $this->RegisterPropertyBoolean('remote', false);
+        $this->RegisterPropertyBoolean(self::PROPERTY_REMOTE, false);
 
         $this->RegisterPropertyInteger('notification_instance', 0);
         $this->RegisterPropertyString('notifications', $this->GetPushNotifications());
@@ -282,7 +284,7 @@ class Roborock extends IPSModule
         );
 
         $ass = [];
-        foreach ($this->error_codes as $code => $error) {
+        foreach (self::ERROR_CODES as $code => $error) {
             $ass[] = [$code, $error, '', -1];
         }
         $this->RegisterProfileAssociation(
@@ -299,7 +301,7 @@ class Roborock extends IPSModule
         );
 
         $ass = [];
-        foreach ($this->state_codes as $code => $state) {
+        foreach (self::STATE_CODES as $code => $state) {
             $ass[] = [$code, $state, '', -1];
         }
         $this->RegisterProfileAssociation(
@@ -346,12 +348,12 @@ class Roborock extends IPSModule
         $this->RegisterProfile(self::PROFILE_MAPS, '', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER);
 
         // Remote Control
-        if ($this->ReadPropertyBoolean('remote')) {
-            $id = $this->RegisterVariableString('remote', $this->Translate('Remote Control'), '~HTMLBox', $this->_getPosition());
+        if ($this->ReadPropertyBoolean(self::PROPERTY_REMOTE)) {
+            $id = $this->RegisterVariableString(self::IDENT_REMOTE_CONTROL, $this->Translate('Remote Control'), '~HTMLBox', $this->_getPosition());
             IPS_SetIcon($id, 'Move');
             $this->SetJoystickHtml();
         } else {
-            $this->UnregisterVariable('remote');
+            $this->UnregisterVariable(self::IDENT_REMOTE_CONTROL);
         }
 
         // command
@@ -623,7 +625,10 @@ class Roborock extends IPSModule
         if (get_class($this->device) === 'roborock_vacuum') {
             $this->_debug(
                 __FUNCTION__,
-                sprintf('The device ist operational (102), but the model \'%s\' is not yet well supported.', $this->ReadAttributeString(self::ATTRIBUTE_MODEL))
+                sprintf(
+                    'The device ist operational (102), but the model \'%s\' is not yet well supported.',
+                    $this->ReadAttributeString(self::ATTRIBUTE_MODEL)
+                )
             );
         } else {
             $this->_debug(__FUNCTION__, 'The device ist operational (102)');
@@ -1041,11 +1046,10 @@ class Roborock extends IPSModule
      *
      * @param int|array $record_id
      *
-     * @return array
      */
     private function GetCleanRecord($record_id)
     {
-        return $this->RequestData('get_clean_record', [
+        $this->RequestData('get_clean_record', [
             'params' => is_array($record_id) ? $record_id : [(int)$record_id]
         ]);
     }
@@ -1062,12 +1066,12 @@ class Roborock extends IPSModule
 
     private function loadMapFileFromFile(string $filename): bool
     {
-        if (file_exists($filename)){
+        if (file_exists($filename)) {
             $result = file_get_contents($filename);
         } else {
             return false;
         }
-        if ($result){
+        if ($result) {
             $data = gzdecode($result);
         } else {
             return false;
@@ -1079,7 +1083,7 @@ class Roborock extends IPSModule
             return false;
         }
 
-        $draw = new RRMapDraw($pic);
+        $draw    = new RRMapDraw($pic);
         $picture = $draw->getImage($this->ReadPropertyInteger(self::PROPERTY_MAP_PICTURE_SCALE) / 100);
 
         if ($picture === '') {
@@ -1089,7 +1093,6 @@ class Roborock extends IPSModule
         $this->CreateMapPictureVariable(self::IDENT_MAP_PICTURE_FILE, 'Karte aus Datei', sprintf('Map_File_%s.png', $this->InstanceID));
 
         return IPS_SetMediaContent(IPS_GetObjectIDByIdent(self::IDENT_MAP_PICTURE_FILE, $this->InstanceID), base64_encode($picture));
-
     }
 
     private function getMapdata(string $url): string
@@ -1110,16 +1113,6 @@ class Roborock extends IPSModule
         //$fp = fopen('data1.gz', 'wb');
         //fwrite($fp, $result);
         //fclose($fp);
-
-        return gzdecode($result);
-    }
-
-    private function getMapdread(): string
-    {
-        $filename = 'data1.gz';
-        $fp       = fopen($filename, 'rb');
-        $result   = fread($fp, filesize($filename));
-        fclose($fp);
 
         return gzdecode($result);
     }
@@ -1164,7 +1157,6 @@ class Roborock extends IPSModule
 
             $this->_debug(__FUNCTION__ . 'URL', $url);
             $this->WriteAttributeString(self::ATTRIBUTE_MAPFILE_URL, $url);
-            $this->ReloadForm();
         }
 
 
@@ -1481,7 +1473,7 @@ class Roborock extends IPSModule
      *
      * @return bool
      */
-    protected function StartRemoteControl()
+    private function StartRemoteControl()
     {
         return $this->RequestData('app_rc_start');
     }
@@ -1863,6 +1855,8 @@ class Roborock extends IPSModule
                 break;
             case 'LoadMapFile':
                 return $this->loadMapFileFromFile($Value);
+            case 'SendPushNotificationTest':
+                return $this->SendPushNotification('state', 5, false);
             default:
                 $this->_debug('request action', 'Invalid $Ident <' . $Ident . '>');
         }
@@ -1972,10 +1966,6 @@ class Roborock extends IPSModule
         return true;
     }
 
-    public function SendPushNotificationTest(int $state_id, int $error_id, bool $force_send): void
-    {
-        $this->SendPushNotification($state_id, $error_id, $force_send);
-    }
 
     /**
      * Send push notifications.
@@ -1986,28 +1976,27 @@ class Roborock extends IPSModule
      *
      * @return bool
      */
-    protected function SendPushNotification($state_id = 'errors', $error_id = 0, bool $force_send = false)
+    private function SendPushNotification(string $type, int $id = 0, bool $force_send = false):bool
     {
         // get codes by state_id
-        if ($state_id === 'errors') {
-            $codes    = $this->error_codes;
-            $state_id = $error_id;
+        if ($type === 'error') {
+            $codes    = self::ERROR_CODES;
             $prefix   = $this->Translate('Error') . ': ';
 
-            $notification_ident = self::ATTRIBUTE_LAST_NOTIFICATION_ERROR;
+            $notification_attribute = self::ATTRIBUTE_LAST_NOTIFICATION_ERROR;
         } else {
-            $codes  = $this->state_codes;
+            $codes  = self::STATE_CODES;
             $prefix = '';
 
-            $notification_ident = self::ATTRIBUTE_LAST_NOTIFICATION_STATE;
+            $notification_attribute = self::ATTRIBUTE_LAST_NOTIFICATION_STATE;
         }
 
         // check notification
-        $last_notification = $this->ReadAttributeString($notification_ident);
-        $this->WriteAttributeString($notification_ident, $state_id);
+        $last_notification = $this->ReadAttributeString($notification_attribute);
+        $this->WriteAttributeString($notification_attribute, (string) $id);
 
         // return false, when last notification is the same as current notification or id is 0
-        if ((($last_notification === $state_id) && !$force_send) || ($state_id === 0)) {
+        if ((($last_notification === (string) $id) && !$force_send) || ($id === 0)) {
             return false;
         }
 
@@ -2017,14 +2006,14 @@ class Roborock extends IPSModule
             && $notifications = @json_decode($this->ReadPropertyString('notifications'), true)) {
             // loop notifications and search for current state
             foreach ($notifications as $notification) {
-                if ($notification['state_id'] === $state_id) {
+                if ($notification['state_id'] === (string) $id) {
                     // check if notification is enabled
                     if ($notification['enabled'] || $force_send) {
                         // send notification
-                        if ($state_id > 0 && isset($codes[$state_id])) {
+                        if ($id > 0 && isset($codes[$id])) {
                             // build message
                             $title   = IPS_GetName($this->InstanceID); // instance name
-                            $message = $prefix . $this->Translate($codes[$state_id]);
+                            $message = $prefix . $this->Translate($codes[$id]);
 
                             // send notification
                             WFC_PushNotification($instance_id, $title, $message, $notification['sound'], 0);
@@ -2251,9 +2240,10 @@ class Roborock extends IPSModule
                         'caption' => 'Timezone'
                     ],
                     [
-                        'name'    => 'remote',
+                        'name'    => self::PROPERTY_REMOTE,
                         'type'    => 'CheckBox',
-                        'caption' => 'Remote Control'
+                        'caption' => 'Remote Control',
+                        'visible' => false
                     ]
                 ]
             ],
@@ -2474,7 +2464,6 @@ class Roborock extends IPSModule
             ],
 
         ];
-
     }
 
     protected function GetNumberZones()
@@ -2571,10 +2560,10 @@ class Roborock extends IPSModule
                 'onClick' => '$module = new IPSModule($id); if (Roborock_GetTokenFromXiaomi($id)){echo $module->Translate(\'OK\');} else {echo $module->Translate(\'Error\');};'
             ],
             [
-                'type'  => 'RowLayout',
-                'name'  => 'Row_HandleMap',
+                'type'    => 'RowLayout',
+                'name'    => 'Row_HandleMap',
                 'visible' => $this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE),
-                'items' => [
+                'items'   => [
                     [
                         'type'    => 'Button',
                         'caption' => 'Get Map',
@@ -2607,9 +2596,12 @@ class Roborock extends IPSModule
                 'onClick' => 'print_r(Roborock_Get_Room_Mapping($id));'
             ],
             [
-                'type'  => 'RowLayout',
-                'visible' => $this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES) || $this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES_SEPARATE),
-                'items' => [
+                'type'    => 'RowLayout',
+                'visible' => $this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES)
+                             || $this->ReadPropertyBoolean(
+                        self::PROPERTY_CONSUMABLES_SEPARATE
+                    ),
+                'items'   => [
                     [
                         'type'    => 'Button',
                         'label'   => 'Reset Filter',
@@ -2633,10 +2625,10 @@ class Roborock extends IPSModule
                 ]
             ],
 
-             [
+            [
                 'type'    => 'Button',
                 'label'   => 'Push Notification Test',
-                'onClick' => 'Roborock_SendPushNotificationTest($id, 5, 0, true);'
+                'onClick' => 'IPS_RequestAction($id, "SendPushNotificationTest", 0);'
             ],
             /*
                 [
@@ -2646,7 +2638,6 @@ class Roborock extends IPSModule
                 ]
             */
         ];
-
     }
 
     /**
@@ -2693,7 +2684,7 @@ class Roborock extends IPSModule
     {
         $joystick = file_get_contents(dirname(__FILE__, 2) . '/libs/joystick.html');
         $joystick = str_replace('[instance_id]', $this->InstanceID, $joystick);
-        $this->SetValue('remote', $joystick);
+        $this->SetValue(self::IDENT_REMOTE_CONTROL, $joystick);
     }
 
     /**
@@ -3463,8 +3454,8 @@ EOF;
 
 
         // send push notifications
-        $this->SendPushNotification($state);
-        $this->SendPushNotification('errors', $error_code);
+        $this->SendPushNotification('state', $state);
+        $this->SendPushNotification('error', $error_code);
 
         // return values
         return $ret;
@@ -3485,11 +3476,11 @@ EOF;
 
             foreach ($this->device::CONSUMABLES as $ident => $name) {
                 $max_work_time = consumable::GetMaxWorkTime($ident);
-                if (!isset($data['result'][0][$name])){
+                if (!isset($data['result'][0][$name])) {
                     $this->_debug(__FUNCTION__, sprintf('Cunsumable \'%s\' not found.', $name));
                     continue;
                 }
-                $work_time     = $data['result'][0][$name];
+                $work_time = $data['result'][0][$name];
                 if ($max_work_time['unit'] === 'hours') {
                     $work_time_percent = round(100 - (100 / ($max_work_time['value'] * 3600) * $work_time));
                 } else {
@@ -3617,14 +3608,14 @@ EOF;
         if (isset($data['result'][0]['multi_map_count'])) {
             $result = $data['result'][0];
             foreach ($result['map_info'] as $index => $mapInfo) {
-                if ($mapInfo['name']){
+                if ($mapInfo['name']) {
                     $ass[] = [$index, $mapInfo['name'], '', -1];
                 } else {
                     $ass[] = [$index, $this->Translate('Room') . $mapInfo['mapFlag'], '', -1];
                 }
             }
 
-            if (count($ass)){
+            if (count($ass)) {
                 $this->RegisterProfileAssociation(
                     self::PROFILE_MAPS,
                     '',
