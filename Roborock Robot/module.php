@@ -70,6 +70,7 @@ class Roborock extends IPSModule
 
     private const IDENT_VOLUME                    = 'volume';
     private const IDENT_COMMAND                   = 'command';
+    private const IDENT_STATE                     = 'state';
     private const IDENT_FAN_POWER                 = 'fan_power';
     private const IDENT_WATER_QUANTITY            = 'water_quantity';
     private const IDENT_CONSUMABLES               = 'consumables';
@@ -81,7 +82,8 @@ class Roborock extends IPSModule
     private const IDENT_MODEL                     = 'model';
     private const IDENT_REMOTE_CONTROL            = 'remote';
 
-    private const TIMER_UPDATE = 'RoborockTimerUpdate';
+    private const TIMER_UPDATE     = 'RoborockTimerUpdate';
+    private const TIMER_UPDATE_MAP = 'RoborockTimerUpdate_Map';
 
     // state code mapper
     private const STATE_CODES = [
@@ -240,6 +242,7 @@ class Roborock extends IPSModule
         // register update timer
         $this->RegisterPropertyInteger('UpdateInterval', 15);
         $this->RegisterTimer(self::TIMER_UPDATE, 0, 'Roborock_Update(' . $this->InstanceID . ');');
+        $this->RegisterTimer(self::TIMER_UPDATE_MAP, 0, 'Roborock_GetMap(' . $this->InstanceID . ');');
 
         // register kernel messages
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
@@ -361,7 +364,7 @@ class Roborock extends IPSModule
         $this->EnableAction(self::IDENT_COMMAND);
 
         // current state
-        $this->RegisterVariableInteger('state', $this->Translate('State'), self::PROFILE_STATE, $this->_getPosition());
+        $this->RegisterVariableInteger(self::IDENT_STATE, $this->Translate('State'), self::PROFILE_STATE, $this->_getPosition());
 
         // current battery level
         $this->RegisterVariableInteger('battery', $this->Translate('Battery'), self::PROFILE_BATTERY, $this->_getPosition());
@@ -646,6 +649,9 @@ class Roborock extends IPSModule
     {
         $interval = $enable ? ($this->ReadPropertyInteger('UpdateInterval') * 1000) : 0;
         $this->SetTimerInterval(self::TIMER_UPDATE, $interval);
+        if ($interval === 0){
+            $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 0);
+        }
     }
 
 
@@ -717,6 +723,12 @@ class Roborock extends IPSModule
             // update maps picture
             if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE)) {
                 $this->GetMap();
+            }
+
+            if (in_array($this->GetValue(self::IDENT_STATE), [4, 5, 6, 7, 11, 15, 16, 17, 18, 26], true)){
+                $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 5000);
+            } else {
+                $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 0);
             }
         }
     }
@@ -1775,8 +1787,6 @@ class Roborock extends IPSModule
      */
     public function Start_Segment_Clean_Ex(string $segmentIds)
     {
-        $arr = json_decode($segmentIds, true, 512, JSON_THROW_ON_ERROR);
-
         return $this->RequestData('app_segment_clean', [
             'params' => json_decode($segmentIds, true, 512, JSON_THROW_ON_ERROR)
         ]);
@@ -1976,12 +1986,12 @@ class Roborock extends IPSModule
      *
      * @return bool
      */
-    private function SendPushNotification(string $type, int $id = 0, bool $force_send = false):bool
+    private function SendPushNotification(string $type, int $id = 0, bool $force_send = false): bool
     {
         // get codes by state_id
         if ($type === 'error') {
-            $codes    = self::ERROR_CODES;
-            $prefix   = $this->Translate('Error') . ': ';
+            $codes  = self::ERROR_CODES;
+            $prefix = $this->Translate('Error') . ': ';
 
             $notification_attribute = self::ATTRIBUTE_LAST_NOTIFICATION_ERROR;
         } else {
@@ -1993,10 +2003,10 @@ class Roborock extends IPSModule
 
         // check notification
         $last_notification = $this->ReadAttributeString($notification_attribute);
-        $this->WriteAttributeString($notification_attribute, (string) $id);
+        $this->WriteAttributeString($notification_attribute, (string)$id);
 
         // return false, when last notification is the same as current notification or id is 0
-        if ((($last_notification === (string) $id) && !$force_send) || ($id === 0)) {
+        if ((($last_notification === (string)$id) && !$force_send) || ($id === 0)) {
             return false;
         }
 
@@ -2006,7 +2016,7 @@ class Roborock extends IPSModule
             && $notifications = @json_decode($this->ReadPropertyString('notifications'), true)) {
             // loop notifications and search for current state
             foreach ($notifications as $notification) {
-                if ($notification['state_id'] === (string) $id) {
+                if ($notification['state_id'] === (string)$id) {
                     // check if notification is enabled
                     if ($notification['enabled'] || $force_send) {
                         // send notification
@@ -2567,7 +2577,15 @@ class Roborock extends IPSModule
                     [
                         'type'    => 'Button',
                         'caption' => 'Get Map',
-                        'onClick' => '$module = new IPSModule($id); if (Roborock_GetMap($id)){echo $module->Translate(\'OK\');IPS_RequestAction($id, "ReloadForm", true);} else {echo $module->Translate(\'Error\');};'
+                        'onClick' => '
+                            $module = new IPSModule($id);
+                            if (Roborock_GetMap($id)){
+                                echo $module->Translate(\'OK\');
+                                IPS_RequestAction($id, "ReloadForm", true);
+                            } else {
+                                echo $module->Translate(\'Error\');
+                            };
+                        '
                     ],
                     [
                         'type'    => 'PopupButton',
@@ -2593,7 +2611,9 @@ class Roborock extends IPSModule
             [
                 'type'    => 'Button',
                 'label'   => 'Show Room Mapping',
-                'onClick' => 'print_r(Roborock_Get_Room_Mapping($id));'
+                'onClick' => '
+                    print_r(Roborock_Get_Room_Mapping($id));
+                    '
             ],
             [
                 'type'    => 'RowLayout',
@@ -3406,9 +3426,9 @@ EOF;
 
         $state = (int)$result['state'];
         if ($state === 8 && $battery === 100) {
-            $this->SetRoborockValue('state', 100);
+            $this->SetRoborockValue(self::IDENT_STATE, 100);
         } else {
-            $this->SetRoborockValue('state', $state);
+            $this->SetRoborockValue(self::IDENT_STATE, $state);
         }
         $ret['state'] = $state;
 

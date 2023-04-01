@@ -209,7 +209,7 @@ class RoborockIO extends IPSModule
      * @return string json data
      * @throws \JsonException
      */
-    protected function Send(object $payload)
+    private function Send(object $payload)
     {
         $this->attempts++;
 

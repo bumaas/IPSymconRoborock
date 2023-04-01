@@ -42,7 +42,7 @@ class Consumable extends stdClass
             case self::SENSOR:
                 return ['value' => 30, 'unit' => 'hours']; //Sensoren
             case self::STRAINER:
-                return ['value' => 300, 'unit' => 'counter'];
+                return ['value' => 200, 'unit' => 'counter']; //Wasserfilter beim S7 MaxV
             case self::DUSTCOLLECTOR://Staubbeutel?
             case self::CLEANINGBRUSH://Reinigungsbürste
                 return ['value' => 999, 'unit' => 'counter'];
@@ -90,6 +90,7 @@ class Waterquantity extends stdClass
         self::CUSTOM  => 204, //benutzerdefiniert
     ];
 }
+
 class roborock_vacuum
 {
     public const CONSUMABLES = [
