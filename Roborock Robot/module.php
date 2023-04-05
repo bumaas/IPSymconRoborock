@@ -53,6 +53,7 @@ class Roborock extends IPSModule
     private const PROPERTY_XIAOMI_USER          = 'xiaomi_user';
     private const PROPERTY_XIAOMI_PASSWORD      = 'xiaomi_password';
     private const PROPERTY_REMOTE               = 'remote';
+    private const PROPERTY_UPDATE_INTERVAL      = 'UpdateInterval';
 
     private const PROFILE_COMMAND       = 'Roborock.Command';
     private const PROFILE_ERRORCODE     = 'Roborock.Errorcode';
@@ -240,7 +241,7 @@ class Roborock extends IPSModule
         $this->RegisterPropertyString(self::PROPERTY_XIAOMI_PASSWORD, '');
 
         // register update timer
-        $this->RegisterPropertyInteger('UpdateInterval', 15);
+        $this->RegisterPropertyInteger(self::PROPERTY_UPDATE_INTERVAL, 30);
         $this->RegisterTimer(self::TIMER_UPDATE, 0, 'Roborock_Update(' . $this->InstanceID . ');');
         $this->RegisterTimer(self::TIMER_UPDATE_MAP, 0, 'Roborock_GetMap(' . $this->InstanceID . ');');
 
@@ -647,7 +648,7 @@ class Roborock extends IPSModule
      */
     private function SetUpdateInterval(bool $enable = true): void
     {
-        $interval = $enable ? ($this->ReadPropertyInteger('UpdateInterval') * 1000) : 0;
+        $interval = $enable ? ($this->ReadPropertyInteger(self::PROPERTY_UPDATE_INTERVAL) * 1000) : 0;
         $this->SetTimerInterval(self::TIMER_UPDATE, $interval);
         if ($interval === 0){
             $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 0);
@@ -671,6 +672,8 @@ class Roborock extends IPSModule
      */
     public function Update(): void
     {
+        $this->_debug(__FUNCTION__ . ': start');
+
         if ($this->ValidateConfiguration()) {
             // Update state
             $this->Get_State();
@@ -685,10 +688,6 @@ class Roborock extends IPSModule
                 $this->Get_Consumables();
             }
 
-            // update clean summary
-            if ($this->ReadPropertyBoolean('clean_time')) {
-                $this->GetCleanSummary();
-            }
 
             // update dnd mode
             if ($this->ReadPropertyBoolean('dnd_mode')) {
@@ -727,10 +726,15 @@ class Roborock extends IPSModule
 
             if (in_array($this->GetValue(self::IDENT_STATE), [4, 5, 6, 7, 11, 15, 16, 17, 18, 26], true)){
                 $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 5000);
-            } else {
+            } elseif ($this->GetTimerInterval(self::TIMER_UPDATE_MAP) !== 0){
                 $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 0);
+                // update clean summary
+                if ($this->ReadPropertyBoolean('clean_time')) {
+                    $this->GetCleanSummary();
+                }
             }
         }
+        $this->_debug(__FUNCTION__ . ': finish');
     }
 
     /**
@@ -2145,7 +2149,7 @@ class Roborock extends IPSModule
                 'caption' => 'Password'
             ],
             [
-                'name'    => 'UpdateInterval',
+                'name'    => self::PROPERTY_UPDATE_INTERVAL,
                 'type'    => 'NumberSpinner',
                 'caption' => 'Update Interval Roborock',
                 'suffix'  => 'Seconds',
@@ -3308,7 +3312,7 @@ EOF;
     {
         //       $this->SendDebug(__FUNCTION__, json_encode($data), 0);
 
-        if ($data['result'][0] === 'ok') {
+        if (isset($data['result'][0]) && $data['result'][0] === 'ok') {
             $map_status = $data['params'][0];
             $this->SetRoborockValue(self::IDENT_MAP_STATUS, $map_status);
 
@@ -3627,11 +3631,12 @@ EOF;
         $ass = [];
         if (isset($data['result'][0]['multi_map_count'])) {
             $result = $data['result'][0];
-            foreach ($result['map_info'] as $index => $mapInfo) {
+            foreach ($result['map_info'] as $mapInfo) {
+                $index = $mapInfo['mapFlag'];
                 if ($mapInfo['name']) {
                     $ass[] = [$index, $mapInfo['name'], '', -1];
                 } else {
-                    $ass[] = [$index, $this->Translate('Room') . $mapInfo['mapFlag'], '', -1];
+                    $ass[] = [$index, $this->Translate('Map') . ($index + 1), '', -1];
                 }
             }
 

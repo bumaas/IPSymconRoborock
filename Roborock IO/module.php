@@ -12,10 +12,10 @@ include __DIR__ . '/../libs/picture.php';
 class RoborockIO extends IPSModule
 {
     // constants
-    private const hello_msg        = '21310020ffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
-    private const port_udp         = 54321;
-    private const timeout_send     = 2;
-    private const timeout_discover = 5;
+    private const HELLO_MSG    = '21310020ffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+    private const PORT_UDP     = 54321;
+    private const TIMEOUT_SEND = 5; //Timeout von 2 ist beim Befehl 'load_multi_map' zu klein
+    private const TIMEOUT_DISCOVER = 5;
 
     // private properties
     private string $token;
@@ -245,7 +245,7 @@ class RoborockIO extends IPSModule
             $this->_debug('socket [packet]', $packet, 1);
 
             // send message to socket
-            if ($bytes = socket_sendto($this->socket, $packet, strlen($packet), 0, $this->ip, self::port_udp)) {
+            if ($bytes = socket_sendto($this->socket, $packet, strlen($packet), 0, $this->ip, self::PORT_UDP)) {
                 $this->_debug('socket [send]', $bytes . ' bytes');
             } else {
                 $this->SocketErrorHandler();
@@ -385,17 +385,17 @@ class RoborockIO extends IPSModule
         $this->SocketCreate();
 
         // send timeout
-        $this->SocketSetTimeout($discover_ip ? self::timeout_discover : self::timeout_send);
+        $this->SocketSetTimeout($discover_ip ? self::TIMEOUT_DISCOVER : self::TIMEOUT_SEND);
 
         // initiate HELLO message
         $this->_debug('socket [HELLO]', $ip);
 
         // build hello message
-        $hello_packet = hex2bin(self::hello_msg);
+        $hello_packet = hex2bin(self::HELLO_MSG);
 
         // send hello message
-        if ($bytes = socket_sendto($this->socket, $hello_packet, strlen($hello_packet), 0, $ip, self::port_udp)) {
-            $this->_debug(($discover_ip ? 'discover' : 'socket') . ' [response]', $bytes . ' bytes sent to ' . $ip . ':' . self::port_udp);
+        if ($bytes = socket_sendto($this->socket, $hello_packet, strlen($hello_packet), 0, $ip, self::PORT_UDP)) {
+            $this->_debug(($discover_ip ? 'discover' : 'socket') . ' [response]', $bytes . ' bytes sent to ' . $ip . ':' . self::PORT_UDP);
         } else {
             $this->SocketErrorHandler();
         }

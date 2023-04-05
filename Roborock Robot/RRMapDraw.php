@@ -91,7 +91,10 @@ class RRMapDraw
     {
         $width    = floor($scale * $this->rmfp->getImgWidth());
         $height   = floor($scale * $this->rmfp->getImgHeight());
-        $newImage = imagecreatetruecolor($width, $height);
+        $newImage = @imagecreatetruecolor($width, $height);
+        if (!$newImage) {
+            return '';
+        }
         $this->drawMap($newImage, $scale);
         $this->drawCarpetMap($newImage, $scale);
         //$this->drawMopPath($newImage, $scale); funktioniert noch nicht

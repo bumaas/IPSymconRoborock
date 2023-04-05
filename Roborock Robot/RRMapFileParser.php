@@ -242,6 +242,18 @@ class RRMapFileParser
                     $this->obstacles[$blocktype] = $obstacle2;
                     break;
 
+                case self::IGNORED_OBSTACLES2:
+                    $ignoredObstaclePairs = $this->getUInt16($header, 0x08);
+                    $ignoredObstacle          = [];
+                    for ($obstaclePair = 0; $obstaclePair < $ignoredObstaclePairs; $obstaclePair++) {
+                        $x0 = $this->getUInt16($data, $obstaclePair * 6 + 0);
+                        $y0 = $this->getUInt16($data, $obstaclePair * 6 + 2);
+                        $u = $this->getUInt16($data, $obstaclePair * 6 + 4);
+                        $ignoredObstacle[] = [$x0, $y0, $u];
+                    }
+                    $this->obstacles[$blocktype] = $ignoredObstacle;
+                    break;
+
                 case self::CARPET_MAP:
                     for ($carpetNode = 0; $carpetNode < $blockDataLength; $carpetNode++) {
                         $this->carpetMap[$carpetNode] = ord($data[$carpetNode]);
@@ -256,6 +268,17 @@ class RRMapFileParser
 
                 case self::DIGEST:
                     $this->isValid = bin2hex($data) === sha1(substr($raw, 0, $mapHeaderLength + $mapDataLength - 20));
+                    break;
+
+                case self::SMART_ZONES_PATH_TYPE:
+                case self::SMART_ZONES:
+                case self::CUSTOM_CARPET:
+                case self::CL_FORBIDDEN_ZONES:
+                case self::FLOOR_MAP:
+                case self::FURNITURES:
+                case self::DOCK_TYPE:
+                case self::ENEMIES:
+                    // new blocktypes not yet decoded
                     break;
 
                 default:
