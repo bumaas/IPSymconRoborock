@@ -97,7 +97,7 @@ class RRMapDraw
         }
         $this->drawMap($newImage, $scale);
         $this->drawCarpetMap($newImage, $scale);
-        //$this->drawMopPath($newImage, $scale); funktioniert noch nicht
+        //todo: $this->drawMopPath($newImage, $scale); funktioniert noch nicht
         $this->drawNoGo($newImage, $scale);
         $this->drawWalls($newImage, $scale);
         $this->drawRobo($newImage, $scale);
