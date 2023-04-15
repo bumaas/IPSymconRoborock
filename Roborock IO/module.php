@@ -12,9 +12,9 @@ include __DIR__ . '/../libs/picture.php';
 class RoborockIO extends IPSModule
 {
     // constants
-    private const HELLO_MSG    = '21310020ffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
-    private const PORT_UDP     = 54321;
-    private const TIMEOUT_SEND = 5; //Timeout von 2 ist beim Befehl 'load_multi_map' zu klein
+    private const HELLO_MSG        = '21310020ffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
+    private const PORT_UDP         = 54321;
+    private const TIMEOUT_SEND     = 5; //Timeout von 2 ist beim Befehl 'load_multi_map' zu klein
     private const TIMEOUT_DISCOVER = 5;
 
     // private properties
@@ -152,6 +152,20 @@ class RoborockIO extends IPSModule
         $this->SetBuffer('queue', json_encode($queue, JSON_THROW_ON_ERROR));
 
         return true;
+    }
+
+    public function GetConfigurationForm()
+    {
+        $form = [
+            'elements' => [
+                [
+                    'type'  => 'Label',
+                    'label' => 'Roborock I/O'
+                ]
+            ]
+        ];
+
+        return json_encode($form, JSON_THROW_ON_ERROR);
     }
 
     /**

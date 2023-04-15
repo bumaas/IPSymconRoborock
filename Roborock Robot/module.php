@@ -26,10 +26,10 @@ require_once __DIR__ . '/RRMapDraw.php';
 class Roborock extends IPSModule
 {
 
-    private const STATUS_INST_CONFIGURATION_INCOMPLETE = 201;
-    private const STATUS_INST_IP_ADDRESS_IS_INVALID    = 203;
-    private const STATUS_INST_TOKEN_IS_INVALID         = 205;
-    private const STATUS_INST_NO_ROBOROCK_FOUND        = 206;
+    private const STATUS_INST_REGISTRATION_INCOMPLETE = 201;
+    private const STATUS_INST_IP_ADDRESS_IS_INVALID   = 203;
+    private const STATUS_INST_TOKEN_IS_INVALID        = 205;
+    private const STATUS_INST_NO_ROBOROCK_FOUND       = 206;
 
     private const ATTRIBUTE_TOKEN                   = 'token';
     private const ATTRIBUTE_LOGIN_LOCATION_DATA     = 'loginLocationData';
@@ -39,6 +39,8 @@ class Roborock extends IPSModule
     private const ATTRIBUTE_CLEANING_RECORDS        = 'cleaning_records';
     private const ATTRIBUTE_MODEL                   = 'model';
     private const ATTRIBUTE_MAPFILE_URL             = 'mapfile_url';
+    private const ATTRIBUTE_MAPS_LIST               = 'maps_list';
+    private const ATTRIBUTE_ROOM_NAMES              = 'room_names';
 
     private const PROPERTY_IP                   = 'ip';
     private const PROPERTY_MODEL                = 'model';
@@ -82,6 +84,15 @@ class Roborock extends IPSModule
     private const IDENT_MAP_PICTURE_FILE          = 'map_picture_file';
     private const IDENT_MODEL                     = 'model';
     private const IDENT_REMOTE_CONTROL            = 'remote';
+
+    // Form Fields
+    private const FF_MAPANDROOMLIST        = 'MapAndRoomList';
+    private const FF_COL_MAPFLAG           = 'mapFlag';
+    private const FF_COL_MAPNAME           = 'MapName';
+    private const FF_COL_ROOMID            = 'RoomID';
+    private const FF_COL_ROOMTEXTREFERENCE = 'RoomTextReference';
+    private const FF_COL_ROOMNAME          = 'RoomName';
+
 
     private const TIMER_UPDATE     = 'RoborockTimerUpdate';
     private const TIMER_UPDATE_MAP = 'RoborockTimerUpdate_Map';
@@ -204,6 +215,7 @@ class Roborock extends IPSModule
      * create instance.
      *
      * @return void
+     * @noinspection ReturnTypeCanBeDeclaredInspection
      */
     public function Create()
     {
@@ -257,12 +269,15 @@ class Roborock extends IPSModule
         $this->RegisterAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_MODEL, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_MAPFILE_URL, '');
+        $this->RegisterAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode([], JSON_THROW_ON_ERROR));
+        $this->RegisterAttributeString(self::ATTRIBUTE_ROOM_NAMES, json_encode([], JSON_THROW_ON_ERROR));
     }
 
     /**
      * apply changes from configuration form.
      *
      * @return void
+     * @noinspection ReturnTypeCanBeDeclaredInspection
      */
     public function ApplyChanges()
     {
@@ -570,6 +585,7 @@ class Roborock extends IPSModule
      * @param int   $Message
      * @param array $Data
      *
+     * @noinspection ReturnTypeCanBeDeclaredInspection
      */
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
@@ -587,18 +603,17 @@ class Roborock extends IPSModule
      */
     private function ValidateConfiguration(): bool
     {
-        // check if configuration is complete
-        if (!$this->CheckConfiguration()) {
-            $this->SetStatus(self::STATUS_INST_CONFIGURATION_INCOMPLETE);
+        // check ip address
+        $ip = $this->ReadPropertyString(self::PROPERTY_IP);
+        if (!$ip || !filter_var(gethostbyname($ip), FILTER_VALIDATE_IP)) {
+            $this->SetStatus(self::STATUS_INST_IP_ADDRESS_IS_INVALID);
             $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
             return false;
         }
 
-        // read properties
-
-        // check ip address
-        if (filter_var(gethostbyname($this->ReadPropertyString(self::PROPERTY_IP)), FILTER_VALIDATE_IP) === false) {
-            $this->SetStatus(self::STATUS_INST_IP_ADDRESS_IS_INVALID);
+        // check if configuration is complete
+        if (!$this->CheckUserAndPassword()) {
+            $this->SetStatus(self::STATUS_INST_REGISTRATION_INCOMPLETE);
             $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
             return false;
         }
@@ -650,13 +665,13 @@ class Roborock extends IPSModule
     {
         $interval = $enable ? ($this->ReadPropertyInteger(self::PROPERTY_UPDATE_INTERVAL) * 1000) : 0;
         $this->SetTimerInterval(self::TIMER_UPDATE, $interval);
-        if ($interval === 0){
+        if ($interval === 0) {
             $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 0);
         }
     }
 
 
-    public function SetDeviceToken(string $token)
+    public function SetDeviceToken(string $token): void
     {
         $this->WriteAttributeString(self::ATTRIBUTE_TOKEN, $token);
 
@@ -716,7 +731,7 @@ class Roborock extends IPSModule
 
             // update maps status
             if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS)) {
-                $this->RequestData('get_multi_maps_list', []);
+                $this->RequestData('get_multi_maps_list');
             }
 
             // update maps picture
@@ -724,9 +739,9 @@ class Roborock extends IPSModule
                 $this->GetMap();
             }
 
-            if (in_array($this->GetValue(self::IDENT_STATE), [4, 5, 6, 7, 11, 15, 16, 17, 18, 26], true)){
+            if (in_array($this->GetValue(self::IDENT_STATE), [4, 5, 6, 7, 11, 15, 16, 17, 18, 26], true)) {
                 $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 5000);
-            } elseif ($this->GetTimerInterval(self::TIMER_UPDATE_MAP) !== 0){
+            } elseif ($this->GetTimerInterval(self::TIMER_UPDATE_MAP) !== 0) {
                 $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 0);
                 // update clean summary
                 if ($this->ReadPropertyBoolean('clean_time')) {
@@ -758,7 +773,7 @@ class Roborock extends IPSModule
         ];
 
         // merge payload & options
-        $buffer = $this->_merge($payload, $options);
+        $buffer = array_merge($payload, $options);
 
         // send to i/o device
         $this->_debug('send', json_encode($buffer, JSON_THROW_ON_ERROR));
@@ -803,7 +818,7 @@ class Roborock extends IPSModule
         }
 
         // merge payload & options
-        $buffer = $this->_merge($payload, $options);
+        $buffer = array_merge($payload, $options);
 
         // send to i/o device
         $this->_debug('send', json_encode($buffer, JSON_THROW_ON_ERROR));
@@ -817,7 +832,7 @@ class Roborock extends IPSModule
                 $io = json_decode($io_json, true, 512, JSON_THROW_ON_ERROR);
                 if ($io) {
                     // merge buffer
-                    $data = $this->_merge($buffer, $io);
+                    $data = array_merge($buffer, $io);
 
                     // return data
                     return $this->ExecuteCallback($data);
@@ -836,6 +851,7 @@ class Roborock extends IPSModule
      *
      * @param string $JSONString
      *
+     * @noinspection ReturnTypeCanBeDeclaredInspection
      */
     public function ReceiveData($JSONString)
     {
@@ -1117,12 +1133,13 @@ class Roborock extends IPSModule
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        $result   = curl_exec($ch);
-        $httpcode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $result       = curl_exec($ch);
+        $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
 
         curl_close($ch);
-        if ($httpcode !== 200) {
-            trigger_error(sprintf('%s: httpcode: %s, url: %s', __FUNCTION__, (int)$httpcode, $url));
+        if (($responsecode !== 200)) {
+            trigger_error(sprintf('%s: responsecode: %s URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $url, $effectiveURL));
             return '';
         }
 
@@ -1489,7 +1506,7 @@ class Roborock extends IPSModule
      * start remote control.
      *
      */
-    private function StartRemoteControl()
+    private function StartRemoteControl(): void
     {
         $this->RequestData('app_rc_start');
     }
@@ -1870,9 +1887,28 @@ class Roborock extends IPSModule
             case 'LoadMapFile':
                 return $this->loadMapFileFromFile($Value);
             case 'SendPushNotificationTest':
-                return $this->SendPushNotification('state', 5, false);
+                return $this->SendPushNotification('state', 5);
+            case 'UpdateMapsAndRooms':
+                $this->UpdateFormField(self::FF_MAPANDROOMLIST, 'enabled', false);
+                $this->RequestData('get_multi_maps_list', ['immediate' => true]);
+                $this->RequestData('get_room_mapping', ['immediate' => true]);
+                $this->UpdateFormField(self::FF_MAPANDROOMLIST, 'enabled', true);
+                $this->UpdateFormField(self::FF_MAPANDROOMLIST, 'values', json_encode($this->GetMapAndRoomListFormValues(), JSON_THROW_ON_ERROR));
+                break;
+            case 'DeleteProp':
+                return $this->WriteAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode([], JSON_THROW_ON_ERROR));
+            case 'GetProp':
+                $this->_debug(__FUNCTION__, $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST));
+                break;
+            case 'UpdateRoomName':
+                $Texts                                            =
+                    json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES), true, 512, JSON_THROW_ON_ERROR);
+                $roomName                                         = json_decode($Value, true, 512, JSON_THROW_ON_ERROR);
+                $Texts[$roomName[self::FF_COL_ROOMTEXTREFERENCE]] = $roomName[self::FF_COL_ROOMNAME];
+                $this->WriteAttributeString(self::ATTRIBUTE_ROOM_NAMES, json_encode($Texts, JSON_THROW_ON_ERROR));
+                break;
             default:
-                $this->_debug('request action', 'Invalid $Ident <' . $Ident . '>');
+                $this->_debug('request action', sprintf('Invalid Ident <%s>, Value: %s', $Ident, $Value));
         }
     }
 
@@ -1959,11 +1995,11 @@ class Roborock extends IPSModule
     }
 
     /**
-     * checks, if configuration is complete.
+     * checks, if a token is available.
      *
      * @return bool
      */
-    private function CheckConfiguration(): bool
+    private function CheckUserAndPassword(): bool
     {
         // if token is valid, everything is ok
         if ($this->ReadAttributeString(self::ATTRIBUTE_TOKEN)) {
@@ -2086,14 +2122,10 @@ class Roborock extends IPSModule
      * build configuration form.
      *
      * @return string
+     * @noinspection ReturnTypeCanBeDeclaredInspection
      */
     public function GetConfigurationForm()
     {
-        // update status, when configuration is not complete
-        if (!$this->CheckConfiguration()) {
-            $this->SetStatus(self::STATUS_INST_CONFIGURATION_INCOMPLETE);
-        }
-
         $form = json_encode([
                                 'elements' => $this->FormElements(),
                                 'actions'  => $this->FormActions(),
@@ -2390,7 +2422,7 @@ class Roborock extends IPSModule
                             ],
                             [
                                 'name'    => 'state_id',
-                                'label'   => 'State ID',
+                                'caption' => 'State ID',
                                 'width'   => 'auto',
                                 'save'    => true,
                                 'visible' => false
@@ -2477,7 +2509,6 @@ class Roborock extends IPSModule
                     ]
                 ]
             ],
-
         ];
     }
 
@@ -2567,17 +2598,87 @@ class Roborock extends IPSModule
     {
         return [
             [
-                'type' => 'TestCenter'
+                'type'    => 'ExpansionPanel',
+                'caption' => 'TestCenter',
+                'visible' => $this->GetStatus() === IS_ACTIVE,
+                'items'   => [
+                    [
+                        'type' => 'TestCenter'
+                    ],
+                ]
             ],
             [
+                'type'    => 'ExpansionPanel',
+                'caption' => 'Change Room Names',
+                'visible' => $this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS) && ($this->GetStatus() === IS_ACTIVE),
+                'items'   => [
+                    [
+                        'name'     => self::FF_MAPANDROOMLIST,
+                        'type'     => 'Tree',
+                        'rowCount' => 12,
+                        'sort'     => [
+                            'column' => self::FF_COL_MAPFLAG
+                        ],
+                        'enabled'  => true,
+                        'columns'  => [
+                            [
+                                'caption' => 'Map ID',
+                                'name'    => self::FF_COL_MAPFLAG,
+                                'width'   => '150px'
+                            ],
+                            [
+                                'caption' => 'Map Name',
+                                'name'    => self::FF_COL_MAPNAME,
+                                'width'   => '200px'
+                            ],
+                            [
+                                'caption' => 'Room ID',
+                                'name'    => self::FF_COL_ROOMID,
+                                'width'   => '50px'
+                            ],
+                            [
+                                'caption' => 'Room Text Reference',
+                                'name'    => self::FF_COL_ROOMTEXTREFERENCE,
+                                'visible' => false,
+                                'width'   => '50px'
+                            ],
+                            [
+                                'caption' => 'Room Name',
+                                'name'    => self::FF_COL_ROOMNAME,
+                                'edit'    => [
+                                    'type' => 'ValidationTextBox'
+                                ],
+                                'width'   => 'auto'
+                            ]
+                        ],
+                        'onEdit'   => '
+                            IPS_RequestAction($id, \'UpdateRoomName\', json_encode([
+                            "' . self::FF_COL_ROOMTEXTREFERENCE . '" => $MapAndRoomList["' . self::FF_COL_ROOMTEXTREFERENCE . '"],
+                            "' . self::FF_COL_ROOMNAME . '" => $MapAndRoomList["' . self::FF_COL_ROOMNAME . '"]
+                            ]));
+                        ',
+                        'values'   => $this->GetMapAndRoomListFormValues()
+                    ],
+                    [
+                        'type'    => 'Button',
+                        'caption' => 'Update',
+                        'onClick' => '
+                            IPS_RequestAction($id, \'UpdateMapsAndRooms\', \'\');
+                        '
+                    ]
+
+                ]
+            ],
+
+            [
                 'type'    => 'Button',
-                'label'   => 'Xiaomi Login Test',
+                'caption' => 'Xiaomi Login Test',
                 'onClick' => '$module = new IPSModule($id); if (Roborock_GetTokenFromXiaomi($id)){echo $module->Translate(\'OK\');} else {echo $module->Translate(\'Error\');};'
             ],
             [
                 'type'    => 'RowLayout',
                 'name'    => 'Row_HandleMap',
-                'visible' => $this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE),
+                'visible' => $this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE) && ($this->GetStatus() === IS_ACTIVE),
                 'items'   => [
                     [
                         'type'    => 'Button',
@@ -2610,50 +2711,23 @@ class Roborock extends IPSModule
             ],
             [
                 'type'    => 'Button',
-                'label'   => 'Update',
+                'caption' => 'Update',
+                'visible' => $this->GetStatus() === IS_ACTIVE,
                 'onClick' => 'Roborock_Update($id);'
             ],
             [
                 'type'    => 'Button',
-                'label'   => 'Show Room Mapping',
+                'caption' => 'Show Room Mapping',
+                'visible' => false, //todo: entscheiden, ob überflüssig
                 'onClick' => '
                     print_r(Roborock_Get_Room_Mapping($id));
                     '
             ],
             [
-                'type'    => 'RowLayout',
-                'visible' => $this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES)
-                             || $this->ReadPropertyBoolean(
-                        self::PROPERTY_CONSUMABLES_SEPARATE
-                    ),
-                'items'   => [
-                    [
-                        'type'    => 'Button',
-                        'label'   => 'Reset Filter',
-                        'onClick' => 'Roborock_Reset_Filter($id);'
-                    ],
-                    [
-                        'type'    => 'Button',
-                        'label'   => 'Reset Mainbrush',
-                        'onClick' => 'Roborock_Reset_Mainbrush($id);'
-                    ],
-                    [
-                        'type'    => 'Button',
-                        'label'   => 'Reset Sidebrush',
-                        'onClick' => 'Roborock_Reset_Sidebrush($id);'
-                    ],
-                    [
-                        'type'    => 'Button',
-                        'label'   => 'Reset Sensors',
-                        'onClick' => 'Roborock_Reset_Sensors($id);'
-                    ]
-                ]
-            ],
-
-            [
                 'type'    => 'Button',
-                'label'   => 'Push Notification Test',
-                'onClick' => 'IPS_RequestAction($id, "SendPushNotificationTest", 0);'
+                'caption' => 'Push Notification Test',
+                'visible' => $this->ReadPropertyInteger('notification_instance') > 0,
+                'onClick' => '$module = new IPSModule($id); if (IPS_RequestAction($id, "SendPushNotificationTest", 0)){echo $module->Translate(\'OK\');} else {echo $module->Translate(\'Error\');};'
             ],
             /*
                 [
@@ -2674,9 +2748,9 @@ class Roborock extends IPSModule
     {
         return [
             [
-                'code'    => self::STATUS_INST_CONFIGURATION_INCOMPLETE,
+                'code'    => self::STATUS_INST_REGISTRATION_INCOMPLETE,
                 'icon'    => 'inactive',
-                'caption' => 'Please follow the instructions.'
+                'caption' => 'Registration is not complete. Please check user and password.'
             ],
             [
                 'code'    => self::STATUS_INST_IP_ADDRESS_IS_INVALID,
@@ -2694,6 +2768,39 @@ class Roborock extends IPSModule
                 'caption' => 'no roborock was found on that ip and token.'
             ]
         ];
+    }
+
+    private function GetMapAndRoomListFormValues(): array
+    {
+        $maps_list = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true, 512, JSON_THROW_ON_ERROR);
+        $RoomNames = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES), true, 512, JSON_THROW_ON_ERROR);
+        $this->_debug(__FUNCTION__, json_encode($maps_list, JSON_THROW_ON_ERROR));
+        $this->_debug(__FUNCTION__, json_encode($RoomNames, JSON_THROW_ON_ERROR));
+        //var_dump($maps_list);
+        $id                   = 1;
+        $MapAndRoomListValues = [];
+        foreach ($maps_list as $map) {
+            $parentID               = $id;
+            $MapAndRoomListValues[] = [
+                'id'                 => $id++,
+                self::FF_COL_MAPFLAG => $map['mapFlag'],
+                self::FF_COL_MAPNAME => $map['MapName'],
+                'editable'           => false
+            ];
+
+            foreach ($map['rooms'] as $room) {
+                $name                   = $RoomNames[$room['referenceID']] ?? $room['roomName'];
+                $MapAndRoomListValues[] = [
+                    'id'                           => $id++,
+                    'parent'                       => $parentID,
+                    self::FF_COL_ROOMID            => $room['roomID'],
+                    self::FF_COL_ROOMTEXTREFERENCE => $room['referenceID'],
+                    self::FF_COL_ROOMNAME          => $name,
+                    'editable'                     => true
+                ];
+            }
+        }
+        return $MapAndRoomListValues;
     }
 
     /***********************************************************
@@ -2797,42 +2904,6 @@ class Roborock extends IPSModule
         $this->SendDebug($notification, $message, $format);
     }
 
-    /**
-     * merge arrays with key attention.
-     *
-     * @param array $data  Array to be merged
-     * @param mixed $merge Array to merge with. The argument and all trailing arguments will be array cast when merged
-     *
-     * @return array Merged array
-     */
-    private function _merge(array $data, array $merge): array
-    {
-        $args   = array_slice(func_get_args(), 1);
-        $return = $data;
-
-        foreach ($args as &$curArg) {
-            $stack[] = [(array)$curArg, &$return];
-        }
-        unset($curArg);
-
-        while (!empty($stack)) {
-            foreach ($stack as $curKey => &$curMerge) {
-                foreach ($curMerge[0] as $key => &$val) {
-                    if (!empty($curMerge[1][$key]) && (array)$curMerge[1][$key] === $curMerge[1][$key] && (array)$val === $val) {
-                        $stack[] = [&$val, &$curMerge[1][$key]];
-                    } elseif ((int)$key === $key && isset($curMerge[1][$key])) {
-                        $curMerge[1][] = $val;
-                    } else {
-                        $curMerge[1][$key] = $val;
-                    }
-                }
-                unset ($val);
-                unset($stack[$curKey]);
-            }
-            unset($curMerge);
-        }
-        return $return;
-    }
 
     /**
      * return incremented position.
@@ -3067,17 +3138,19 @@ EOF;
             'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $clientId . ' APP/xiaomi.smarthome APPV/62830',
             'Cookie: sdkVersion=3.8.6; userId=' . trim($user) . '; deviceId=' . $clientId
         ];
-        $ch      = curl_init('https://account.xiaomi.com/pass/serviceLogin?sid=xiaomiio&_json=true');
+        $url     = 'https://account.xiaomi.com/pass/serviceLogin?sid=xiaomiio&_json=true';
+        $ch      = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
 
-        $result   = curl_exec($ch);
-        $httpcode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        curl_close($ch);
+        $result       = curl_exec($ch);
+        $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
 
-        if ($httpcode !== 200) {
-            trigger_error(sprintf('%s: httpcode: %s', __FUNCTION__, (int)$httpcode));
+        curl_close($ch);
+        if (($responsecode !== 200)) {
+            trigger_error(sprintf('%s: responsecode: %s , URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $url, $effectiveURL));
             return false;
         }
         return $this->parseJson($result);
@@ -3102,50 +3175,53 @@ EOF;
         ];
 
         $form = http_build_query($form);
-        $ch   = curl_init('https://account.xiaomi.com/pass/serviceLoginAuth2');
+        $url  = 'https://account.xiaomi.com/pass/serviceLoginAuth2';
+        $ch   = curl_init($url);
 
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $form);
         curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        $result   = curl_exec($ch);
-        $httpcode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $result       = curl_exec($ch);
+        $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
 
         curl_close($ch);
-        if ($httpcode !== 200) {
-            trigger_error(sprintf('%s: httpcode: %s', __FUNCTION__, (int)$httpcode));
+        if (($responsecode !== 200)) {
+            trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $url, $effectiveURL));
             return false;
         }
         return $this->parseJson($result);
     }
 
-    private function login_location(string $clientId, string $location)
+    private function login_location(string $clientId, string $url)
     {
         $headers = [
             'Content-Type: application/x-www-form-urlencoded',
             'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-9D28921C354D7 APP/xiaomi.smarthome APPV/62830',
             'Cookie: sdkVersion=accountsdk-18.8.15; deviceId=' . $clientId
         ];
-        $ch      = curl_init($location);
+        $ch      = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HEADER, 1);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        $result      = curl_exec($ch);
-        $httpcode    = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        $header_size = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $result       = curl_exec($ch);
+        $header_size  = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+
+        curl_close($ch);
+        if (($responsecode !== 200)) {
+            trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $url, $effectiveURL));
+            return false;
+        }
 
         $header = substr($result, 0, $header_size);
         $result = substr($result, $header_size);
 
-        curl_close($ch);
-
-        if (($httpcode !== 200)) {
-            trigger_error(sprintf('%s: httpcode: %s', __FUNCTION__, (int)$httpcode));
-            return false;
-        }
 
         if ($result === 'ok') {
             $userId = explode('userId=', $header)[1];
@@ -3197,19 +3273,21 @@ EOF;
         $body = $this->generateSignature($loginAccountData['ssecurity'], $params, $path);
         $body = http_build_query($body);
 
-        $ch = curl_init('https://' . $server . '.api.io.mi.com/app' . $path);
+        $url = 'https://' . $server . '.api.io.mi.com/app' . $path;
+        $ch  = curl_init($url);
 
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
         curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        $result   = curl_exec($ch);
-        $httpcode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $result       = curl_exec($ch);
+        $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
 
         curl_close($ch);
-        if (($httpcode !== 200)) {
-            trigger_error(sprintf('%s: httpcode: %s', __FUNCTION__, (int)$httpcode));
+        if (($responsecode !== 200)) {
+            trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $url, $effectiveURL));
             return [];
         }
         return json_decode($result, true, 512, JSON_THROW_ON_ERROR);
@@ -3298,6 +3376,64 @@ EOF;
         $this->SetRoborockValue('serial_number', $serial);
 
         return $serial;
+    }
+
+    /**
+     * Callback: get_room_mapping
+     *
+     * @param array $data
+     *
+     * @return array
+     * @throws \JsonException
+     */
+    private function get_room_mapping_callback(array $data): array
+    {
+        $this->_debug(__FUNCTION__, json_encode($data));
+        //        $serial = $data['result'][0]['serial_number'] ?? '';
+        //        $this->SetRoborockValue('serial_number', $serial);
+
+        if (!isset($data['result'])) {
+            return [];
+        }
+
+        $rooms = [];
+        foreach ($data['result'] as $room) {
+            $rooms[$room[0]] = [
+                'roomID'      => $room[0],
+                'referenceID' => $room[1]
+            ];
+        }
+
+        $this->UpdateAttributeMapsListWithRooms($rooms);
+
+        return $data;
+    }
+
+    private function UpdateAttributeMapsListWithRooms(array $rooms): void
+    {
+        if (!$this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS)){
+            return;
+        }
+
+        $mapFlag = $this->GetValue(self::IDENT_MAP_STATUS);
+        $savedList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true);
+
+
+        foreach ($rooms as $roomID => $room) {
+            if (!isset($savedList[$mapFlag]['rooms'][$roomID])) {
+                $savedList[$mapFlag]['rooms'][$roomID] = [
+                    'roomID'      => $room['roomID'],
+                    'referenceID' => $room['referenceID'],
+                    'roomName'    => 'Raum ' . $room['roomID']
+                ];
+            }
+        }
+
+        foreach (array_diff_key($savedList[$mapFlag]['rooms'], $rooms) as $roomID) {
+            unset ($savedList[$mapFlag]['rooms'][$roomID]);
+        }
+
+        $this->WriteAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode($savedList, JSON_THROW_ON_ERROR));
     }
 
     /**
@@ -3627,35 +3763,68 @@ EOF;
      */
     private function get_multi_maps_list_callback(array $data): void
     {
-        $ass = [];
-        if (isset($data['result'][0]['multi_map_count'])) {
-            $result = $data['result'][0];
-            foreach ($result['map_info'] as $mapInfo) {
-                $index = $mapInfo['mapFlag'];
-                if ($mapInfo['name']) {
-                    $ass[] = [$index, $mapInfo['name'], '', -1];
-                } else {
-                    $ass[] = [$index, $this->Translate('Map') . ($index + 1), '', -1];
-                }
-            }
+        if (!isset($data['result'][0]['multi_map_count'])) {
+            return;
+        }
 
-            if (count($ass)) {
-                $this->RegisterProfileAssociation(
-                    self::PROFILE_MAPS,
-                    '',
-                    '',
-                    '',
-                    0,
-                    count($ass),
-                    0,
-                    0,
-                    VARIABLETYPE_INTEGER,
-                    $ass
-                );
+        $ass       = [];
+        $maps_list = [];
+
+        $result = $data['result'][0];
+        foreach ($result['map_info'] as $mapInfo) {
+            $index = $mapInfo['mapFlag'];
+            if ($mapInfo['name']) {
+                $maps_list[$index] = [
+                    'mapFlag' => $index,
+                    'MapName' => $mapInfo['name']
+                ];
+                $ass[]             = [$index, $mapInfo['name'], '', -1];
+            } else {
+                $maps_list[$index] = [
+                    'mapFlag' => $index,
+                    'MapName' => $this->Translate('Map') . ($index + 1)
+                ];
+                $ass[]             = [$index, $this->Translate('Map') . ($index + 1), '', -1];
             }
         }
+
+        if (count($ass)) {
+            $this->RegisterProfileAssociation(
+                self::PROFILE_MAPS,
+                '',
+                '',
+                '',
+                0,
+                count($ass),
+                0,
+                0,
+                VARIABLETYPE_INTEGER,
+                $ass
+            );
+        }
+
+        $this->UpdateAttributeMapsListWithMaps($maps_list);
     }
 
+    private function UpdateAttributeMapsListWithMaps(array $maps)
+    {
+        $savedList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true);
+
+        foreach ($maps as $mapFlag => $map) {
+            if (isset($savedList[$mapFlag])) {
+                $savedList[$mapFlag]['MapName'] = $map['MapName'];
+            } else {
+                $savedList[$mapFlag]          = $map;
+                $savedList[$mapFlag]['rooms'] = [];
+            }
+        }
+
+        foreach (array_diff_key($savedList, $maps) as $mapFlag) {
+            unset ($savedList[$mapFlag]);
+        }
+
+        $this->WriteAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode($savedList, JSON_THROW_ON_ERROR));
+    }
 
     /**
      * Callback: Clean Record Details.
@@ -3736,7 +3905,7 @@ EOF;
                     $tmp_data = json_decode($tmp_data, true, 512, JSON_THROW_ON_ERROR);
 
                     // merge temporary data with html data
-                    $html_data = $this->_merge(
+                    $html_data = array_merge(
                         $tmp_data,
                         $html_data
                     );

@@ -3,6 +3,8 @@
     "de": {
       "IP address Roborock": "IP Adresse Roborock",
       "Enter the credentials of your Xiaomi Home Account below.": "Anmeldedaten des Xiaomi Kontos",
+      "User": "Benutzer",
+      "Password": "Passwort",
       "Token": "Token",
       "Update Interval Roborock": "Aktualisierungsintervall Roborock",
       "Hardware Version": "Hardware Version",
@@ -115,10 +117,6 @@
       "sensor": "Sensoren",
       "Time": "Zeit",
       "Residual (%)": "Verbleibend (%)",
-      "Reset Filter": "Reset Filter",
-      "Reset Mainbrush": "Reset Hauptbürste",
-      "Reset Sidebrush": "Reset Seitenbürste",
-      "Reset Sensors": "Reset Sensoren",
       "Token Mode": "Token Modus",
       "Please choose": "Bitte auswählen",
       "Volume": "Lautstärke",
@@ -187,9 +185,15 @@
       "lower left corner y": " linke untere Ecke Y",
       "upper right corner x": "obere rechte Ecke X",
       "upper right corner y": "obere rechte Ecke Y",
-      "Please follow the instructions.": "Bitte der Anleitung folgen.",
+      "Registration is not complete. Please check user and password.": "Die Anmeldung war nicht erfolgreich. Bitte Benutzer und Passwort prüfen.",
       "OK": "OK",
-      "Error": "Nicht erfolgreich"
+      "Error": "Nicht erfolgreich",
+      "TestCenter": "Testbereich",
+      "Change Room Names": "Raumnamen ändern",
+      "Map ID": "Kartennummer",
+      "Room ID": "Raumnummer",
+      "Map Name": "Kartenname",
+      "Room Name": "Raumnamen"
     }
   }
 }
