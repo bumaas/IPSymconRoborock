@@ -2751,7 +2751,7 @@ class Roborock extends IPSModule
             [
                 'type'    => 'ExpansionPanel',
                 'caption' => 'Change Room Names',
-                'visible' => $this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS) && ($this->GetStatus() === IS_ACTIVE),
+                'visible' => $this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER) && ($this->GetStatus() === IS_ACTIVE),
                 'items'   => [
                     [
                         'name'     => self::FF_MAPANDROOMLIST,

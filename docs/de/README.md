@@ -65,7 +65,7 @@ Das Modul wird über den Modul Store geladen (Modulname: Roborock). Alternativ k
 
 In IP-Symcon nun _Instanz hinzufügen_ auswählen unter der Kategorie, unter der man die Instanz hinzufügen will, und _Roborock_ auswählen.
 
-![AddInstance](img/Roborock_add_instance.png?raw=true "Add Instance")
+![AddInstance](img/Roborock_add_instance.png "Add Instance")
 
 Es öffnet sich das Konfigurationsformular. Hier ist anzugeben:
  - IP-Adresse des Saugers
@@ -77,6 +77,8 @@ Optional können die Statusvariablen ausgewählt werden sowie Pushnachrichten de
 Im Aktionsbereich des Formulars können die Statusvariablen getestet werden ("Testbereich"). 
 
 Unter "Raumnamen ändern" (sichtbar, wenn die Statusvariablen für einen _Reinigungsauftrag_ ausgewählt wurden) können die in der Xiaomi App definierten Räume übernommen und anschließend die Räume mit Namen versehen werden. Leider gibt es bislang keinen (mir) bekannten Weg, die Namen auszulesen.
+![RoomNames](img/RoomNames.png "Raumnamen ändern")
+Hinweis: beim Einlesen werden immer die Räume der aktuell geladenen Karte eingelesen.
 
 Falls die Statusvariable _Kartenbild_ ausgewählt wurde, werden zusätzlich Funktionen zum Holen der Karte und zum Anzeigen angeboten.
 
@@ -85,7 +87,7 @@ Falls die Statusvariable _Kartenbild_ ausgewählt wurde, werden zusätzlich Funk
 Falls die Option _Reinigungsauftrag_ gewählt wurde, werden die notwendigen Variablen und Profile zum Absetzen eines umfangreichen Reinigungsauftrages zur Verfügung gestellt.
 
 Beispiel einer Darstellung im Webfront:
-![CleaningOrder](img/CleaningOrder.png?raw=true "Reinigungsauftrag")
+![CleaningOrder](img/CleaningOrder.png "Reinigungsauftrag")
 
 
 ## 4. Funktionsreferenz
