@@ -1969,12 +1969,12 @@ class Roborock extends IPSModule
             case 'SendPushNotificationTest':
                 return $this->SendPushNotification('state', 5);
             case 'UpdateMapsAndRooms':
-                $this->UpdateFormField(self::FF_MAPANDROOMLIST, 'enabled', false);
+                $this->UpdateFormField(self::FF_MAPANDROOMLIST, 'enabled', false); //Eingabe deaktivieren
 
                 $this->RequestData('get_multi_maps_list', ['immediate' => true]);
                 $this->RequestData('get_room_mapping', ['immediate' => true]);
 
-                $this->UpdateFormField(self::FF_MAPANDROOMLIST, 'enabled', true);
+                $this->UpdateFormField(self::FF_MAPANDROOMLIST, 'enabled', true); //Eingabe wieder aktivieren
                 $this->UpdateFormField(self::FF_MAPANDROOMLIST, 'values', json_encode($this->GetMapAndRoomListFormValues(), JSON_THROW_ON_ERROR));
                 break;
             case 'DeleteProp':
@@ -2915,8 +2915,8 @@ class Roborock extends IPSModule
     {
         $maps_list = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true, 512, JSON_THROW_ON_ERROR);
         $RoomNames = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES), true, 512, JSON_THROW_ON_ERROR);
-        $this->_debug(__FUNCTION__, json_encode($maps_list, JSON_THROW_ON_ERROR));
-        $this->_debug(__FUNCTION__, json_encode($RoomNames, JSON_THROW_ON_ERROR));
+        $this->_debug(__FUNCTION__, 'maps_list: ' . json_encode($maps_list, JSON_THROW_ON_ERROR));
+        $this->_debug(__FUNCTION__, 'RoomNames: ' . json_encode($RoomNames, JSON_THROW_ON_ERROR));
         //var_dump($maps_list);
         $id                   = 1;
         $MapAndRoomListValues = [];
@@ -3553,7 +3553,7 @@ EOF;
 
     private function UpdateAttributeMapsListWithRooms(array $rooms): void
     {
-        if (!$this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS)) {
+        if (!$this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
             return;
         }
 
