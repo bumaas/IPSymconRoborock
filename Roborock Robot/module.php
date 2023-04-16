@@ -41,6 +41,7 @@ class Roborock extends IPSModule
     private const ATTRIBUTE_MAPFILE_URL             = 'mapfile_url';
     private const ATTRIBUTE_MAPS_LIST               = 'maps_list';
     private const ATTRIBUTE_ROOM_NAMES              = 'room_names';
+    private const ATTRIBUTE_ROOM_SELECTION          = 'room_selection';
 
     private const PROPERTY_IP                   = 'ip';
     private const PROPERTY_MODEL                = 'model';
@@ -56,20 +57,24 @@ class Roborock extends IPSModule
     private const PROPERTY_XIAOMI_PASSWORD      = 'xiaomi_password';
     private const PROPERTY_REMOTE               = 'remote';
     private const PROPERTY_UPDATE_INTERVAL      = 'UpdateInterval';
+    private const PROPERTY_CLEANING_ORDER       = 'CleaningOrder';
 
-    private const PROFILE_COMMAND       = 'Roborock.Command';
-    private const PROFILE_ERRORCODE     = 'Roborock.Errorcode';
-    private const PROFILE_STATE         = 'Roborock.State';
-    private const PROFILE_FINDME        = 'Roborock.Findme';
-    private const PROFILE_FANPOWER      = 'Roborock.Fanpower';
-    private const PROFILE_WATERQUANTITY = 'Roborock.WaterQuantity';
-    private const PROFILE_MAPS          = 'Roborock.Maps';
-    private const PROFILE_CLEANAREA     = 'Roborock.Cleanarea';
-    private const PROFILE_TOTALCLEANS   = 'Roborock.Totalcleans';
-    private const PROFILE_VOLUME        = 'Roborock.Volume';
-    private const PROFILE_BATTERY       = 'Roborock.Battery';
-    private const PROFILE_CONSUMABLE    = 'Roborock.Consumable';
-    private const PROFILE_DURATION      = 'Roborock.Duration';
+    private const PROFILE_COMMAND         = 'Roborock.Command';
+    private const PROFILE_ERRORCODE       = 'Roborock.Errorcode';
+    private const PROFILE_STATE           = 'Roborock.State';
+    private const PROFILE_FINDME          = 'Roborock.Findme';
+    private const PROFILE_FANPOWER        = 'Roborock.Fanpower';
+    private const PROFILE_WATERQUANTITY   = 'Roborock.WaterQuantity';
+    private const PROFILE_MAPS            = 'Roborock.Maps';
+    private const PROFILE_CLEANAREA       = 'Roborock.Cleanarea';
+    private const PROFILE_TOTALCLEANS     = 'Roborock.Totalcleans';
+    private const PROFILE_VOLUME          = 'Roborock.Volume';
+    private const PROFILE_BATTERY         = 'Roborock.Battery';
+    private const PROFILE_CONSUMABLE      = 'Roborock.Consumable';
+    private const PROFILE_DURATION        = 'Roborock.Duration';
+    private const PROFILE_ROOMSELECTION   = 'Roborock.Roomselection';
+    private const PROFILE_CLEANING_CYCLES = 'Roborock.CleaningCycles';
+    private const PROFILE_START_CLEANING  = 'Roborock.StartCleaning';
 
     private const IDENT_VOLUME                    = 'volume';
     private const IDENT_COMMAND                   = 'command';
@@ -84,6 +89,11 @@ class Roborock extends IPSModule
     private const IDENT_MAP_PICTURE_FILE          = 'map_picture_file';
     private const IDENT_MODEL                     = 'model';
     private const IDENT_REMOTE_CONTROL            = 'remote';
+    private const IDENT_ROOMSELECTION             = 'roomselection';
+    private const IDENT_ROOMS_SELECTED            = 'rooms_selected';
+    private const IDENT_CLEANING_CYCLES           = 'cleaning_cycles';
+    private const IDENT_START_CLEANING            = 'start_cleaning';
+
 
     // Form Fields
     private const FF_MAPANDROOMLIST        = 'MapAndRoomList';
@@ -244,6 +254,7 @@ class Roborock extends IPSModule
         $this->RegisterPropertyBoolean(self::PROPERTY_VOLUME, false);
         $this->RegisterPropertyBoolean('timezone', false);
         $this->RegisterPropertyBoolean(self::PROPERTY_REMOTE, false);
+        $this->RegisterPropertyBoolean(self::PROPERTY_CLEANING_ORDER, false);
 
         $this->RegisterPropertyInteger('notification_instance', 0);
         $this->RegisterPropertyString('notifications', $this->GetPushNotifications());
@@ -271,6 +282,7 @@ class Roborock extends IPSModule
         $this->RegisterAttributeString(self::ATTRIBUTE_MAPFILE_URL, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode([], JSON_THROW_ON_ERROR));
         $this->RegisterAttributeString(self::ATTRIBUTE_ROOM_NAMES, json_encode([], JSON_THROW_ON_ERROR));
+        $this->RegisterAttributeString(self::ATTRIBUTE_ROOM_SELECTION, json_encode([], JSON_THROW_ON_ERROR));
     }
 
     /**
@@ -366,6 +378,8 @@ class Roborock extends IPSModule
         $this->RegisterProfile(self::PROFILE_DURATION, '', '', ' s', 0, 0, 0, 0, VARIABLETYPE_INTEGER);
         $this->RegisterProfile(self::PROFILE_MAPS, '', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER);
 
+        $this->WriteRoomSelectionProfile();
+
         // Remote Control
         if ($this->ReadPropertyBoolean(self::PROPERTY_REMOTE)) {
             $id = $this->RegisterVariableString(self::IDENT_REMOTE_CONTROL, $this->Translate('Remote Control'), '~HTMLBox', $this->_getPosition());
@@ -421,7 +435,7 @@ class Roborock extends IPSModule
         }
 
         // map_status
-        if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS)) {
+        if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS) || $this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
             $this->RegisterVariableInteger(self::IDENT_MAP_STATUS, $this->Translate('Active Map'), self::PROFILE_MAPS, $this->_getPosition());
             $this->EnableAction(self::IDENT_MAP_STATUS);
         } else {
@@ -554,6 +568,45 @@ class Roborock extends IPSModule
             $this->UnregisterVariable('timezone');
         }
 
+        if ($this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
+            $this->RegisterVariableInteger(
+                self::IDENT_ROOMSELECTION,
+                $this->Translate('Roomselection'),
+                sprintf('%s.%s',self::PROFILE_ROOMSELECTION, $this->InstanceID),
+                $this->_getPosition()
+            );
+            $this->EnableAction(self::IDENT_ROOMSELECTION);
+            $this->_SetValue(self::IDENT_ROOMSELECTION, -1);
+
+
+            $this->RegisterVariableString(self::IDENT_ROOMS_SELECTED, $this->Translate('Selected Rooms'), '', $this->_getPosition());
+
+            $ass = [];
+            for ($i = 1; $i <= 3; $i++) {
+                $ass[] = [$i, sprintf('%sx', $i), '', -1];
+            }
+            $this->RegisterProfileAssociation(self::PROFILE_CLEANING_CYCLES, '', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, $ass);
+
+            $this->RegisterVariableInteger(
+                self::IDENT_CLEANING_CYCLES,
+                $this->Translate('Cleaning Cycles'),
+                self::PROFILE_CLEANING_CYCLES,
+                $this->_getPosition()
+            );
+            if ($this->GetValue(self::IDENT_CLEANING_CYCLES) === 0) {
+                $this->_SetValue(self::IDENT_CLEANING_CYCLES, 1);
+            }
+            $this->EnableAction(self::IDENT_CLEANING_CYCLES);
+
+            $this->RegisterProfileAssociation(self::PROFILE_START_CLEANING, '', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, [[1, 'Start', '', -1]]);
+            $this->RegisterVariableInteger(
+                self::IDENT_START_CLEANING,
+                $this->Translate('Start Cleaning'),
+                self::PROFILE_START_CLEANING,
+                $this->_getPosition()
+            );
+            $this->EnableAction(self::IDENT_START_CLEANING);
+        }
 
         // receive data only for this instance
         $this->SetReceiveDataFilter('.*"InstanceID":' . $this->InstanceID . '.*');
@@ -938,7 +991,7 @@ class Roborock extends IPSModule
      */
     public function Start()
     {
-        $this->SetRoborockValue(self::IDENT_COMMAND, 0);
+        $this->_SetValue(self::IDENT_COMMAND, 0);
         return $this->RequestData('app_start');
     }
 
@@ -949,7 +1002,7 @@ class Roborock extends IPSModule
      */
     public function Stop()
     {
-        $this->SetRoborockValue(self::IDENT_COMMAND, 2);
+        $this->_SetValue(self::IDENT_COMMAND, 2);
         return $this->RequestData('app_stop');
     }
 
@@ -960,7 +1013,7 @@ class Roborock extends IPSModule
      */
     public function CleanSpot()
     {
-        $this->SetRoborockValue(self::IDENT_COMMAND, 3);
+        $this->_SetValue(self::IDENT_COMMAND, 3);
         return $this->RequestData('app_spot');
     }
 
@@ -971,7 +1024,7 @@ class Roborock extends IPSModule
      */
     public function Pause()
     {
-        $this->SetRoborockValue(self::IDENT_COMMAND, 1);
+        $this->_SetValue(self::IDENT_COMMAND, 1);
         return $this->RequestData('app_pause');
     }
 
@@ -982,7 +1035,7 @@ class Roborock extends IPSModule
      */
     public function Charge()
     {
-        $this->SetRoborockValue(self::IDENT_COMMAND, 4);
+        $this->_SetValue(self::IDENT_COMMAND, 4);
         return $this->RequestData('app_charge');
     }
 
@@ -993,10 +1046,21 @@ class Roborock extends IPSModule
      */
     public function Locate()
     {
-        $this->SetRoborockValue(self::IDENT_COMMAND, 5);
+        $this->_SetValue(self::IDENT_COMMAND, 5);
         return $this->RequestData('find_me');
     }
 
+    public function StartCleaning()
+    {
+        $roomSelection  = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_SELECTION), true, 512, JSON_THROW_ON_ERROR);
+        $segments       = array_keys($roomSelection);
+        $cleaningCycles = (int)$this->GetValue(self::IDENT_CLEANING_CYCLES);
+        if ($cleaningCycles === 1) {
+            $this->Start_Segment_Clean_Ex(json_encode($segments, JSON_THROW_ON_ERROR));
+        } else {
+            $this->Start_Segment_Clean_Ex(json_encode([['segments' => $segments, 'repeat' => $cleaningCycles]], JSON_THROW_ON_ERROR));
+        }
+    }
     // Consumables time remaining in %
 
     /**
@@ -1433,7 +1497,7 @@ class Roborock extends IPSModule
      */
     public function Set_Fan_Power(int $power)
     {
-        $this->SetRoborockValue(self::IDENT_FAN_POWER, $power);
+        $this->_SetValue(self::IDENT_FAN_POWER, $power);
         return $this->RequestData('set_custom_mode', [
             'params' => [$power]
         ]);
@@ -1458,7 +1522,7 @@ class Roborock extends IPSModule
      */
     public function Set_Water_Quantity_Control(int $mode)
     {
-        $this->SetRoborockValue(self::IDENT_WATER_QUANTITY, $mode);
+        $this->_SetValue(self::IDENT_WATER_QUANTITY, $mode);
         return $this->RequestData('set_water_box_custom_mode', [
             'params' => [$mode]
         ]);
@@ -1498,7 +1562,13 @@ class Roborock extends IPSModule
      */
     public function LoadMap(int $mapIndex)
     {
-        return $this->RequestData('load_multi_map', ['params' => [$mapIndex]]);
+        if ($this->RequestData('load_multi_map', ['params' => [$mapIndex]])) {
+            $this->ProcessSelectedRoom(0); //Auswahl auf 'alle' setzen
+
+            return true;
+        }
+
+        return false;
     }
 
 
@@ -1685,7 +1755,7 @@ class Roborock extends IPSModule
      */
     public function Set_DND(bool $state): void
     {
-        $this->SetRoborockValue('dnd_mode', $state);
+        $this->_SetValue('dnd_mode', $state);
 
         if ($state) {
             $start_time_string = GetValueFormatted($this->GetIDForIdent('dnd_starttime'));
@@ -1717,7 +1787,7 @@ class Roborock extends IPSModule
     {
         $start_hour    = (int)date('H', $starttime);
         $start_minutes = (int)date('i', $starttime);
-        $this->SetRoborockValue('dnd_starttime', $starttime);
+        $this->_SetValue('dnd_starttime', $starttime);
         $end_time_string = GetValueFormatted($this->GetIDForIdent('dnd_endtime'));
         $time            = explode(':', $end_time_string);
         $end_hour        = (int)$time[0];
@@ -1740,7 +1810,7 @@ class Roborock extends IPSModule
     {
         $end_hour    = (int)date('H', $endtime);
         $end_minutes = (int)date('i', $endtime);
-        $this->SetRoborockValue('dnd_endtime', $endtime);
+        $this->_SetValue('dnd_endtime', $endtime);
         $starttime     = GetValueFormatted($this->GetIDForIdent('dnd_starttime'));
         $time          = explode(':', $starttime);
         $start_hour    = (int)$time[0];
@@ -1777,7 +1847,7 @@ class Roborock extends IPSModule
      */
     public function Set_SoundVolume(int $volume)
     {
-        $this->SetRoborockValue(self::IDENT_VOLUME, $volume);
+        $this->_SetValue(self::IDENT_VOLUME, $volume);
         return $this->RequestData('change_sound_volume', [
             'params' => [$volume]
         ]);
@@ -1860,6 +1930,10 @@ class Roborock extends IPSModule
                         break;
                 }
                 break;
+            case self::IDENT_ROOMSELECTION:
+                $this->ProcessSelectedRoom($Value);
+                $this->_SetValue($Ident, -1);
+                break;
             case 'dnd_mode':
                 $this->Set_DND($Value);
                 break;
@@ -1881,6 +1955,12 @@ class Roborock extends IPSModule
             case self::IDENT_MAP_STATUS:
                 $this->LoadMap($Value);
                 break;
+            case self::IDENT_CLEANING_CYCLES:
+                $this->_SetValue($Ident, $Value);
+                break;
+            case self::IDENT_START_CLEANING:
+                $this->StartCleaning();
+                break;
             case 'ReloadForm':
                 $this->ReloadForm();
                 break;
@@ -1890,8 +1970,10 @@ class Roborock extends IPSModule
                 return $this->SendPushNotification('state', 5);
             case 'UpdateMapsAndRooms':
                 $this->UpdateFormField(self::FF_MAPANDROOMLIST, 'enabled', false);
+
                 $this->RequestData('get_multi_maps_list', ['immediate' => true]);
                 $this->RequestData('get_room_mapping', ['immediate' => true]);
+
                 $this->UpdateFormField(self::FF_MAPANDROOMLIST, 'enabled', true);
                 $this->UpdateFormField(self::FF_MAPANDROOMLIST, 'values', json_encode($this->GetMapAndRoomListFormValues(), JSON_THROW_ON_ERROR));
                 break;
@@ -1901,15 +1983,69 @@ class Roborock extends IPSModule
                 $this->_debug(__FUNCTION__, $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST));
                 break;
             case 'UpdateRoomName':
-                $Texts                                            =
-                    json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES), true, 512, JSON_THROW_ON_ERROR);
-                $roomName                                         = json_decode($Value, true, 512, JSON_THROW_ON_ERROR);
-                $Texts[$roomName[self::FF_COL_ROOMTEXTREFERENCE]] = $roomName[self::FF_COL_ROOMNAME];
+                //in ATTRIBUTE_ROOM_NAMES sind alle Texte unter der Referenznummer abgelegt
+                $Texts = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES), true, 512, JSON_THROW_ON_ERROR);
+
+                $arrRoom                                         = json_decode($Value, true, 512, JSON_THROW_ON_ERROR);
+                $Texts[$arrRoom[self::FF_COL_ROOMTEXTREFERENCE]] = $arrRoom[self::FF_COL_ROOMNAME];
                 $this->WriteAttributeString(self::ATTRIBUTE_ROOM_NAMES, json_encode($Texts, JSON_THROW_ON_ERROR));
+
+                if (!$this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
+                    $this->WriteRoomSelectionProfile();
+                    $this->UpdateRoomsSelected();
+                }
+
                 break;
             default:
                 $this->_debug('request action', sprintf('Invalid Ident <%s>, Value: %s', $Ident, $Value));
         }
+    }
+
+    private function ProcessSelectedRoom(int $roomId): void
+    {
+        $roomSelection = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_SELECTION), true);
+
+        if ($roomId === 0) { // 0 = all
+            $roomSelection = [];
+        } else {
+            $roomSelection[$roomId] = $roomId;
+        }
+
+        $this->WriteAttributeString(self::ATTRIBUTE_ROOM_SELECTION, json_encode($roomSelection));
+
+        $this->UpdateRoomsSelected();
+    }
+
+    private function UpdateRoomsSelected()
+    {
+        $roomSelection = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_SELECTION), true);
+
+        $objectID = IPS_GetObjectIDByIdent(self::IDENT_ROOMSELECTION, $this->InstanceID);
+
+        $roomNames = [];
+
+        if (count($roomSelection) === 0) { // all
+            $roomNames[] = GetValueFormattedEx($objectID, 0);
+        } else {
+            foreach ($roomSelection as $roomId => $room) {
+                $roomNames[] = GetValueFormattedEx($objectID, $roomId);
+            }
+        }
+        $this->SetValue(self::IDENT_ROOMS_SELECTED, implode(', ', $roomNames));
+    }
+
+    private function WriteRoomSelectionProfile()
+    {
+        $roomNames = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES), true);
+        $mapsList  = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true);
+        $mapStatus = $this->GetValue(self::IDENT_MAP_STATUS);
+
+        $ass = [[0, sprintf('- %s -', $this->Translate('All')), '', -1]];
+        foreach ($mapsList[$mapStatus]['rooms'] as $roomID => $room) {
+            $ass[] = [$roomID, $roomNames[$room['referenceID']] ?? $room['roomName'], '', -1];
+        }
+        $profileName = sprintf('%s.%s',self::PROFILE_ROOMSELECTION, $this->InstanceID);
+        $this->RegisterProfileAssociation($profileName, '', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, $ass);
     }
 
     /**
@@ -2225,6 +2361,11 @@ class Roborock extends IPSModule
                                 'suffix'  => '%'
                             ]
                         ]
+                    ],
+                    [
+                        'name'    => self::PROPERTY_CLEANING_ORDER,
+                        'type'    => 'CheckBox',
+                        'caption' => 'Cleaning Order (Active Map, Room Selection, selected Rooms, Cleaning Cycles, Start Cleaning)'
                     ],
                     [
                         'name'    => 'error_code',
@@ -2661,7 +2802,7 @@ class Roborock extends IPSModule
                     ],
                     [
                         'type'    => 'Button',
-                        'caption' => 'Update',
+                        'caption' => 'Update Maps and Rooms',
                         'onClick' => '
                             IPS_RequestAction($id, \'UpdateMapsAndRooms\', \'\');
                         '
@@ -2789,13 +2930,12 @@ class Roborock extends IPSModule
             ];
 
             foreach ($map['rooms'] as $room) {
-                $name                   = $RoomNames[$room['referenceID']] ?? $room['roomName'];
                 $MapAndRoomListValues[] = [
                     'id'                           => $id++,
                     'parent'                       => $parentID,
                     self::FF_COL_ROOMID            => $room['roomID'],
                     self::FF_COL_ROOMTEXTREFERENCE => $room['referenceID'],
-                    self::FF_COL_ROOMNAME          => $name,
+                    self::FF_COL_ROOMNAME          => $RoomNames[$room['referenceID']] ?? $room['roomName'],
                     'editable'                     => true
                 ];
             }
@@ -2823,7 +2963,7 @@ class Roborock extends IPSModule
      * @param $ident
      * @param $value
      */
-    private function SetRoborockValue($ident, $value): void
+    private function _SetValue($ident, $value): void
     {
         if (@$this->GetIDForIdent($ident)) {
             $this->SetValue($ident, $value);
@@ -3373,7 +3513,7 @@ EOF;
     private function get_serial_number_callback(array $data): string
     {
         $serial = $data['result'][0]['serial_number'] ?? '';
-        $this->SetRoborockValue('serial_number', $serial);
+        $this->_SetValue('serial_number', $serial);
 
         return $serial;
     }
@@ -3404,18 +3544,20 @@ EOF;
             ];
         }
 
-        $this->UpdateAttributeMapsListWithRooms($rooms);
+        if (!$this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
+            $this->UpdateAttributeMapsListWithRooms($rooms);
+        }
 
         return $data;
     }
 
     private function UpdateAttributeMapsListWithRooms(array $rooms): void
     {
-        if (!$this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS)){
+        if (!$this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS)) {
             return;
         }
 
-        $mapFlag = $this->GetValue(self::IDENT_MAP_STATUS);
+        $mapFlag   = $this->GetValue(self::IDENT_MAP_STATUS);
         $savedList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true);
 
 
@@ -3424,7 +3566,7 @@ EOF;
                 $savedList[$mapFlag]['rooms'][$roomID] = [
                     'roomID'      => $room['roomID'],
                     'referenceID' => $room['referenceID'],
-                    'roomName'    => 'Raum ' . $room['roomID']
+                    'roomName'    => $this->Translate('Raum') . ' ' . $room['roomID']
                 ];
             }
         }
@@ -3434,6 +3576,10 @@ EOF;
         }
 
         $this->WriteAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode($savedList, JSON_THROW_ON_ERROR));
+
+        $this->WriteRoomSelectionProfile();
+        $this->UpdateRoomsSelected();
+
     }
 
     /**
@@ -3449,7 +3595,12 @@ EOF;
 
         if (isset($data['result'][0]) && $data['result'][0] === 'ok') {
             $map_status = $data['params'][0];
-            $this->SetRoborockValue(self::IDENT_MAP_STATUS, $map_status);
+            $this->_SetValue(self::IDENT_MAP_STATUS, $map_status);
+
+            if (!$this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
+                $this->WriteRoomSelectionProfile();
+                $this->UpdateRoomsSelected();
+            }
 
             //fetch the current map
             $this->WriteAttributeString(self::ATTRIBUTE_MAPFILE_URL, '');
@@ -3471,7 +3622,7 @@ EOF;
     private function get_timezone_callback(array $data): string
     {
         $timezone = $data['result'][0] ?? '';
-        $this->SetRoborockValue('timezone', $timezone);
+        $this->_SetValue('timezone', $timezone);
 
         return $timezone;
     }
@@ -3489,22 +3640,22 @@ EOF;
             $info = $data['result'];
 
             $hardware_version = $info['hw_ver'];
-            $this->SetRoborockValue('hw_ver', $hardware_version);
+            $this->_SetValue('hw_ver', $hardware_version);
 
             $firmware_version = $info['fw_ver'];
-            $this->SetRoborockValue('fw_ver', $firmware_version);
+            $this->_SetValue('fw_ver', $firmware_version);
 
             $ssid = $info['ap']['ssid'];
-            $this->SetRoborockValue('ssid', $ssid);
+            $this->_SetValue('ssid', $ssid);
 
             $rssi = $info['ap']['rssi'];
-            $this->SetRoborockValue('rssi', $rssi);
+            $this->_SetValue('rssi', $rssi);
 
             $ip = $info['netif']['localIp'];
-            $this->SetRoborockValue('local_ip', $ip);
+            $this->_SetValue('local_ip', $ip);
 
             $model = $info['model'];
-            $this->SetRoborockValue(self::IDENT_MODEL, $model);
+            $this->_SetValue(self::IDENT_MODEL, $model);
             if ($model !== $this->ReadAttributeString(self::ATTRIBUTE_MODEL)) {
                 $this->WriteAttributeString(self::ATTRIBUTE_MODEL, $model);
                 $this->SendDebug(__FUNCTION__, 'new attribute Model: ' . $model, 0);
@@ -3516,7 +3667,7 @@ EOF;
             }
 
             $mac = $info['mac'];
-            $this->SetRoborockValue('mac', $mac);
+            $this->_SetValue('mac', $mac);
 
             // return values
             return [
@@ -3560,54 +3711,54 @@ EOF;
         // update values
         $ret     = [];
         $battery = (int)$result['battery'];
-        $this->SetRoborockValue('battery', $battery);
+        $this->_SetValue('battery', $battery);
         $ret['battery'] = $battery;
 
         $state = (int)$result['state'];
         if ($state === 8 && $battery === 100) {
-            $this->SetRoborockValue(self::IDENT_STATE, 100);
+            $this->_SetValue(self::IDENT_STATE, 100);
         } else {
-            $this->SetRoborockValue(self::IDENT_STATE, $state);
+            $this->_SetValue(self::IDENT_STATE, $state);
         }
         $ret['state'] = $state;
 
         $clean_area = (float)($result['clean_area'] / 1000000); // cm2 -> m2
-        $this->SetRoborockValue('clean_area', $clean_area);
+        $this->_SetValue('clean_area', $clean_area);
         $ret['clean_area'] = $clean_area;
 
         $clean_time = $result['clean_time']; // sec
-        $this->SetRoborockValue('clean_time', $clean_time);
+        $this->_SetValue('clean_time', $clean_time);
         $ret['clean_time'] = $clean_time;
 
         $error_code = (int)$result['error_code'];
-        $this->SetRoborockValue('error_code', $error_code);
+        $this->_SetValue('error_code', $error_code);
         $ret['error_code'] = $error_code;
 
         $fan_power = (int)$result['fan_power'];
-        $this->SetRoborockValue(self::IDENT_FAN_POWER, $fan_power);
+        $this->_SetValue(self::IDENT_FAN_POWER, $fan_power);
         $ret['fan_power'] = $fan_power;
 
         if (isset($result['water_box_mode'])) {
             $water_box_mode = (int)$result['water_box_mode'];
-            $this->SetRoborockValue(self::IDENT_WATER_QUANTITY, $water_box_mode);
+            $this->_SetValue(self::IDENT_WATER_QUANTITY, $water_box_mode);
             $ret['water_box_mode'] = $water_box_mode;
         }
 
         if (isset($result['water_box_status'])) {
             $water_box_status = (bool)$result['water_box_status'];
-            $this->SetRoborockValue(self::IDENT_WATER_BOX_STATUS, $water_box_status);
+            $this->_SetValue(self::IDENT_WATER_BOX_STATUS, $water_box_status);
             $ret['water_box_status'] = $water_box_status;
         }
 
         if (isset($result['water_box_carriage_status'])) {
             $water_box_carriage_status = (bool)$result['water_box_carriage_status'];
-            $this->SetRoborockValue(self::IDENT_WATER_BOX_CARRIAGE_STATUS, $water_box_carriage_status);
+            $this->_SetValue(self::IDENT_WATER_BOX_CARRIAGE_STATUS, $water_box_carriage_status);
             $ret['water_box_carriage_status'] = $water_box_carriage_status;
         }
 
         if (isset($result['map_status'])) {
             $map_status = (int)$result['map_status'] >> 2;
-            $this->SetRoborockValue(self::IDENT_MAP_STATUS, $map_status);
+            $this->_SetValue(self::IDENT_MAP_STATUS, $map_status);
             $ret['map_status'] = $map_status;
         }
 
@@ -3654,7 +3805,7 @@ EOF;
 
                 // consumables separate
                 if ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES_SEPARATE)) {
-                    $this->SetRoborockValue($ident, $work_time_percent);
+                    $this->_SetValue($ident, $work_time_percent);
                 }
             }
 
@@ -3670,7 +3821,7 @@ EOF;
                                                        ]
                                                    ]);
 
-                $this->SetRoborockValue(self::IDENT_CONSUMABLES, $html);
+                $this->_SetValue(self::IDENT_CONSUMABLES, $html);
             }
 
             return $ret;
@@ -3697,34 +3848,34 @@ EOF;
         //clean_time
         if (isset($data['result'][0])) {
             $total_cleaning_time = $data['result'][0];
-            $this->SetRoborockValue('total_clean_time', $total_cleaning_time); // sec
+            $this->_SetValue('total_clean_time', $total_cleaning_time); // sec
         }
 
         if (isset($data['result']['clean_time'])) {
             $total_cleaning_time = $data['result']['clean_time'];
-            $this->SetRoborockValue('total_clean_time', $total_cleaning_time); // sec
+            $this->_SetValue('total_clean_time', $total_cleaning_time); // sec
         }
 
         //clean_area
         if (isset($data['result'][1])) {
             $area_cleaned = (float)$data['result'][1] / 1000000; // cm2 -> m2
-            $this->SetRoborockValue('total_clean_area', $area_cleaned);
+            $this->_SetValue('total_clean_area', $area_cleaned);
         }
 
         if (isset($data['result']['clean_area'])) {
             $area_cleaned = (float)$data['result']['clean_area'] / 1000000; // cm2 -> m2
-            $this->SetRoborockValue('total_clean_area', $area_cleaned);
+            $this->_SetValue('total_clean_area', $area_cleaned);
         }
 
         //clean_count
         if (isset($data['result'][2])) {
             $cleanups = (int)$data['result'][2];
-            $this->SetRoborockValue('total_cleans', $cleanups);
+            $this->_SetValue('total_cleans', $cleanups);
         }
 
         if (isset($data['result']['clean_count'])) {
             $cleanups = (int)$data['result']['clean_count'];
-            $this->SetRoborockValue('total_cleans', $cleanups);
+            $this->_SetValue('total_cleans', $cleanups);
         }
 
         //records
@@ -3963,7 +4114,7 @@ EOF;
                                                    ]);
 
                 // save html table
-                $this->SetRoborockValue('cleaning_records', $html);
+                $this->_SetValue('cleaning_records', $html);
             }
 
             return $data;
@@ -3991,13 +4142,13 @@ EOF;
 
             $start_time     = $start_hour . ':' . $start_minute;
             $start_unixtime = strtotime($start_time);
-            $this->SetRoborockValue('dnd_starttime', $start_unixtime);
+            $this->_SetValue('dnd_starttime', $start_unixtime);
 
             $end_time     = $end_hour . ':' . $end_minute;
             $end_unixtime = strtotime($end_time);
 
-            $this->SetRoborockValue('dnd_endtime', $end_unixtime);
-            $this->SetRoborockValue('dnd_mode', $dnd_state);
+            $this->_SetValue('dnd_endtime', $end_unixtime);
+            $this->_SetValue('dnd_mode', $dnd_state);
 
             // return values
             return [
@@ -4030,7 +4181,7 @@ EOF;
             $timers = $data['result'];
             if (empty($timers)) {
                 // save html table
-                $this->SetRoborockValue('timer_details', '');
+                $this->_SetValue('timer_details', '');
                 return ['timer' => 'no timer set'];
             }
             $timer_list = [];
@@ -4080,7 +4231,7 @@ EOF;
                                                ]);
 
             // save html table
-            $this->SetRoborockValue('timer_details', $html);
+            $this->_SetValue('timer_details', $html);
 
             // return values
             return $timer_list;
@@ -4101,7 +4252,7 @@ EOF;
     {
         if (isset($data['result'][0])) {
             $fan_power = $data['result'][0];
-            $this->SetRoborockValue(self::IDENT_FAN_POWER, $fan_power);
+            $this->_SetValue(self::IDENT_FAN_POWER, $fan_power);
 
             return $fan_power;
         }
@@ -4121,7 +4272,7 @@ EOF;
     {
         if (isset($data['result'][0])) {
             $water_flow_mode = $data['result'][0];
-            $this->SetRoborockValue(self::IDENT_WATER_QUANTITY, $water_flow_mode);
+            $this->_SetValue(self::IDENT_WATER_QUANTITY, $water_flow_mode);
 
             return $water_flow_mode;
         }
@@ -4143,7 +4294,7 @@ EOF;
             $volume = $data['result'][0];
             $type   = gettype($volume);
             if ($type === 'integer') {
-                $this->SetRoborockValue(self::IDENT_VOLUME, $volume);
+                $this->_SetValue(self::IDENT_VOLUME, $volume);
             }
 
             return $volume;
@@ -4182,7 +4333,7 @@ EOF;
     private function app_rc_start_callback(array $data): bool
     {
         // update state to 'Remote Control'
-        $this->SetRoborockValue('state', 4);
+        $this->_SetValue('state', 4);
         return true;
     }
 
@@ -4196,7 +4347,7 @@ EOF;
     private function app_rc_end_callback(array $data): bool
     {
         // update state to 'Waiting'
-        $this->SetRoborockValue('state', 3);
+        $this->_SetValue('state', 3);
         return true;
     }
 

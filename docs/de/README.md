@@ -11,26 +11,25 @@ Modul für IP-Symcon ab Version 6.3
 2. [Voraussetzungen](#2-voraussetzungen)  
 3. [Installation](#3-installation)  
 4. [Funktionsreferenz](#4-funktionsreferenz)
-5. [Konfiguration](#5-konfiguartion)  
+5. [Konfiguration](#5-konfiguration)  
 6. [Anhang](#6-anhang)  
 
 ## 1. Funktionsumfang
 
-Mit dem Modul ist es möglich einen [Roborock](https://www.roborock.com/ "Roborock") Staubsauger Roboter (Xiaomi) von IP-Symcon aus zu steuern. 
+Mit dem Modul ist es möglich einen [Roborock](https://www.roborock.com/ "Roborock") Staubsauger-Roboter (Xiaomi) von IP-Symcon aus zu steuern. 
 
 ### Funktionen:  
 
  - Start / Stop / Pause der Saugfunktion 
- - Spotcleaning
+ - Punktreinigung
  - Zurückfahren an die Aufladestation
- - Timer anzeigen und setzten
- - Einstellen der Lüfterleistung
- - Einstellen der Wassermenge  
- - Einstellen der Lautstärke
+ - Timer anzeigen und setzen
+ - Einstellen von Saugleistung und Wassermenge
  - Lokalisieren des Saugers
  - Do not Disturb Mode (DND) ein-/ausschalten und Zeiten einstellen
  - Kartenwechsel (Stockwerk)
  - Raumreinigung
+ - Reinigungsauftrag definieren
  - Anzeige von:
     - gereinigte Fläche
     - Summe gereinigte Fläche
@@ -53,14 +52,14 @@ Mit dem Modul ist es möglich einen [Roborock](https://www.roborock.com/ "Roboro
 ## 2. Voraussetzungen
 
 - IP-Symcon 6.3
-- Roborock Staubsauger Roboter (Xiaomi)
+- Roborock Staubsauger-Roboter (Xiaomi)
 - Das Gerät muss in der **Xiaomi Home App** (nicht Roborock App(!)) angelernt sein.
 
 ## 3. Installation
 
 ### a. Laden des Moduls
 
-Das Modul wird über den Modulstore geladen (Modulname: Roborock). Alternativ kann es auch über das Modul Control (URL: https://github.com/bumaas/IPSymconRoborock) eingebunden werden.
+Das Modul wird über den Modul Store geladen (Modulname: Roborock). Alternativ kann es auch über das Modul Control (URL: https://github.com/bumaas/IPSymconRoborock) eingebunden werden.
 
 ### b. Einrichtung in IPS
 
@@ -72,8 +71,21 @@ Es öffnet sich das Konfigurationsformular. Hier ist anzugeben:
  - IP-Adresse des Saugers
  - Logindaten für das Xiaomi Konto 
  - Aktualisierungsintervall in Sekunden
- - Webfront um Push-Nachrichten zu verschicken
- - Auswahl der gewünschten Funktionen bzw. Anzeigen im Webfront
+
+Optional können die Statusvariablen ausgewählt werden sowie Pushnachrichten definiert werden.
+
+Im Aktionsbereich des Formulars können die Statusvariablen getestet werden ("Testbereich"). 
+
+Unter "Raumnamen ändern" (sichtbar, wenn die Statusvariablen für einen _Reinigungsauftrag_ ausgewählt wurden) können die in der Xiaomi App definierten Räume übernommen und anschließend die Räume mit Namen versehen werden. Leider gibt es bislang keinen (mir) bekannten Weg, die Namen auszulesen.
+
+Falls die Statusvariable _Kartenbild_ ausgewählt wurde, werden zusätzlich Funktionen zum Holen der Karte und zum Anzeigen angeboten.
+
+**Reinigungsauftrag definieren**
+
+Falls die Option _Reinigungsauftrag_ gewählt wurde, werden die notwendigen Variablen und Profile zum Absetzen eines umfangreichen Reinigungsauftrages zur Verfügung gestellt.
+
+Beispiel einer Darstellung im Webfront:
+![CleaningOrder](img/CleaningOrder.png?raw=true "Reinigungsauftrag")
 
 
 ## 4. Funktionsreferenz
@@ -210,10 +222,10 @@ _**Liste von Räumen holen**_
 
 ### Eigenschaften:
 
-| Eigenschaft | Typ     | Standardwert | Funktion                                      |
-| :---------: | :-----: | :----------: | :-------------------------------------------: |
-| host        | string  |              | IP Adresse des Roborock Staubsauger Roboters  |
-| token       | integer |              | Token aus der MI App, Länge 32 oder 96 Zeichen|
+| Eigenschaft |   Typ   | Standardwert |                    Funktion                    |
+|:-----------:|:-------:|:------------:|:----------------------------------------------:|
+|    host     | string  |              |  IP Adresse des Roborock Staubsauger Roboters  |
+|    token    | integer |              | Token aus der MI App, Länge 32 oder 96 Zeichen |
 
 
 

@@ -20,6 +20,8 @@
       "Spot": "Punktreinigung",
       "Charge": "Laden",
       "Clean Spot": "Punktreinigung",
+      "Clean": "Reinige",
+      "Start Cleaning": "Reinigung starten",
       "Show Room Mapping": "Zeige Liste an Räumen",
       "Off": "Aus",
       "Low": "Niedrig",
@@ -31,6 +33,7 @@
       "Active Map": "Aktive Karte",
       "Map Picture": "Kartenbild",
       "Map Picture Scale": "Skalierung",
+      "Cleaning Order (Active Map, Room Selection, selected Rooms, Cleaning Cycles, Start Cleaning)": "Reinigungsauftrag (Aktive Karte, Raumauswahl, Getroffene Raumauswahl, Reinigungszyklen, Starte Reinigung)",
       "Water Box installed": "Wischeinheit eingesetzt",
       "Water Box Carriage Status": "Transportstatus Wischeinheit",
       "Laser sensor fault": "Laser Sensor Fehler",
@@ -106,8 +109,13 @@
       "Serial Number": "Seriennummer",
       "Timer Details": "Timer Details",
       "Map": "Karte",
+      "Roomselection": "Raumauswahl",
+      "Selected Rooms": "Getroffene Raumauswahl",
+      "Cleaning Cycles": "Reinigungszyklen",
+      "All": "alle",
       "Locate": "Lokalisieren",
       "Extended Information (WLAN SSID, RSSI, firmware version, ip, model, mac)": "Erweiterte Informationen (WLAN SSID, RSSI, Firmware Version, IP-Adresse, Modell, MAC)",
+      "Update Maps and Rooms": "Karten und Räume neu einlesen",
       "Update": "Aktualisieren",
       "device": "Gerät",
       "Battery": "Batterie",
@@ -170,7 +178,7 @@
       "weekends": "Wochenenden",
       "every day": "jeden Tag",
       "custom": "Benutzerdefiniert",
-      "Current Coordinates": "Aktuelle Koordinaten",
+      "Current Coordinates": "er Koordinaten",
       "Zones": "Zonen",
       "room name": "Raumname",
       "zone coordinates": "Zonen Koordinaten",
@@ -193,7 +201,7 @@
       "Map ID": "Kartennummer",
       "Room ID": "Raumnummer",
       "Map Name": "Kartenname",
-      "Room Name": "Raumnamen"
+      "Room Name": "Raumname"
     }
   }
 }
