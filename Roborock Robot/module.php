@@ -102,6 +102,7 @@ class Roborock extends IPSModule
     private const FF_COL_ROOMID            = 'RoomID';
     private const FF_COL_ROOMTEXTREFERENCE = 'RoomTextReference';
     private const FF_COL_ROOMNAME          = 'RoomName';
+    private const FF_COL_IGNORE_ROOM          = 'IgnoreRoom'; //not used yet
 
 
     private const TIMER_UPDATE     = 'RoborockTimerUpdate';
@@ -264,7 +265,7 @@ class Roborock extends IPSModule
         $this->RegisterPropertyString(self::PROPERTY_XIAOMI_PASSWORD, '');
 
         // register update timer
-        $this->RegisterPropertyInteger(self::PROPERTY_UPDATE_INTERVAL, 30);
+        $this->RegisterPropertyInteger(self::PROPERTY_UPDATE_INTERVAL, 60);
         $this->RegisterTimer(self::TIMER_UPDATE, 0, 'Roborock_Update(' . $this->InstanceID . ');');
         $this->RegisterTimer(self::TIMER_UPDATE_MAP, 0, 'Roborock_GetMap(' . $this->InstanceID . ');');
 
@@ -2819,12 +2820,22 @@ class Roborock extends IPSModule
                                     'type' => 'ValidationTextBox'
                                 ],
                                 'width'   => 'auto'
+                            ],
+                            [
+                                'caption' => 'ignore Room',
+                                'name'    => self::FF_COL_IGNORE_ROOM,
+                                'edit'    => [
+                                    'type' => 'CheckBox'
+                                ],
+                                'visible' => false,
+                                'width'   => '150'
                             ]
                         ],
                         'onEdit'   => '
                             IPS_RequestAction($id, \'UpdateRoomName\', json_encode([
                             "' . self::FF_COL_ROOMTEXTREFERENCE . '" => $MapAndRoomList["' . self::FF_COL_ROOMTEXTREFERENCE . '"],
-                            "' . self::FF_COL_ROOMNAME . '" => $MapAndRoomList["' . self::FF_COL_ROOMNAME . '"]
+                            "' . self::FF_COL_ROOMNAME . '" => $MapAndRoomList["' . self::FF_COL_ROOMNAME . '"],
+                            "' . self::FF_COL_IGNORE_ROOM . '" => $MapAndRoomList["' . self::FF_COL_IGNORE_ROOM . '"]
                             ]));
                         ',
                         'values'   => $this->GetMapAndRoomListFormValues()
@@ -3564,10 +3575,12 @@ EOF;
 
         $rooms = [];
         foreach ($data['result'] as $room) {
-            $rooms[$room[0]] = [
-                'roomID'      => $room[0],
-                'referenceID' => $room[1]
-            ];
+            if ($room[1] !== 'NaN'){ //Räume ohne Namen werden nicht übernommen
+                $rooms[$room[0]] = [
+                    'roomID'      => $room[0],
+                    'referenceID' => $room[1]
+                ];
+            }
         }
 
         if ($this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
@@ -4407,22 +4420,24 @@ EOF;
         }
 
         foreach (IPS_GetVariableList() as $VarID) {
-            if (IPS_GetParent($VarID) == $this->InstanceID) {
+            if (IPS_GetParent($VarID) === $this->InstanceID) {
                 continue;
             }
-            if (IPS_GetVariable($VarID)['VariableCustomProfile'] == $Name) {
+            if (IPS_GetVariable($VarID)['VariableCustomProfile'] === $Name) {
                 return;
             }
-            if (IPS_GetVariable($VarID)['VariableProfile'] == $Name) {
+            if (IPS_GetVariable($VarID)['VariableProfile'] === $Name) {
                 return;
             }
         }
 
         foreach (IPS_GetMediaListByType(MEDIATYPE_CHART) as $mediaID) {
             $content = json_decode(base64_decode(IPS_GetMediaContent($mediaID)), true);
-            foreach ($content['axes'] as $axis) {
-                if ($axis['profile' === $Name]) {
-                    return;
+            if (isset($content['axes'])){
+                foreach ($content['axes'] as $axis) {
+                    if ($axis['profile'] === $Name) {
+                        return;
+                    }
                 }
             }
         }
