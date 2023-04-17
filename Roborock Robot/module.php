@@ -1990,7 +1990,7 @@ class Roborock extends IPSModule
                 $Texts[$arrRoom[self::FF_COL_ROOMTEXTREFERENCE]] = $arrRoom[self::FF_COL_ROOMNAME];
                 $this->WriteAttributeString(self::ATTRIBUTE_ROOM_NAMES, json_encode($Texts, JSON_THROW_ON_ERROR));
 
-                if (!$this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
+                if ($this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
                     $this->WriteRoomSelectionProfile();
                     $this->UpdateRoomsSelected();
                 }
@@ -2034,17 +2034,23 @@ class Roborock extends IPSModule
         $this->SetValue(self::IDENT_ROOMS_SELECTED, implode(', ', $roomNames));
     }
 
-    private function WriteRoomSelectionProfile()
+    private function WriteRoomSelectionProfile(): void
     {
         $roomNames = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES), true);
         $mapsList  = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true);
-        $mapStatus = $this->GetValue(self::IDENT_MAP_STATUS);
 
         $ass = [[0, sprintf('- %s -', $this->Translate('All')), '', -1]];
-        foreach ($mapsList[$mapStatus]['rooms'] as $roomID => $room) {
-            $ass[] = [$roomID, $roomNames[$room['referenceID']] ?? $room['roomName'], '', -1];
+
+        $mapStatus = @$this->GetValue(self::IDENT_MAP_STATUS);
+
+        if ($mapStatus !== false){
+            foreach ($mapsList[$mapStatus]['rooms'] as $roomID => $room) {
+                $ass[] = [$roomID, $roomNames[$room['referenceID']] ?? $room['roomName'], '', -1];
+            }
         }
+
         $profileName = sprintf('%s.%s',self::PROFILE_ROOMSELECTION, $this->InstanceID);
+        $this->_debug(__FUNCTION__, sprintf('profile: %s, ass: %s', $profileName, json_encode($ass, JSON_THROW_ON_ERROR)));
         $this->RegisterProfileAssociation($profileName, '', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, $ass);
     }
 
@@ -2814,7 +2820,8 @@ class Roborock extends IPSModule
             [
                 'type'    => 'Button',
                 'caption' => 'Xiaomi Login Test',
-                'onClick' => '$module = new IPSModule($id); if (Roborock_GetTokenFromXiaomi($id)){echo $module->Translate(\'OK\');} else {echo $module->Translate(\'Error\');};'
+                'onClick' => '$module = new IPSModule($id); if (Roborock_GetTokenFromXiaomi($id)){echo $module->Translate(\'OK\');} else {echo $module->Translate(\'Error\');};',
+                'visible' => ($this->ReadPropertyString(self::PROPERTY_XIAOMI_USER) !== '') && ($this->ReadPropertyString(self::PROPERTY_XIAOMI_PASSWORD) !== ''),
             ],
             [
                 'type'    => 'RowLayout',
@@ -2869,14 +2876,7 @@ class Roborock extends IPSModule
                 'caption' => 'Push Notification Test',
                 'visible' => $this->ReadPropertyInteger('notification_instance') > 0,
                 'onClick' => '$module = new IPSModule($id); if (IPS_RequestAction($id, "SendPushNotificationTest", 0)){echo $module->Translate(\'OK\');} else {echo $module->Translate(\'Error\');};'
-            ],
-            /*
-                [
-                    'type' => 'Button',
-                    'caption' => 'Update Joystick - TEST',
-                    'onClick' => 'Roborock_SetJoystickHtml($id);'
-                ]
-            */
+            ]
         ];
     }
 
@@ -3544,7 +3544,7 @@ EOF;
             ];
         }
 
-        if (!$this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
+        if ($this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
             $this->UpdateAttributeMapsListWithRooms($rooms);
         }
 
@@ -3597,7 +3597,7 @@ EOF;
             $map_status = $data['params'][0];
             $this->_SetValue(self::IDENT_MAP_STATUS, $map_status);
 
-            if (!$this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
+            if ($this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
                 $this->WriteRoomSelectionProfile();
                 $this->UpdateRoomsSelected();
             }
