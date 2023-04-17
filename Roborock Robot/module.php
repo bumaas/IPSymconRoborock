@@ -3598,19 +3598,10 @@ EOF;
 
         $mapFlag   = $this->GetValue(self::IDENT_MAP_STATUS);
         $savedList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true);
+        $this->_debug(__FUNCTION__, sprintf('savedList: %s, rooms: %s', $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), json_encode($rooms)));
 
 
-        foreach ($rooms as $roomID => $room) {
-            if (!isset($savedList[$mapFlag]['rooms'][$roomID])) {
-                $savedList[$mapFlag]['rooms'][$roomID] = [
-                    'roomID'      => $room['roomID'],
-                    'referenceID' => $room['referenceID'],
-                    'roomName'    => $this->Translate('Raum') . ' ' . $room['roomID']
-                ];
-            }
-        }
-
-        foreach (array_diff_key($savedList[$mapFlag]['rooms'], $rooms) as $roomID) {
+        foreach (array_keys(array_diff_key($savedList[$mapFlag]['rooms'], $rooms)) as $roomID) {
             unset ($savedList[$mapFlag]['rooms'][$roomID]);
         }
 
