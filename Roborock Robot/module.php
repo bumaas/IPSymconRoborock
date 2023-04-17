@@ -285,6 +285,29 @@ class Roborock extends IPSModule
         $this->RegisterAttributeString(self::ATTRIBUTE_ROOM_SELECTION, json_encode([], JSON_THROW_ON_ERROR));
     }
 
+    public function Destroy()
+    {
+        $this->UnregisterProfile(sprintf('%s.%s', self::PROFILE_ROOMSELECTION, $this->InstanceID));
+        $this->UnregisterProfile(self::PROFILE_CONSUMABLE);
+        $this->UnregisterProfile(self::PROFILE_COMMAND);
+        $this->UnregisterProfile(self::PROFILE_BATTERY);
+        $this->UnregisterProfile(self::PROFILE_CLEANAREA);
+        $this->UnregisterProfile(self::PROFILE_START_CLEANING);
+        $this->UnregisterProfile(self::PROFILE_CLEANING_CYCLES);
+        $this->UnregisterProfile(self::PROFILE_DURATION);
+        $this->UnregisterProfile(self::PROFILE_ERRORCODE);
+        $this->UnregisterProfile(self::PROFILE_FANPOWER);
+        $this->UnregisterProfile(self::PROFILE_FINDME);
+        $this->UnregisterProfile(self::PROFILE_MAPS);
+        $this->UnregisterProfile(self::PROFILE_STATE);
+        $this->UnregisterProfile(self::PROFILE_TOTALCLEANS);
+        $this->UnregisterProfile(self::PROFILE_VOLUME);
+        $this->UnregisterProfile(self::PROFILE_WATERQUANTITY);
+
+        return parent::Destroy();
+    }
+
+
     /**
      * apply changes from configuration form.
      *
@@ -572,7 +595,7 @@ class Roborock extends IPSModule
             $this->RegisterVariableInteger(
                 self::IDENT_ROOMSELECTION,
                 $this->Translate('Roomselection'),
-                sprintf('%s.%s',self::PROFILE_ROOMSELECTION, $this->InstanceID),
+                sprintf('%s.%s', self::PROFILE_ROOMSELECTION, $this->InstanceID),
                 $this->_getPosition()
             );
             $this->EnableAction(self::IDENT_ROOMSELECTION);
@@ -2041,15 +2064,15 @@ class Roborock extends IPSModule
 
         $ass = [[0, sprintf('- %s -', $this->Translate('All')), '', -1]];
 
-        $mapStatus = @$this->GetValue(self::IDENT_MAP_STATUS);
+        if (count($mapsList) > 0) {
+            $mapStatus = $this->GetValue(self::IDENT_MAP_STATUS);
 
-        if ($mapStatus !== false){
             foreach ($mapsList[$mapStatus]['rooms'] as $roomID => $room) {
                 $ass[] = [$roomID, $roomNames[$room['referenceID']] ?? $room['roomName'], '', -1];
             }
         }
 
-        $profileName = sprintf('%s.%s',self::PROFILE_ROOMSELECTION, $this->InstanceID);
+        $profileName = sprintf('%s.%s', self::PROFILE_ROOMSELECTION, $this->InstanceID);
         $this->_debug(__FUNCTION__, sprintf('profile: %s, ass: %s', $profileName, json_encode($ass, JSON_THROW_ON_ERROR)));
         $this->RegisterProfileAssociation($profileName, '', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, $ass);
     }
@@ -2821,7 +2844,10 @@ class Roborock extends IPSModule
                 'type'    => 'Button',
                 'caption' => 'Xiaomi Login Test',
                 'onClick' => '$module = new IPSModule($id); if (Roborock_GetTokenFromXiaomi($id)){echo $module->Translate(\'OK\');} else {echo $module->Translate(\'Error\');};',
-                'visible' => ($this->ReadPropertyString(self::PROPERTY_XIAOMI_USER) !== '') && ($this->ReadPropertyString(self::PROPERTY_XIAOMI_PASSWORD) !== ''),
+                'visible' => ($this->ReadPropertyString(self::PROPERTY_XIAOMI_USER) !== '')
+                             && ($this->ReadPropertyString(
+                            self::PROPERTY_XIAOMI_PASSWORD
+                        ) !== ''),
             ],
             [
                 'type'    => 'RowLayout',
@@ -3579,7 +3605,6 @@ EOF;
 
         $this->WriteRoomSelectionProfile();
         $this->UpdateRoomsSelected();
-
     }
 
     /**
@@ -4373,6 +4398,36 @@ EOF;
     private function get_sound_progress_callback(array $data)
     {
         return $data['result']['progress'] ?? false;
+    }
+
+    private function UnregisterProfile(string $Name): void
+    {
+        if (!IPS_VariableProfileExists($Name)) {
+            return;
+        }
+
+        foreach (IPS_GetVariableList() as $VarID) {
+            if (IPS_GetParent($VarID) == $this->InstanceID) {
+                continue;
+            }
+            if (IPS_GetVariable($VarID)['VariableCustomProfile'] == $Name) {
+                return;
+            }
+            if (IPS_GetVariable($VarID)['VariableProfile'] == $Name) {
+                return;
+            }
+        }
+
+        foreach (IPS_GetMediaListByType(MEDIATYPE_CHART) as $mediaID) {
+            $content = json_decode(base64_decode(IPS_GetMediaContent($mediaID)), true);
+            foreach ($content['axes'] as $axis) {
+                if ($axis['profile' === $Name]) {
+                    return;
+                }
+            }
+        }
+
+        IPS_DeleteVariableProfile($Name);
     }
 
 }
