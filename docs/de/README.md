@@ -77,6 +77,7 @@ Optional können die Statusvariablen ausgewählt werden sowie Pushnachrichten de
 Im Aktionsbereich des Formulars können die Statusvariablen getestet werden ("Testbereich"). 
 
 Unter "Raumnamen ändern" (sichtbar, wenn die Statusvariablen für einen _Reinigungsauftrag_ ausgewählt wurden) können die in der Xiaomi App definierten Räume übernommen und anschließend die Räume mit Namen versehen werden. Leider gibt es bislang keinen (mir) bekannten Weg, die Namen auszulesen.
+<br>Zusätzlich lassen sich über _ignorieren_ auch Räume von der Raumauswahl ausschließen.
 ![RoomNames](img/RoomNames.png "Raumnamen ändern")
 Hinweis: beim Einlesen werden immer die Räume der aktuell geladenen Karte eingelesen.
 

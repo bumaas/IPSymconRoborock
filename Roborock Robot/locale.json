@@ -201,7 +201,8 @@
       "Map ID": "Kartennummer",
       "Room ID": "Raumnummer",
       "Map Name": "Kartenname",
-      "Room Name": "Raumname"
+      "Room Name": "Raumname",
+      "ignore Room": "ignorieren"
     }
   }
 }

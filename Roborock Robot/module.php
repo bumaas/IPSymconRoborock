@@ -39,9 +39,9 @@ class Roborock extends IPSModule
     private const ATTRIBUTE_CLEANING_RECORDS        = 'cleaning_records';
     private const ATTRIBUTE_MODEL                   = 'model';
     private const ATTRIBUTE_MAPFILE_URL             = 'mapfile_url';
-    private const ATTRIBUTE_MAPS_LIST               = 'maps_list';
-    private const ATTRIBUTE_ROOM_NAMES              = 'room_names';
-    private const ATTRIBUTE_ROOM_SELECTION          = 'room_selection';
+    private const ATTRIBUTE_MAPS_LIST               = 'maps_list'; //hier sind alle Werte der Maps_List abgelegt
+    private const ATTRIBUTE_ROOM_NAMES              = 'room_names'; //hier sind alle Texte unter der Referenznummer abgelegt [[referenz => Raumname], ...]
+    private const ATTRIBUTE_ROOM_SELECTION          = 'room_selection'; //hier sind die für einen Reinigungsauftrag selektierten Räume abgelegt
 
     private const PROPERTY_IP                   = 'ip';
     private const PROPERTY_MODEL                = 'model';
@@ -93,6 +93,7 @@ class Roborock extends IPSModule
     private const IDENT_ROOMS_SELECTED            = 'rooms_selected';
     private const IDENT_CLEANING_CYCLES           = 'cleaning_cycles';
     private const IDENT_START_CLEANING            = 'start_cleaning';
+    private const IDENT_UPDATEROOMNAME            = 'UpdateRoomName';
 
 
     // Form Fields
@@ -100,9 +101,10 @@ class Roborock extends IPSModule
     private const FF_COL_MAPFLAG           = 'mapFlag';
     private const FF_COL_MAPNAME           = 'MapName';
     private const FF_COL_ROOMID            = 'RoomID';
+    private const FF_COL_PARENT_MAP_ID     = 'ParentMapID';
     private const FF_COL_ROOMTEXTREFERENCE = 'RoomTextReference';
     private const FF_COL_ROOMNAME          = 'RoomName';
-    private const FF_COL_IGNORE_ROOM          = 'IgnoreRoom'; //not used yet
+    private const FF_COL_IGNORE_ROOM       = 'IgnoreRoom';
 
 
     private const TIMER_UPDATE     = 'RoborockTimerUpdate';
@@ -286,6 +288,7 @@ class Roborock extends IPSModule
         $this->RegisterAttributeString(self::ATTRIBUTE_ROOM_SELECTION, json_encode([], JSON_THROW_ON_ERROR));
     }
 
+    /** @noinspection ReturnTypeCanBeDeclaredInspection */
     public function Destroy()
     {
         $this->UnregisterProfile(sprintf('%s.%s', self::PROFILE_ROOMSELECTION, $this->InstanceID));
@@ -1931,6 +1934,7 @@ class Roborock extends IPSModule
      */
     public function RequestAction($Ident, $Value)
     {
+        $this->_debug(__FUNCTION__, sprintf('Ident: %s, Value: %s', $Ident, $Value));
         switch ($Ident) {
             case self::IDENT_COMMAND:
                 switch ($Value) {
@@ -2006,18 +2010,25 @@ class Roborock extends IPSModule
             case 'GetProp':
                 $this->_debug(__FUNCTION__, $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST));
                 break;
-            case 'UpdateRoomName':
-                //in ATTRIBUTE_ROOM_NAMES sind alle Texte unter der Referenznummer abgelegt
+            case self::IDENT_UPDATEROOMNAME:
+                $RoomValues = json_decode($Value, true, 512, JSON_THROW_ON_ERROR);
+
+                //aktualisieren des Raumnamens
                 $Texts = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES), true, 512, JSON_THROW_ON_ERROR);
 
-                $arrRoom                                         = json_decode($Value, true, 512, JSON_THROW_ON_ERROR);
-                $Texts[$arrRoom[self::FF_COL_ROOMTEXTREFERENCE]] = $arrRoom[self::FF_COL_ROOMNAME];
+                $Texts[$RoomValues[self::FF_COL_ROOMTEXTREFERENCE]] = $RoomValues[self::FF_COL_ROOMNAME]; //update Name of Room
+
                 $this->WriteAttributeString(self::ATTRIBUTE_ROOM_NAMES, json_encode($Texts, JSON_THROW_ON_ERROR));
 
-                if ($this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
-                    $this->WriteRoomSelectionProfile();
-                    $this->UpdateRoomsSelected();
-                }
+                //aktualisieren des Ignore Flags
+                $savedMapsList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true);
+                //$map = $savedMapsList[$]
+                $savedMapsList[$RoomValues[self::FF_COL_PARENT_MAP_ID]]['rooms'][$RoomValues[self::FF_COL_ROOMID]][self::FF_COL_IGNORE_ROOM] =
+                    $RoomValues[self::FF_COL_IGNORE_ROOM];
+                $this->WriteAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode($savedMapsList, JSON_THROW_ON_ERROR));
+
+                $this->WriteRoomSelectionProfile();
+                $this->UpdateRoomsSelected();
 
                 break;
             default:
@@ -2069,7 +2080,9 @@ class Roborock extends IPSModule
             $mapStatus = $this->GetValue(self::IDENT_MAP_STATUS);
 
             foreach ($mapsList[$mapStatus]['rooms'] as $roomID => $room) {
-                $ass[] = [$roomID, $roomNames[$room['referenceID']] ?? $room['roomName'], '', -1];
+                if (isset($room['IgnoreRoom']) && !$room['IgnoreRoom']) {
+                    $ass[] = [$roomID, $roomNames[$room['referenceID']] ?? $room['roomName'], '', -1];
+                }
             }
         }
 
@@ -2803,6 +2816,12 @@ class Roborock extends IPSModule
                                 'width'   => '200px'
                             ],
                             [
+                                'caption' => 'Parent Map ID',
+                                'name'    => self::FF_COL_PARENT_MAP_ID,
+                                'width'   => '50px',
+                                'visible' => false
+                            ],
+                            [
                                 'caption' => 'Room ID',
                                 'name'    => self::FF_COL_ROOMID,
                                 'width'   => '50px'
@@ -2827,16 +2846,11 @@ class Roborock extends IPSModule
                                 'edit'    => [
                                     'type' => 'CheckBox'
                                 ],
-                                'visible' => false,
                                 'width'   => '150'
                             ]
                         ],
                         'onEdit'   => '
-                            IPS_RequestAction($id, \'UpdateRoomName\', json_encode([
-                            "' . self::FF_COL_ROOMTEXTREFERENCE . '" => $MapAndRoomList["' . self::FF_COL_ROOMTEXTREFERENCE . '"],
-                            "' . self::FF_COL_ROOMNAME . '" => $MapAndRoomList["' . self::FF_COL_ROOMNAME . '"],
-                            "' . self::FF_COL_IGNORE_ROOM . '" => $MapAndRoomList["' . self::FF_COL_IGNORE_ROOM . '"]
-                            ]));
+                        IPS_RequestAction($id, \'' . self::IDENT_UPDATEROOMNAME . '\', json_encode($MapAndRoomList));
                         ',
                         'values'   => $this->GetMapAndRoomListFormValues()
                     ],
@@ -2954,7 +2968,7 @@ class Roborock extends IPSModule
         $RoomNames = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES), true, 512, JSON_THROW_ON_ERROR);
         $this->_debug(__FUNCTION__, 'maps_list: ' . json_encode($maps_list, JSON_THROW_ON_ERROR));
         $this->_debug(__FUNCTION__, 'RoomNames: ' . json_encode($RoomNames, JSON_THROW_ON_ERROR));
-        //var_dump($maps_list);
+
         $id                   = 1;
         $MapAndRoomListValues = [];
         foreach ($maps_list as $map) {
@@ -2970,9 +2984,11 @@ class Roborock extends IPSModule
                 $MapAndRoomListValues[] = [
                     'id'                           => $id++,
                     'parent'                       => $parentID,
+                    self::FF_COL_PARENT_MAP_ID     => $map['mapFlag'],
                     self::FF_COL_ROOMID            => $room['roomID'],
                     self::FF_COL_ROOMTEXTREFERENCE => $room['referenceID'],
                     self::FF_COL_ROOMNAME          => $RoomNames[$room['referenceID']] ?? $room['roomName'],
+                    self::FF_COL_IGNORE_ROOM       => $room['IgnoreRoom']??false,
                     'editable'                     => true
                 ];
             }
@@ -3575,7 +3591,7 @@ EOF;
 
         $rooms = [];
         foreach ($data['result'] as $room) {
-            if ($room[1] !== 'NaN'){ //Räume ohne Namen werden nicht übernommen
+            if ($room[1] !== 'NaN') { //Räume ohne Namen werden nicht übernommen
                 $rooms[$room[0]] = [
                     'roomID'      => $room[0],
                     'referenceID' => $room[1]
@@ -3600,7 +3616,16 @@ EOF;
         $savedList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true);
         $this->_debug(__FUNCTION__, sprintf('savedList: %s, rooms: %s', $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), json_encode($rooms)));
 
+        foreach ($rooms as $id => $room) {
+            if (!isset($savedList[$mapFlag]['rooms'][$id])) {
+                $savedList[$mapFlag]['rooms'][$id]               = $room;
+                $savedList[$mapFlag]['rooms'][$id]['IgnoreRoom'] = false;
+            } else {
+                $savedList[$mapFlag]['rooms'][$id]['referenceID'] = $room['referenceID'];
+            }
+        }
 
+        //no longer existing rooms are deleted
         foreach (array_keys(array_diff_key($savedList[$mapFlag]['rooms'], $rooms)) as $roomID) {
             unset ($savedList[$mapFlag]['rooms'][$roomID]);
         }
@@ -4424,7 +4449,7 @@ EOF;
 
         foreach (IPS_GetMediaListByType(MEDIATYPE_CHART) as $mediaID) {
             $content = json_decode(base64_decode(IPS_GetMediaContent($mediaID)), true);
-            if (isset($content['axes'])){
+            if (isset($content['axes'])) {
                 foreach ($content['axes'] as $axis) {
                     if ($axis['profile'] === $Name) {
                         return;
