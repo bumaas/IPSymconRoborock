@@ -101,6 +101,7 @@ class Waterquantity extends stdClass
 
 class Features extends stdClass
 {
+    public const GET_CONSUMABLES = 1; //get_consumables
     public const MULTI_FLOOR_SUPPORT = 120; //get_multi_maps_list available
 }
 
@@ -128,7 +129,8 @@ class roborock_vacuum
     public const WATERQUANTITY = Waterquantity::V2;
 
     public const FEATURES = [
-        Features::MULTI_FLOOR_SUPPORT
+        Features::GET_CONSUMABLES,
+        Features::MULTI_FLOOR_SUPPORT,
     ];
 
     public function GetName(string $classname): string
@@ -152,7 +154,8 @@ class roborock_vacuum_m1s extends roborock_vacuum //S1
         Fanpower::MAXIMUM  => 104, //Max.
     ];
 
-    public const FEATURES = [];
+    public const FEATURES = [
+    ];
 }
 
 class roborock_vacuum_s5 extends roborock_vacuum
@@ -163,7 +166,9 @@ class roborock_vacuum_s5 extends roborock_vacuum
         Consumable::FILTER    => 'filter_work_time',
         Consumable::SENSOR    => 'sensor_dirty_time'
     ];
-    public const FEATURES = [];
+    public const FEATURES = [
+        Features::GET_CONSUMABLES,
+    ];
 
 }
 
@@ -174,6 +179,11 @@ class roborock_vacuum_s5e extends roborock_vacuum
         Consumable::FILTER        => 'filter_work_time',
         Consumable::FILTERELEMENT => 'filter_element_work_time',
         Consumable::SENSOR        => 'sensor_dirty_time'
+    ];
+
+    public const FEATURES = [
+        Features::GET_CONSUMABLES,
+        Features::MULTI_FLOOR_SUPPORT,
     ];
 
 }
@@ -189,6 +199,12 @@ class roborock_vacuum_s6 extends roborock_vacuum //S6
     ];
 
     public const FANPOWER = Fanpower::V2;
+
+    public const FEATURES = [
+        Features::GET_CONSUMABLES,
+        Features::MULTI_FLOOR_SUPPORT,
+    ];
+
 }
 class roborock_vacuum_a10 extends roborock_vacuum_s6 //S6 MaxV
 {
@@ -213,6 +229,12 @@ class roborock_vacuum_a15 extends roborock_vacuum //S7
         Fanpower::TURBO    => 103, //Turbo
         Fanpower::MAXIMUM  => 104, //Max.
     ];
+
+    public const FEATURES = [
+        Features::GET_CONSUMABLES,
+        Features::MULTI_FLOOR_SUPPORT,
+    ];
+
 }
 
 class roborock_vacuum_a27 extends roborock_vacuum
@@ -227,6 +249,11 @@ class roborock_vacuum_a27 extends roborock_vacuum
         Consumable::STRAINER      => 'strainer_work_times',
         Consumable::DUSTCOLLECTOR => 'dust_collection_work_times',
         Consumable::CLEANINGBRUSH => 'cleaning_brush_work_times'
+    ];
+
+    public const FEATURES = [
+        Features::GET_CONSUMABLES,
+        Features::MULTI_FLOOR_SUPPORT,
     ];
 
 }

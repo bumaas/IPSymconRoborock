@@ -784,7 +784,7 @@ class Roborock extends IPSModule
             }
 
             // update consumables
-            if ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES) || $this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES_SEPARATE)) {
+            if (in_array(Features::GET_CONSUMABLES, $this->device::FEATURES, true) && ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES) || $this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES_SEPARATE))) {
                 $this->Get_Consumables();
             }
 
@@ -2094,7 +2094,7 @@ class Roborock extends IPSModule
 
             foreach ($mapsList[$mapStatus]['rooms'] as $roomID => $room) {
                 if (isset($room['IgnoreRoom']) && !$room['IgnoreRoom']) {
-                    $ass[] = [$roomID, $roomNames[$room['referenceID']] ?? $room['roomName'], '', -1];
+                    $ass[] = [$roomID, $roomNames[$room['referenceID']] ?? $this->Translate('Room') . ' ' . $room['roomID'], '', -1];
                 }
             }
         }
@@ -2425,12 +2425,14 @@ class Roborock extends IPSModule
                     [
                         'name'    => self::PROPERTY_CONSUMABLES,
                         'type'    => 'CheckBox',
-                        'caption' => 'Consumables'
+                        'caption' => 'Consumables',
+                        'visible' => in_array(Features::GET_CONSUMABLES, $this->device::FEATURES, true)
                     ],
                     [
                         'name'    => self::PROPERTY_CONSUMABLES_SEPARATE,
                         'type'    => 'CheckBox',
-                        'caption' => 'Consumables (Separate Variables)'
+                        'caption' => 'Consumables (Separate Variables)',
+                        'visible' => in_array(Features::GET_CONSUMABLES, $this->device::FEATURES, true)
                     ],
                     [
                         'name'    => 'dnd_mode',
@@ -3012,7 +3014,7 @@ class Roborock extends IPSModule
                     self::FF_COL_PARENT_MAP_ID     => $map['mapFlag'],
                     self::FF_COL_ROOMID            => $room['roomID'],
                     self::FF_COL_ROOMTEXTREFERENCE => $room['referenceID'],
-                    self::FF_COL_ROOMNAME          => $RoomNames[$room['referenceID']] ?? $room['roomName'],
+                    self::FF_COL_ROOMNAME          => $RoomNames[$room['referenceID']] ?? $this->Translate('Room') . ' ' . $room['roomID'],
                     self::FF_COL_IGNORE_ROOM       => $room['IgnoreRoom'] ?? false,
                     'editable'                     => true
                 ];
