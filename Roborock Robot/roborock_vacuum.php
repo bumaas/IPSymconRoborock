@@ -57,12 +57,20 @@ class Fanpower extends stdClass
     public const GENTLE   = 'Gentle';
     public const SILENT   = 'Silent';
     public const STANDARD = 'Standard';
+    public const MEDIUM = 'Medium';
     public const TURBO    = 'Turbo';
     public const MAXIMUM  = 'Max.';
 
     public const V1 = [
         self::SILENT   => 38,
         self::STANDARD => 60,
+    ];
+
+    public const S1 = [
+        self::SILENT   => 101, //leise
+        self::STANDARD => 102, //normal
+        self::MEDIUM    => 103, //medium
+        self::TURBO  => 104, //Turbo
     ];
 
     public const V2 = [
@@ -102,6 +110,7 @@ class roborock_vacuum
 
     public const DEVICELIST = [
         'roborock.vacuum'     => 'Roborock Generic Vacuum Cleaner',
+        'roborock.vacuum.m1s'  => 'Roborock S1',
         'roborock.vacuum.s5'  => 'Roborock S5',
         'roborock.vacuum.s5e' => 'Roborock S5 Max',
         'roborock.vacuum.s6'  => 'Roborock S6',
@@ -123,6 +132,19 @@ class roborock_vacuum
         return explode('_', $classname)[2] ?? 'generic';
     }
 }
+class roborock_vacuum_m1s extends roborock_vacuum //S1
+{
+    public const CONSUMABLES = [
+    ];
+
+    public const FANPOWER = [
+        Fanpower::SILENT   => 101, //leise
+        Fanpower::STANDARD => 102, //normal
+        Fanpower::TURBO    => 103, //Turbo
+        Fanpower::MAXIMUM  => 104, //Max.
+    ];
+}
+
 class roborock_vacuum_s5 extends roborock_vacuum
 {
     public const CONSUMABLES = [

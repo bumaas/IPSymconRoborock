@@ -58,6 +58,7 @@ class Roborock extends IPSModule
     private const PROPERTY_REMOTE               = 'remote';
     private const PROPERTY_UPDATE_INTERVAL      = 'UpdateInterval';
     private const PROPERTY_CLEANING_ORDER       = 'CleaningOrder';
+    private const PROPERTY_SERVER               = 'Server';
 
     private const PROFILE_COMMAND         = 'Roborock.Command';
     private const PROFILE_ERRORCODE       = 'Roborock.Errorcode';
@@ -265,6 +266,8 @@ class Roborock extends IPSModule
 
         $this->RegisterPropertyString(self::PROPERTY_XIAOMI_USER, '');
         $this->RegisterPropertyString(self::PROPERTY_XIAOMI_PASSWORD, '');
+
+        $this->RegisterPropertyString(self::PROPERTY_SERVER, 'de');
 
         // register update timer
         $this->RegisterPropertyInteger(self::PROPERTY_UPDATE_INTERVAL, 60);
@@ -2361,13 +2364,6 @@ class Roborock extends IPSModule
                 'caption' => 'Password'
             ],
             [
-                'name'    => self::PROPERTY_UPDATE_INTERVAL,
-                'type'    => 'NumberSpinner',
-                'caption' => 'Update Interval Roborock',
-                'suffix'  => 'Seconds',
-                'minimum' => 0
-            ],
-            [
                 'type'    => 'ExpansionPanel',
                 'caption' => 'Optional Status Variables',
                 'items'   => [
@@ -2693,6 +2689,24 @@ class Roborock extends IPSModule
                     ]
                 ]
             ],
+            [
+                'type'    => 'ExpansionPanel',
+                'caption' => 'Expert Parameters',
+                'items'   => [
+                    [
+                        'name'    => self::PROPERTY_UPDATE_INTERVAL,
+                        'type'    => 'NumberSpinner',
+                        'caption' => 'Update Interval Roborock',
+                        'suffix'  => 'Seconds',
+                        'minimum' => 0
+                    ],
+                    [
+                        'name'    => self::PROPERTY_SERVER,
+                        'type'    => 'ValidationTextBox',
+                        'caption' => 'Server'
+                    ]
+                ]
+            ],
         ];
     }
 
@@ -2988,7 +3002,7 @@ class Roborock extends IPSModule
                     self::FF_COL_ROOMID            => $room['roomID'],
                     self::FF_COL_ROOMTEXTREFERENCE => $room['referenceID'],
                     self::FF_COL_ROOMNAME          => $RoomNames[$room['referenceID']] ?? $room['roomName'],
-                    self::FF_COL_IGNORE_ROOM       => $room['IgnoreRoom']??false,
+                    self::FF_COL_IGNORE_ROOM       => $room['IgnoreRoom'] ?? false,
                     'editable'                     => true
                 ];
             }
@@ -3443,7 +3457,10 @@ EOF;
             return [];
         }
 
-        $server = 'de';
+        $server = $this->ReadPropertyString(self::PROPERTY_SERVER);
+        if ($server !== ''){
+            $server .= '.';
+        }
 
         $headers = [
             'Content-Type: application/x-www-form-urlencoded',
@@ -3466,7 +3483,7 @@ EOF;
         $body = $this->generateSignature($loginAccountData['ssecurity'], $params, $path);
         $body = http_build_query($body);
 
-        $url = 'https://' . $server . '.api.io.mi.com/app' . $path;
+        $url = 'https://' . $server . 'api.io.mi.com/app' . $path;
         $ch  = curl_init($url);
 
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -3600,7 +3617,8 @@ EOF;
         }
 
         if ($this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
-            $this->UpdateAttributeMapsListWithRooms($rooms);
+            $this->UpdateAttributeMapsListWithRooms([]);
+            //$this->UpdateAttributeMapsListWithRooms($rooms);
         }
 
         return $data;
