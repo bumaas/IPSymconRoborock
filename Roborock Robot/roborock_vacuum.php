@@ -57,7 +57,7 @@ class Fanpower extends stdClass
     public const GENTLE   = 'Gentle';
     public const SILENT   = 'Silent';
     public const STANDARD = 'Standard';
-    public const MEDIUM = 'Medium';
+    public const MEDIUM   = 'Medium';
     public const TURBO    = 'Turbo';
     public const MAXIMUM  = 'Max.';
 
@@ -69,8 +69,8 @@ class Fanpower extends stdClass
     public const S1 = [
         self::SILENT   => 101, //leise
         self::STANDARD => 102, //normal
-        self::MEDIUM    => 103, //medium
-        self::TURBO  => 104, //Turbo
+        self::MEDIUM   => 103, //medium
+        self::TURBO    => 104, //Turbo
     ];
 
     public const V2 = [
@@ -99,6 +99,11 @@ class Waterquantity extends stdClass
     ];
 }
 
+class Features extends stdClass
+{
+    public const MULTI_FLOOR_SUPPORT = 120; //get_multi_maps_list available
+}
+
 class roborock_vacuum
 {
     public const CONSUMABLES = [
@@ -110,7 +115,7 @@ class roborock_vacuum
 
     public const DEVICELIST = [
         'roborock.vacuum'     => 'Roborock Generic Vacuum Cleaner',
-        'roborock.vacuum.m1s'  => 'Roborock S1',
+        'roborock.vacuum.m1s' => 'Mi Robot 1S',
         'roborock.vacuum.s5'  => 'Roborock S5',
         'roborock.vacuum.s5e' => 'Roborock S5 Max',
         'roborock.vacuum.s6'  => 'Roborock S6',
@@ -121,6 +126,10 @@ class roborock_vacuum
 
     public const FANPOWER      = Fanpower::V2;
     public const WATERQUANTITY = Waterquantity::V2;
+
+    public const FEATURES = [
+        Features::MULTI_FLOOR_SUPPORT
+    ];
 
     public function GetName(string $classname): string
     {
@@ -134,8 +143,7 @@ class roborock_vacuum
 }
 class roborock_vacuum_m1s extends roborock_vacuum //S1
 {
-    public const CONSUMABLES = [
-    ];
+    public const CONSUMABLES = [];
 
     public const FANPOWER = [
         Fanpower::SILENT   => 101, //leise
@@ -143,6 +151,8 @@ class roborock_vacuum_m1s extends roborock_vacuum //S1
         Fanpower::TURBO    => 103, //Turbo
         Fanpower::MAXIMUM  => 104, //Max.
     ];
+
+    public const FEATURES = [];
 }
 
 class roborock_vacuum_s5 extends roborock_vacuum
@@ -153,6 +163,7 @@ class roborock_vacuum_s5 extends roborock_vacuum
         Consumable::FILTER    => 'filter_work_time',
         Consumable::SENSOR    => 'sensor_dirty_time'
     ];
+    public const FEATURES = [];
 
 }
 
@@ -180,7 +191,10 @@ class roborock_vacuum_s6 extends roborock_vacuum //S6
     public const FANPOWER = Fanpower::V2;
 }
 class roborock_vacuum_a10 extends roborock_vacuum_s6 //S6 MaxV
-{ }
+{
+   // public const FEATURES = [];
+
+}
 
 class roborock_vacuum_a15 extends roborock_vacuum //S7
 {

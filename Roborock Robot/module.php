@@ -206,6 +206,8 @@ class Roborock extends IPSModule
         ]
     ];
 
+    const SINGLE_MAP = ['0' => ['mapFlag' => 0, 'MapName' => 'MyMap']];
+
     // helper properties
     private int             $position = 0;
 
@@ -814,7 +816,11 @@ class Roborock extends IPSModule
 
             // update maps status
             if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS)) {
-                $this->RequestData('get_multi_maps_list');
+                if (in_array(Features::MULTI_FLOOR_SUPPORT, $this->device::FEATURES, true)){
+                    $this->RequestData('get_multi_maps_list');
+                } else {
+                    $this->UpdateAttributeMapsListWithMaps(self::SINGLE_MAP);
+                }
             }
 
             // update maps picture
@@ -2002,7 +2008,11 @@ class Roborock extends IPSModule
             case 'UpdateMapsAndRooms':
                 $this->UpdateFormField(self::FF_MAPANDROOMLIST, 'enabled', false); //Eingabe deaktivieren
 
-                $this->RequestData('get_multi_maps_list', ['immediate' => true]);
+                if (in_array(Features::MULTI_FLOOR_SUPPORT, $this->device::FEATURES, true)){
+                    $this->RequestData('get_multi_maps_list', ['immediate' => true]);
+                } else {
+                    $this->UpdateAttributeMapsListWithMaps(self::SINGLE_MAP);
+                }
                 $this->RequestData('get_room_mapping', ['immediate' => true]);
 
                 $this->UpdateFormField(self::FF_MAPANDROOMLIST, 'enabled', true); //Eingabe wieder aktivieren
@@ -2380,7 +2390,8 @@ class Roborock extends IPSModule
                     [
                         'name'    => self::PROPERTY_MAP_STATUS,
                         'type'    => 'CheckBox',
-                        'caption' => 'Active Map'
+                        'caption' => 'Active Map',
+                        'visible' => in_array(Features::MULTI_FLOOR_SUPPORT, $this->device::FEATURES, true)
                     ],
                     [
                         'type'  => 'RowLayout',
@@ -3007,6 +3018,8 @@ class Roborock extends IPSModule
                 ];
             }
         }
+        $this->_debug(__FUNCTION__, 'Values: ' . json_encode($MapAndRoomListValues, JSON_THROW_ON_ERROR));
+
         return $MapAndRoomListValues;
     }
 
@@ -3617,8 +3630,7 @@ EOF;
         }
 
         if ($this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
-            $this->UpdateAttributeMapsListWithRooms([]);
-            //$this->UpdateAttributeMapsListWithRooms($rooms);
+            $this->UpdateAttributeMapsListWithRooms($rooms);
         }
 
         return $data;
@@ -3632,7 +3644,7 @@ EOF;
 
         $mapFlag   = $this->GetValue(self::IDENT_MAP_STATUS);
         $savedList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true);
-        $this->_debug(__FUNCTION__, sprintf('savedList: %s, rooms: %s', $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), json_encode($rooms)));
+        $this->_debug(__FUNCTION__, sprintf('savedList: %s -- rooms: %s', $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), json_encode($rooms)));
 
         foreach ($rooms as $id => $room) {
             if (!isset($savedList[$mapFlag]['rooms'][$id])) {
@@ -4042,7 +4054,7 @@ EOF;
             }
         }
 
-        foreach (array_diff_key($savedList, $maps) as $mapFlag) {
+        foreach (array_keys(array_diff_key($savedList, $maps)) as $mapFlag) {
             unset ($savedList[$mapFlag]);
         }
 
