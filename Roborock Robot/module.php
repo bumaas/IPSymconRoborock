@@ -2093,7 +2093,7 @@ class Roborock extends IPSModule
             $mapStatus = $this->GetValue(self::IDENT_MAP_STATUS);
 
             foreach ($mapsList[$mapStatus]['rooms'] as $roomID => $room) {
-                if (isset($room['IgnoreRoom']) && !$room['IgnoreRoom']) {
+                if (!isset($room['IgnoreRoom']) || !$room['IgnoreRoom']) {
                     $ass[] = [$roomID, $roomNames[$room['referenceID']] ?? $this->Translate('Room') . ' ' . $room['roomID'], '', -1];
                 }
             }
@@ -3645,24 +3645,26 @@ EOF;
         }
 
         $mapFlag   = $this->GetValue(self::IDENT_MAP_STATUS);
-        $savedList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true);
-        $this->_debug(__FUNCTION__, sprintf('savedList: %s -- rooms: %s', $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), json_encode($rooms)));
+        $MapsList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true);
+        $this->_debug(__FUNCTION__, sprintf('MapsList (old): %s', $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST)));
+        $this->_debug(__FUNCTION__, sprintf('rooms: %s', json_encode($rooms)));
 
         foreach ($rooms as $id => $room) {
-            if (!isset($savedList[$mapFlag]['rooms'][$id])) {
-                $savedList[$mapFlag]['rooms'][$id]               = $room;
-                $savedList[$mapFlag]['rooms'][$id]['IgnoreRoom'] = false;
+            if (!isset($MapsList[$mapFlag]['rooms'][$id])) {
+                $MapsList[$mapFlag]['rooms'][$id]               = $room;
+                $MapsList[$mapFlag]['rooms'][$id]['IgnoreRoom'] = false;
             } else {
-                $savedList[$mapFlag]['rooms'][$id]['referenceID'] = $room['referenceID'];
+                $MapsList[$mapFlag]['rooms'][$id]['referenceID'] = $room['referenceID'];
             }
         }
 
         //no longer existing rooms are deleted
-        foreach (array_keys(array_diff_key($savedList[$mapFlag]['rooms'], $rooms)) as $roomID) {
-            unset ($savedList[$mapFlag]['rooms'][$roomID]);
+        foreach (array_keys(array_diff_key($MapsList[$mapFlag]['rooms'], $rooms)) as $roomID) {
+            unset ($MapsList[$mapFlag]['rooms'][$roomID]);
         }
 
-        $this->WriteAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode($savedList, JSON_THROW_ON_ERROR));
+        $this->_debug(__FUNCTION__, sprintf('MapsList (new): %s', json_encode($MapsList, JSON_THROW_ON_ERROR)));
+        $this->WriteAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode($MapsList, JSON_THROW_ON_ERROR));
 
         $this->WriteRoomSelectionProfile();
         $this->UpdateRoomsSelected();
