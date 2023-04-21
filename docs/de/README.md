@@ -70,9 +70,10 @@ In IP-Symcon nun _Instanz hinzufügen_ auswählen unter der Kategorie, unter der
 Es öffnet sich das Konfigurationsformular. Hier ist anzugeben:
  - IP-Adresse des Saugers
  - Logindaten für das Xiaomi Konto 
- - Aktualisierungsintervall in Sekunden
 
 Optional können die Statusvariablen ausgewählt werden sowie Pushnachrichten definiert werden.
+
+Im Expertenbereich kann das AKtualissierungsintervall (Standard ist 60 s) modifiziert werden. Es sollte nicht zu niedrig gesetzt werden, da die Kommunikation mit dem Gerät recht langsam ist. Zudem kann ein abweichender Server angegeben werden, von dem der Token bezogen werden soll. Für China kann 'cn' angegeben werden, oder er kann leer gelassen werden. Standard ist 'de'.
 
 Im Aktionsbereich des Formulars können die Statusvariablen getestet werden ("Testbereich"). 
 

@@ -206,7 +206,9 @@ class Roborock extends IPSModule
         ]
     ];
 
-    const SINGLE_MAP = ['0' => ['mapFlag' => 0, 'MapName' => 'MyMap']];
+    private const SINGLE_MAP = ['0' => ['mapFlag' => 0, 'MapName' => 'MyMap']];
+
+    private const DEFAULT_VALUE_UPDATE_INTERVALL = 60;
 
     // helper properties
     private int             $position = 0;
@@ -272,7 +274,7 @@ class Roborock extends IPSModule
         $this->RegisterPropertyString(self::PROPERTY_SERVER, 'de');
 
         // register update timer
-        $this->RegisterPropertyInteger(self::PROPERTY_UPDATE_INTERVAL, 60);
+        $this->RegisterPropertyInteger(self::PROPERTY_UPDATE_INTERVAL, self::DEFAULT_VALUE_UPDATE_INTERVALL);
         $this->RegisterTimer(self::TIMER_UPDATE, 0, 'Roborock_Update(' . $this->InstanceID . ');');
         $this->RegisterTimer(self::TIMER_UPDATE_MAP, 0, 'Roborock_GetMap(' . $this->InstanceID . ');');
 
@@ -293,7 +295,9 @@ class Roborock extends IPSModule
         $this->RegisterAttributeString(self::ATTRIBUTE_ROOM_SELECTION, json_encode([], JSON_THROW_ON_ERROR));
     }
 
-    /** @noinspection ReturnTypeCanBeDeclaredInspection */
+    /** @noinspection ReturnTypeCanBeDeclaredInspection
+     * @noinspection PhpMissingReturnTypeInspection
+     */
     public function Destroy()
     {
         $this->UnregisterProfile(sprintf('%s.%s', self::PROFILE_ROOMSELECTION, $this->InstanceID));
@@ -1086,7 +1090,7 @@ class Roborock extends IPSModule
         return $this->RequestData('find_me');
     }
 
-    public function StartCleaning()
+    public function StartCleaning(): void
     {
         $roomSelection  = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_SELECTION), true, 512, JSON_THROW_ON_ERROR);
         $segments       = array_keys($roomSelection);
@@ -1596,7 +1600,7 @@ class Roborock extends IPSModule
      *
      * @return bool
      */
-    public function LoadMap(int $mapIndex)
+    public function LoadMap(int $mapIndex): bool
     {
         if ($this->RequestData('load_multi_map', ['params' => [$mapIndex]])) {
             $this->ProcessSelectedRoom(0); //Auswahl auf 'alle' setzen
@@ -2034,7 +2038,7 @@ class Roborock extends IPSModule
                 $this->WriteAttributeString(self::ATTRIBUTE_ROOM_NAMES, json_encode($Texts, JSON_THROW_ON_ERROR));
 
                 //aktualisieren des Ignore Flags
-                $savedMapsList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true);
+                $savedMapsList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true, 512, JSON_THROW_ON_ERROR);
                 //$map = $savedMapsList[$]
                 $savedMapsList[$RoomValues[self::FF_COL_PARENT_MAP_ID]]['rooms'][$RoomValues[self::FF_COL_ROOMID]][self::FF_COL_IGNORE_ROOM] =
                     $RoomValues[self::FF_COL_IGNORE_ROOM];
@@ -2051,7 +2055,7 @@ class Roborock extends IPSModule
 
     private function ProcessSelectedRoom(int $roomId): void
     {
-        $roomSelection = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_SELECTION), true);
+        $roomSelection = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_SELECTION), true, 512, JSON_THROW_ON_ERROR);
 
         if ($roomId === 0) { // 0 = all
             $roomSelection = [];
@@ -2059,14 +2063,14 @@ class Roborock extends IPSModule
             $roomSelection[$roomId] = $roomId;
         }
 
-        $this->WriteAttributeString(self::ATTRIBUTE_ROOM_SELECTION, json_encode($roomSelection));
+        $this->WriteAttributeString(self::ATTRIBUTE_ROOM_SELECTION, json_encode($roomSelection, JSON_THROW_ON_ERROR));
 
         $this->UpdateRoomsSelected();
     }
 
-    private function UpdateRoomsSelected()
+    private function UpdateRoomsSelected(): void
     {
-        $roomSelection = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_SELECTION), true);
+        $roomSelection = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_SELECTION), true, 512, JSON_THROW_ON_ERROR);
 
         $objectID = IPS_GetObjectIDByIdent(self::IDENT_ROOMSELECTION, $this->InstanceID);
 
@@ -2084,8 +2088,8 @@ class Roborock extends IPSModule
 
     private function WriteRoomSelectionProfile(): void
     {
-        $roomNames = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES), true);
-        $mapsList  = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true);
+        $roomNames = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES), true, 512, JSON_THROW_ON_ERROR);
+        $mapsList  = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true, 512, JSON_THROW_ON_ERROR);
 
         $ass = [[0, sprintf('- %s -', $this->Translate('All')), '', -1]];
 
@@ -2315,6 +2319,7 @@ class Roborock extends IPSModule
      *
      * @return string
      * @noinspection ReturnTypeCanBeDeclaredInspection
+     * @noinspection PhpMissingReturnTypeInspection
      */
     public function GetConfigurationForm()
     {
@@ -3119,11 +3124,10 @@ class Roborock extends IPSModule
      *
      * @param string|null $notification
      * @param string|null $message
-     * @param int         $format 0 = Text, 1 = Hex
      */
-    private function _debug(string $notification = null, string $message = null, int $format = 0): void
+    private function _debug(string $notification = null, string $message = null): void
     {
-        $this->SendDebug($notification, $message, $format);
+        $this->SendDebug($notification, $message, 0);
     }
 
 
@@ -3472,7 +3476,10 @@ EOF;
             return [];
         }
 
-        $server = $this->ReadPropertyString(self::PROPERTY_SERVER);
+        $server = strtolower($this->ReadPropertyString(self::PROPERTY_SERVER));
+        if ($server === 'cn'){
+            $server = '';
+        }
         if ($server !== ''){
             $server .= '.';
         }
@@ -3594,6 +3601,7 @@ EOF;
      * @param array $data
      *
      * @return string
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function get_serial_number_callback(array $data): string
     {
@@ -3610,10 +3618,11 @@ EOF;
      *
      * @return array
      * @throws \JsonException
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function get_room_mapping_callback(array $data): array
     {
-        $this->_debug(__FUNCTION__, json_encode($data));
+        $this->_debug(__FUNCTION__, json_encode($data, JSON_THROW_ON_ERROR));
         //        $serial = $data['result'][0]['serial_number'] ?? '';
         //        $this->SetRoborockValue('serial_number', $serial);
 
@@ -3645,9 +3654,9 @@ EOF;
         }
 
         $mapFlag   = $this->GetValue(self::IDENT_MAP_STATUS);
-        $MapsList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true);
+        $MapsList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true, 512, JSON_THROW_ON_ERROR);
         $this->_debug(__FUNCTION__, sprintf('MapsList (old): %s', $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST)));
-        $this->_debug(__FUNCTION__, sprintf('rooms: %s', json_encode($rooms)));
+        $this->_debug(__FUNCTION__, sprintf('rooms: %s', json_encode($rooms, JSON_THROW_ON_ERROR)));
 
         foreach ($rooms as $id => $room) {
             if (!isset($MapsList[$mapFlag]['rooms'][$id])) {
@@ -3676,6 +3685,7 @@ EOF;
      * @param array $data
      *
      * @return string
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function load_multi_map_callback(array $data)
     {
@@ -3706,6 +3716,7 @@ EOF;
      * @param array $data
      *
      * @return string
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function get_timezone_callback(array $data): string
     {
@@ -3721,6 +3732,7 @@ EOF;
      * @param array $data
      *
      * @return array
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function miio_info_callback(array $data): array
     {
@@ -3865,6 +3877,7 @@ EOF;
      * @param array $data
      *
      * @return array
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function get_consumable_callback(array $data): array
     {
@@ -3925,6 +3938,7 @@ EOF;
      * @param array $data
      *
      * @return array
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function get_clean_summary_callback(array $data): array
     {
@@ -3999,7 +4013,8 @@ EOF;
      * Callback: Get Multi Maps List
      *
      * @param array $data
-     */
+     *
+     * @noinspection PhpUnusedPrivateMethodInspection*/
     private function get_multi_maps_list_callback(array $data): void
     {
         if (!isset($data['result'][0]['multi_map_count'])) {
@@ -4045,9 +4060,9 @@ EOF;
         $this->UpdateAttributeMapsListWithMaps($maps_list);
     }
 
-    private function UpdateAttributeMapsListWithMaps(array $maps)
+    private function UpdateAttributeMapsListWithMaps(array $maps): void
     {
-        $savedList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true);
+        $savedList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true, 512, JSON_THROW_ON_ERROR);
 
         foreach ($maps as $mapFlag => $map) {
             if (isset($savedList[$mapFlag])) {
@@ -4071,6 +4086,7 @@ EOF;
      * @param array $data
      *
      * @return array
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function get_clean_record_callback(array $data): array
     {
@@ -4335,6 +4351,7 @@ EOF;
      * @param array $data
      *
      * @return int
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function get_custom_mode_callback(array $data): int
     {
@@ -4355,6 +4372,7 @@ EOF;
      * @param array $data
      *
      * @return int
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function get_water_box_custom_mode_callback(array $data): int
     {
@@ -4375,6 +4393,7 @@ EOF;
      * @param array $data
      *
      * @return int
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function get_sound_volume_callback(array $data): int
     {
@@ -4398,6 +4417,7 @@ EOF;
      * @param array $data
      *
      * @return bool
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function change_sound_volume_callback(array $data): bool
     {
@@ -4417,6 +4437,7 @@ EOF;
      * @param array $data
      *
      * @return bool
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function app_rc_start_callback(array $data): bool
     {
@@ -4431,6 +4452,7 @@ EOF;
      * @param array $data
      *
      * @return bool
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function app_rc_end_callback(array $data): bool
     {
@@ -4445,6 +4467,7 @@ EOF;
      * @param array $data
      *
      * @return string
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function get_map_v1_callback(array $data): string
     {
@@ -4457,6 +4480,7 @@ EOF;
      * @param array $data
      *
      * @return bool|array
+     * @noinspection PhpUnusedPrivateMethodInspection
      */
     private function get_sound_progress_callback(array $data)
     {
@@ -4482,7 +4506,7 @@ EOF;
         }
 
         foreach (IPS_GetMediaListByType(MEDIATYPE_CHART) as $mediaID) {
-            $content = json_decode(base64_decode(IPS_GetMediaContent($mediaID)), true);
+            $content = json_decode(base64_decode(IPS_GetMediaContent($mediaID)), true, 512, JSON_THROW_ON_ERROR);
             if (isset($content['axes'])) {
                 foreach ($content['axes'] as $axis) {
                     if ($axis['profile'] === $Name) {
