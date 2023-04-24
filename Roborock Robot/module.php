@@ -4471,7 +4471,7 @@ EOF;
      */
     private function get_map_v1_callback(array $data): string
     {
-        return urldecode($data['result'][0]);
+        return $data['result'][0]??'';
     }
 
     /**
