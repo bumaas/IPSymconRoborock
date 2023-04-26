@@ -123,7 +123,7 @@ class roborock_vacuum
         'roborock.vacuum.a10' => 'Roborock S6 MaxV',
         'roborock.vacuum.a15' => 'Roborock S7',
         'roborock.vacuum.a27' => 'Roborock S7 MaxV',
-        'roborock.vacuum.a70' => 'Roborock S8',
+        'roborock.vacuum.a51' => 'Roborock S8',
     ];
 
     public const FANPOWER      = Fanpower::V2;
@@ -238,7 +238,7 @@ class roborock_vacuum_a15 extends roborock_vacuum //S7
 
 }
 
-class roborock_vacuum_a70 extends roborock_vacuum_a15 //S8
+class roborock_vacuum_a51 extends roborock_vacuum_a15 //S8
 {
 }
 
