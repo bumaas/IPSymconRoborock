@@ -34,7 +34,8 @@ class RRMapFileParser
     public const FLOOR_MAP               = 24;
     public const FURNITURES              = 25;
     public const DOCK_TYPE               = 26;
-    public const ENEMIES                 = 26;
+    public const ENEMIES                 = 27;
+    public const UNKNOWN_33              = 33; //since S8
     public const DIGEST                  = 1024;
     public const HEADER                  = 0x7272;
 
@@ -278,6 +279,7 @@ class RRMapFileParser
                 case self::FURNITURES:
                 case self::DOCK_TYPE:
                 case self::ENEMIES:
+                case self::UNKNOWN_33:
                     // new blocktypes not yet decoded
                     break;
 

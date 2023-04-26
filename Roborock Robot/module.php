@@ -79,6 +79,8 @@ class Roborock extends IPSModule
     private const PROFILE_CLEANING_CYCLES = 'Roborock.CleaningCycles';
     private const PROFILE_START_CLEANING  = 'Roborock.StartCleaning';
 
+    private const IDENT_SERIAL_NUMBER             = 'serial_number';
+    private const IDENT_TIMEZONE                  = 'timezone';
     private const IDENT_VOLUME                    = 'volume';
     private const IDENT_COMMAND                   = 'command';
     private const IDENT_STATE                     = 'state';
@@ -416,8 +418,6 @@ class Roborock extends IPSModule
         $this->RegisterProfile(self::PROFILE_DURATION, '', '', ' s', 0, 0, 0, 0, VARIABLETYPE_INTEGER);
         $this->RegisterProfile(self::PROFILE_MAPS, '', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER);
 
-        $this->WriteRoomSelectionProfile();
-
         // Remote Control
         if ($this->ReadPropertyBoolean(self::PROPERTY_REMOTE)) {
             $id = $this->RegisterVariableString(self::IDENT_REMOTE_CONTROL, $this->Translate('Remote Control'), '~HTMLBox', $this->_getPosition());
@@ -476,6 +476,8 @@ class Roborock extends IPSModule
         if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS) || $this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
             $this->RegisterVariableInteger(self::IDENT_MAP_STATUS, $this->Translate('Active Map'), self::PROFILE_MAPS, $this->_getPosition());
             $this->EnableAction(self::IDENT_MAP_STATUS);
+            //when MAP_STATUS is created, we can update the RoomSelectionProfile
+            $this->WriteRoomSelectionProfile();
         } else {
             $this->UnregisterVariable(self::IDENT_MAP_STATUS);
         }
@@ -566,10 +568,10 @@ class Roborock extends IPSModule
 
         // serial number
         if ($this->ReadPropertyBoolean('serial_number')) {
-            $id = $this->RegisterVariableString('serial_number', $this->Translate('Serial Number'), '', $this->_getPosition());
+            $id = $this->RegisterVariableString(self::IDENT_SERIAL_NUMBER, $this->Translate('Serial Number'), '', $this->_getPosition());
             IPS_SetIcon($id, 'Robot');
         } else {
-            $this->UnregisterVariable('serial_number');
+            $this->UnregisterVariable(self::IDENT_SERIAL_NUMBER);
         }
 
         // timer details
@@ -601,9 +603,9 @@ class Roborock extends IPSModule
 
         // Timezone
         if ($this->ReadPropertyBoolean('timezone')) {
-            $this->RegisterVariableString('timezone', $this->Translate('Timezone'), '', $this->_getPosition());
+            $this->RegisterVariableString(self::IDENT_TIMEZONE, $this->Translate('Timezone'), '', $this->_getPosition());
         } else {
-            $this->UnregisterVariable('timezone');
+            $this->UnregisterVariable(self::IDENT_TIMEZONE);
         }
 
         if ($this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
@@ -785,12 +787,16 @@ class Roborock extends IPSModule
             $this->Get_State();
 
             // update serial number, once
-            if ($this->ReadPropertyBoolean('serial_number') && !$this->GetValue('serial_number')) {
+            if ($this->ReadPropertyBoolean('serial_number') && !$this->GetValue(self::IDENT_SERIAL_NUMBER)) {
                 $this->Get_Serial_Number();
             }
 
             // update consumables
-            if (in_array(Features::GET_CONSUMABLES, $this->device::FEATURES, true) && ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES) || $this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES_SEPARATE))) {
+            if (in_array(Features::GET_CONSUMABLES, $this->device::FEATURES, true)
+                && ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES)
+                    || $this->ReadPropertyBoolean(
+                        self::PROPERTY_CONSUMABLES_SEPARATE
+                    ))) {
                 $this->Get_Consumables();
             }
 
@@ -816,13 +822,13 @@ class Roborock extends IPSModule
             }
 
             // update timezone, once
-            if ($this->ReadPropertyBoolean('timezone') && !$this->GetValue('timezone')) {
+            if ($this->ReadPropertyBoolean('timezone') && !$this->GetValue(self::IDENT_TIMEZONE)) {
                 $this->GetTimezone();
             }
 
             // update maps status
             if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS)) {
-                if (in_array(Features::MULTI_FLOOR_SUPPORT, $this->device::FEATURES, true)){
+                if (in_array(Features::MULTI_FLOOR_SUPPORT, $this->device::FEATURES, true)) {
                     $this->RequestData('get_multi_maps_list');
                 } else {
                     $this->UpdateAttributeMapsListWithMaps(self::SINGLE_MAP);
@@ -2014,7 +2020,7 @@ class Roborock extends IPSModule
             case 'UpdateMapsAndRooms':
                 $this->UpdateFormField(self::FF_MAPANDROOMLIST, 'enabled', false); //Eingabe deaktivieren
 
-                if (in_array(Features::MULTI_FLOOR_SUPPORT, $this->device::FEATURES, true)){
+                if (in_array(Features::MULTI_FLOOR_SUPPORT, $this->device::FEATURES, true)) {
                     $this->RequestData('get_multi_maps_list', ['immediate' => true]);
                 } else {
                     $this->UpdateAttributeMapsListWithMaps(self::SINGLE_MAP);
@@ -3479,10 +3485,10 @@ EOF;
         }
 
         $server = strtolower($this->ReadPropertyString(self::PROPERTY_SERVER));
-        if ($server === 'cn'){
+        if ($server === 'cn') {
             $server = '';
         }
-        if ($server !== ''){
+        if ($server !== '') {
             $server .= '.';
         }
 
@@ -3655,7 +3661,7 @@ EOF;
             return;
         }
 
-        $mapFlag   = $this->GetValue(self::IDENT_MAP_STATUS);
+        $mapFlag  = $this->GetValue(self::IDENT_MAP_STATUS);
         $MapsList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true, 512, JSON_THROW_ON_ERROR);
         $this->_debug(__FUNCTION__, sprintf('MapsList (old): %s', $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST)));
         $this->_debug(__FUNCTION__, sprintf('rooms: %s', json_encode($rooms, JSON_THROW_ON_ERROR)));
@@ -3723,7 +3729,7 @@ EOF;
     private function get_timezone_callback(array $data): string
     {
         $timezone = $data['result'][0] ?? '';
-        $this->_SetValue('timezone', $timezone);
+        $this->_SetValue(self::IDENT_TIMEZONE, $timezone);
 
         return $timezone;
     }
@@ -4016,7 +4022,8 @@ EOF;
      *
      * @param array $data
      *
-     * @noinspection PhpUnusedPrivateMethodInspection*/
+     * @noinspection PhpUnusedPrivateMethodInspection
+     */
     private function get_multi_maps_list_callback(array $data): void
     {
         if (!isset($data['result'][0]['multi_map_count'])) {
@@ -4424,7 +4431,7 @@ EOF;
     private function change_sound_volume_callback(array $data): bool
     {
         // start & stop device quickly, to check volume
-        if (in_array($this->GetValue('state'), [2, 3, 8, 10, 15, 100], true)) {
+        if (in_array($this->GetValue(self::IDENT_STATE), [2, 3, 8, 10, 15, 100], true)) {
             $this->Start();
             $this->Stop();
         }
@@ -4473,7 +4480,7 @@ EOF;
      */
     private function get_map_v1_callback(array $data): string
     {
-        return $data['result'][0]??'';
+        return $data['result'][0] ?? '';
     }
 
     /**
