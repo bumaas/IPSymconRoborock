@@ -12,6 +12,8 @@ require_once __DIR__ . '/RRMapDraw.php';
  *
  * a very useful API documentation: https://github.com/marcelrv/XiaomiRobotVacuumProtocol
  *
+ * Models: https://dontvacuum.me/robotinfo/
+ *
  * also https://python-miio.readthedocs.io/en/latest/device_docs/vacuum.html is very helpful
  *  with vacuum.enums:      https://github.com/rytilahti/python-miio/blob/master/miio/integrations/roborock/vacuum/vacuum_enums.py
  *  with vacuum.containers:
@@ -2989,7 +2991,7 @@ class Roborock extends IPSModule
             [
                 'code'    => self::STATUS_INST_NO_ROBOROCK_FOUND,
                 'icon'    => 'inactive',
-                'caption' => 'no roborock was found on that ip and token.'
+                'caption' => 'No roborock was found on that ip and token.'
             ]
         ];
     }

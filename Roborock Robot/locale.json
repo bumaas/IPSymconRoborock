@@ -148,7 +148,7 @@
       "Full": "Voll geladen",
       "No valid IP address.": "Die IP Adresse ist nicht gültig.",
       "Token is not valid.": "Der Token ist nicht gültig.",
-      "no roborock was found on that ip and token.": "Es wurde kein Roborock Staubsaugerroboter unter der IP Adresse und mit dem Token gefunden.",
+      "No roborock was found on that ip and token.": "Es wurde kein Roborock unter der IP Adresse und mit dem Token gefunden.",
       "Optional Status Variables": "Optionale Statusvariablen",
       "The configuration form has been reset. Please reopen configuration to proceed.": "Die Konfiguration wurde zurückgesetzt. Bitte schließe und öffne die Konfiguration erneut.",
       "Push Notifications": "Push Benachrichtigungen",
