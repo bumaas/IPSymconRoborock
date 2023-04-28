@@ -61,6 +61,7 @@ class Roborock extends IPSModule
     private const PROPERTY_UPDATE_INTERVAL      = 'UpdateInterval';
     private const PROPERTY_CLEANING_ORDER       = 'CleaningOrder';
     private const PROPERTY_SERVER               = 'Server';
+    private const PROPERTY_CLEAN_TIME           ='clean_time';
 
     private const PROFILE_COMMAND         = 'Roborock.Command';
     private const PROFILE_ERRORCODE       = 'Roborock.Errorcode';
@@ -213,6 +214,7 @@ class Roborock extends IPSModule
     private const SINGLE_MAP = ['0' => ['mapFlag' => 0, 'MapName' => 'MyMap']];
 
     private const DEFAULT_VALUE_UPDATE_INTERVALL = 60;
+    private const MAX_NUMBER_OF_CLEAN_RECORDS = 5;
 
     // helper properties
     private int             $position = 0;
@@ -258,7 +260,7 @@ class Roborock extends IPSModule
         $this->RegisterPropertyBoolean(self::PROPERTY_CONSUMABLES_SEPARATE, false);
         $this->RegisterPropertyBoolean('dnd_mode', false);
         $this->RegisterPropertyBoolean('clean_area', false);
-        $this->RegisterPropertyBoolean('clean_time', false);
+        $this->RegisterPropertyBoolean(self::PROPERTY_CLEAN_TIME, false);
         $this->RegisterPropertyBoolean('total_cleans', false);
         $this->RegisterPropertyBoolean('serial_number', false);
         $this->RegisterPropertyBoolean('timer_details', false);
@@ -549,7 +551,7 @@ class Roborock extends IPSModule
         }
 
         // clean_time
-        if ($this->ReadPropertyBoolean('clean_time')) {
+        if ($this->ReadPropertyBoolean(self::PROPERTY_CLEAN_TIME)) {
             $this->RegisterVariableInteger('clean_time', $this->Translate('Clean Time'), self::PROFILE_DURATION, $this->_getPosition());
             $this->RegisterVariableInteger('total_clean_time', $this->Translate('Total Clean Time'), self::PROFILE_DURATION, $this->_getPosition());
             $this->RegisterVariableString('cleaning_records', $this->Translate('Cleaning Records'), '~HTMLBox', $this->_getPosition());
@@ -845,7 +847,7 @@ class Roborock extends IPSModule
             } elseif ($this->GetTimerInterval(self::TIMER_UPDATE_MAP) !== 0) {
                 $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 0);
                 // update clean summary
-                if ($this->ReadPropertyBoolean('clean_time')) {
+                if ($this->ReadPropertyBoolean(self::PROPERTY_CLEAN_TIME)) {
                     $this->GetCleanSummary();
                 }
             }
@@ -2458,7 +2460,7 @@ class Roborock extends IPSModule
                         'caption' => 'Clean Area'
                     ],
                     [
-                        'name'    => 'clean_time',
+                        'name'    => self::PROPERTY_CLEAN_TIME,
                         'type'    => 'CheckBox',
                         'caption' => 'Clean Time'
                     ],
@@ -3991,20 +3993,18 @@ EOF;
         //records
         if (isset($data['result'][3])) {
             $clean_records = $data['result'][3];
-            $this->SetBuffer('CleanRecords', json_encode($clean_records, JSON_THROW_ON_ERROR));
-            // update clean record details
-            foreach ($clean_records as $record_id) {
-                $this->GetCleanRecord($record_id);
-            }
         }
 
         if (isset($data['result']['records'])) {
             $clean_records = $data['result']['records'];
-            $this->SetBuffer('CleanRecords', json_encode($clean_records, JSON_THROW_ON_ERROR));
-            // update clean record details
-            foreach ($clean_records as $record_id) {
-                $this->GetCleanRecord($record_id);
+        }
+
+        // update clean record details
+        foreach ($clean_records as $key => $record_id) {
+            if ($key >= self::MAX_NUMBER_OF_CLEAN_RECORDS){
+                break;
             }
+            $this->GetCleanRecord($record_id);
         }
 
         // return values
@@ -4160,34 +4160,34 @@ EOF;
             }
 
             // update html, when enabled
-            if ($this->ReadPropertyBoolean('clean_time')) {
+            if ($this->ReadPropertyBoolean(self::PROPERTY_CLEAN_TIME)) {
                 $html_data = [
                     $data['starttime'] => $data
                 ];
 
-                if ($tmp_data = $this->ReadAttributeString(self::ATTRIBUTE_CLEANING_RECORDS)) {
-                    $tmp_data = json_decode($tmp_data, true, 512, JSON_THROW_ON_ERROR);
+                if ($cleaning_records = $this->ReadAttributeString(self::ATTRIBUTE_CLEANING_RECORDS)) {
+                    $this->_debug(__FUNCTION__, 'cleaning_records: ' .  $cleaning_records);
+                    $this->_debug(__FUNCTION__, 'html_data: ' .  json_encode($html_data));
+                    $cleaning_records = json_decode($cleaning_records, true, 512, JSON_THROW_ON_ERROR);
 
-                    // merge temporary data with html data
-                    $html_data = array_merge(
-                        $tmp_data,
-                        $html_data
-                    );
+                    // merge cleaning records with html data
+                    $cleaning_records[key($html_data)] = $html_data[key($html_data)];
+                    $this->_debug(__FUNCTION__, 'merged: ' .  json_encode($cleaning_records));
 
                     // sort by key (time)
-                    krsort($html_data);
+                    krsort($cleaning_records);
 
                     // show last 5 records, only
-                    if (count($html_data) > 5) {
-                        $html_data = array_slice($html_data, 0, 5, true);
+                    if (count($cleaning_records) > self::MAX_NUMBER_OF_CLEAN_RECORDS) {
+                        $cleaning_records = array_slice($cleaning_records, 0, self::MAX_NUMBER_OF_CLEAN_RECORDS, true);
                     }
                 }
 
-                $this->WriteAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, json_encode($html_data, JSON_THROW_ON_ERROR));
+                $this->WriteAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, json_encode($cleaning_records, JSON_THROW_ON_ERROR));
 
                 // build html
-                $cleaning_records = [];
-                foreach ($html_data as $clean_record) {
+                $body_data = [];
+                foreach ($cleaning_records as $clean_record) {
                     $start_time        = $clean_record['starttime'];
                     $start_hour        = date('H', $start_time);
                     $clean_day         = date('l', $start_time);
@@ -4201,7 +4201,7 @@ EOF;
                     $errors            = $clean_record['errors'];
                     $completed         = $clean_record['completed'];
 
-                    $cleaning_records[] = [
+                    $body_data[] = [
                         $this->Translate($clean_day),
                         $clean_date . ' ' . $start_hour . ':' . $start_minutes . ' - ' . $end_hour . ':' . $end_minutes,
                         $cleaning_duration,
@@ -4222,7 +4222,7 @@ EOF;
                                                                $this->Translate('Errors'),
                                                                $this->Translate('Completed'),
                                                            ],
-                                                           'body' => $cleaning_records
+                                                           'body' => $body_data
                                                        ]
                                                    ]);
 

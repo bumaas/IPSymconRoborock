@@ -64,6 +64,8 @@ class Fanpower extends stdClass
     public const V1 = [
         self::SILENT   => 38,
         self::STANDARD => 60,
+        self::MEDIUM => 77,
+        self::TURBO => 90,
     ];
 
     public const S1 = [
@@ -102,6 +104,12 @@ class Waterquantity extends stdClass
 class Features extends stdClass
 {
     public const GET_CONSUMABLES = 1; //get_consumables
+
+    public const SUPPORT_101 = 101; //V1
+    public const SUPPORT_102 = 102; //V1
+    public const SUPPORT_CLEAN_TIME = 103;
+    public const SUPPORT_104 = 104; //V1
+    public const SUPPORT_105 = 105; //V1
     public const MULTI_FLOOR_SUPPORT = 120; //get_multi_maps_list available
 }
 
@@ -117,6 +125,7 @@ class roborock_vacuum
     public const DEVICELIST = [
         'roborock.vacuum'     => 'Roborock Generic Vacuum Cleaner',
         'roborock.vacuum.m1s' => 'Mi Robot 1S',
+        'rockrobo.vacuum.v1'  => 'Roborock V1',
         'roborock.vacuum.s5'  => 'Roborock S5',
         'roborock.vacuum.s5e' => 'Roborock S5 Max',
         'roborock.vacuum.s6'  => 'Roborock S6',
@@ -144,7 +153,7 @@ class roborock_vacuum
         return explode('_', $classname)[2] ?? 'generic';
     }
 }
-class roborock_vacuum_m1s extends roborock_vacuum //S1
+class roborock_vacuum_m1s extends roborock_vacuum //1S
 {
     public const CONSUMABLES = [];
 
@@ -157,6 +166,25 @@ class roborock_vacuum_m1s extends roborock_vacuum //S1
 
     public const FEATURES = [
     ];
+}
+
+class rockrobo_vacuum_v1 extends roborock_vacuum //V1
+{
+    public const CONSUMABLES = [
+        Consumable::MAINBRUSH => 'main_brush_work_time',
+        Consumable::SIDEBRUSH => 'side_brush_work_time',
+        Consumable::FILTER    => 'filter_work_time',
+        Consumable::SENSOR    => 'sensor_dirty_time'
+    ];
+
+    public const FANPOWER = Fanpower::V1;
+
+    public const FEATURES = [
+        Features::SUPPORT_101,
+        Features::SUPPORT_102,
+        Features::SUPPORT_104,
+        Features::SUPPORT_105,
+        ];
 }
 
 class roborock_vacuum_s5 extends roborock_vacuum
