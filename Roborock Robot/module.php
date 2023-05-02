@@ -358,7 +358,7 @@ class Roborock extends IPSModule
 
         $ass = [];
         foreach (self::ERROR_CODES as $code => $error) {
-            $ass[] = [$code, $error, '', -1];
+            $ass[] = [$code, $this->Translate($error), '', -1];
         }
         $this->RegisterProfileAssociation(
             self::PROFILE_ERRORCODE,
@@ -4186,7 +4186,8 @@ EOF;
 
                 if ($cleaning_records = $this->ReadAttributeString(self::ATTRIBUTE_CLEANING_RECORDS)) {
                     $cleaning_records = json_decode($cleaning_records, true, 512, JSON_THROW_ON_ERROR);
-
+                    $this->_debug(__FUNCTION__, sprintf('cleaning_records: %s', $this->ReadAttributeString(self::ATTRIBUTE_CLEANING_RECORDS)));
+                    $this->_debug(__FUNCTION__, sprintf('html_data: %s', json_encode($html_data)));
                     // merge cleaning records with html data
                     $cleaning_records[key($html_data)] = $html_data[key($html_data)];
 
