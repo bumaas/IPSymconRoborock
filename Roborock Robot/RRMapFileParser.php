@@ -94,9 +94,11 @@ class RRMapFileParser
     private bool   $isValid      = false;
 
 
-    public function __construct($raw)
+    public function __construct($raw, callable $Logger_Dbg)
     {
-        $printBlockDetails  = false;
+
+        $this->Logger_Dbg       = $Logger_Dbg;
+
         $mapHeaderLength    = $this->getUInt16($raw, 0x02);
         $mapDataLength      = $this->getUInt32LE($raw, 0x04);
         $this->majorVersion = $this->getUInt16($raw, 0x08);
@@ -106,6 +108,8 @@ class RRMapFileParser
 
         $blockStartPos = $this->getUInt16($raw, 0x02); // main header length
 
+        call_user_func($this->Logger_Dbg, __CLASS__, sprintf('HeaderLength: %s, DataLenght: %s, majorVersion: %s, minorVersion: %s', $mapHeaderLength, $mapDataLength, $this->majorVersion, $this->minorVersion));
+
         while ($blockStartPos < strlen($raw)) {
             $blockHeaderLength = $this->getUInt16($raw, $blockStartPos + 0x02);
             $header            = substr($raw, $blockStartPos, $blockHeaderLength);
@@ -114,7 +118,7 @@ class RRMapFileParser
             $blockDataStart    = $blockStartPos + $blockHeaderLength;
 
             if ($blockDataLength) {
-                //echo sprintf('Blocktype: %s, headerLenght: %s, dataLength: %s', $blocktype, $blockHeaderLength, $blockDataLength) . "\r\n";
+                call_user_func($this->Logger_Dbg,__CLASS__, sprintf('Blocktype: %s, headerLenght: %s, dataLength: %s', $blocktype, $blockHeaderLength, $blockDataLength));
             }
 
             $data = substr($raw, $blockDataStart, $blockDataLength);
@@ -267,10 +271,6 @@ class RRMapFileParser
                     }
                     break;
 
-                case self::DIGEST:
-                    $this->isValid = bin2hex($data) === sha1(substr($raw, 0, $mapHeaderLength + $mapDataLength - 20));
-                    break;
-
                 case self::SMART_ZONES_PATH_TYPE:
                 case self::SMART_ZONES:
                 case self::CUSTOM_CARPET:
@@ -281,6 +281,11 @@ class RRMapFileParser
                 case self::ENEMIES:
                 case self::UNKNOWN_33:
                     // new blocktypes not yet decoded
+                    break;
+
+                case self::DIGEST:
+                    $this->isValid = bin2hex($data) === sha1(substr($raw, 0, $mapHeaderLength + $mapDataLength - 20));
+                    call_user_func($this->Logger_Dbg,__CLASS__, sprintf('valid: %s', (int) $this->isValid));
                     break;
 
                 default:

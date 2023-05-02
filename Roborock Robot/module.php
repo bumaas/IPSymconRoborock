@@ -1215,17 +1215,23 @@ class Roborock extends IPSModule
         if (file_exists($filename)) {
             $result = file_get_contents($filename);
         } else {
+            $this->_debug(__FUNCTION__, sprintf('File does not exist: %s', $filename));
             return false;
         }
         if ($result) {
             $data = gzdecode($result);
         } else {
+            $this->_debug(__FUNCTION__, sprintf('gzdecode failed: %s', $filename));
             return false;
         }
 
         ini_set('memory_limit', '48M');
-        $pic = new RRMapFileParser($data);
+        $pic = new RRMapFileParser($data,
+            function (string $message, string $data) {
+                $this->_debug($message, $data);
+            });
         if (!$pic->isValid()) {
+            $this->_debug(__FUNCTION__, sprintf('pic is invalid: %s', $filename));
             return false;
         }
 
@@ -1233,9 +1239,10 @@ class Roborock extends IPSModule
         $picture = $draw->getImage($this->ReadPropertyInteger(self::PROPERTY_MAP_PICTURE_SCALE) / 100);
 
         if ($picture === '') {
+            $this->_debug(__FUNCTION__, sprintf('picture is empty: %s', $filename));
             return false;
         }
-
+        $this->_debug(__FUNCTION__, 'fertig');
         $this->CreateMapPictureVariable(self::IDENT_MAP_PICTURE_FILE, 'Karte aus Datei', sprintf('Map_File_%s.png', $this->InstanceID));
 
         return IPS_SetMediaContent(IPS_GetObjectIDByIdent(self::IDENT_MAP_PICTURE_FILE, $this->InstanceID), base64_encode($picture));
@@ -1317,7 +1324,10 @@ class Roborock extends IPSModule
         //$data = $this->loadMapFileFromFile(IPS_GetKernelDir() . 'logs\s7karte');
 
         ini_set('memory_limit', '48M');
-        $pic = new RRMapFileParser($data);
+        $pic = new RRMapFileParser($data,
+            function (string $message, string $data) {
+                $this->_debug($message, $data);
+            });
         if (!$pic->isValid()) {
             return false;
         }
@@ -4102,6 +4112,7 @@ EOF;
         if (isset($data['result'][0])) {
             $record = $data['result'][0];
 
+            $start_time = 0;
             if (isset($record[0])) {
                 $start_time = $record[0];
             }
@@ -4109,6 +4120,7 @@ EOF;
                 $start_time = $record['begin'];
             }
 
+            $end_time = 0;
             if (isset($record[1])) {
                 $end_time = $record[1];
             }
@@ -4116,13 +4128,18 @@ EOF;
                 $end_time = $record['end'];
             }
 
+            $cleaning_duration = 0;
             if (isset($record[2])) {
                 $cleaning_duration = $record[2];
             }
             if (isset($record['duration'])) {
                 $cleaning_duration = $record['duration'];
             }
+            if ($cleaning_duration === 0){
+                $cleaning_duration = $end_time - $start_time;
+            }
 
+            $area = 0;
             if (isset($record[3])) {
                 $area = (float)$record[3] / 1000000; //cm2 -> m2
             }
@@ -4130,6 +4147,7 @@ EOF;
                 $area = (float)$record['area'] / 1000000; //cm2 -> m2
             }
 
+            $errors = 0;
             if (isset($record[4])) {
                 $errors = $record[4];
             }
@@ -4137,6 +4155,7 @@ EOF;
                 $errors = $record['error'];
             }
 
+            $completed = 0;
             if (isset($record[5])) {
                 $completed = $record[5];
             }
@@ -4166,13 +4185,10 @@ EOF;
                 ];
 
                 if ($cleaning_records = $this->ReadAttributeString(self::ATTRIBUTE_CLEANING_RECORDS)) {
-                    $this->_debug(__FUNCTION__, 'cleaning_records: ' .  $cleaning_records);
-                    $this->_debug(__FUNCTION__, 'html_data: ' .  json_encode($html_data));
                     $cleaning_records = json_decode($cleaning_records, true, 512, JSON_THROW_ON_ERROR);
 
                     // merge cleaning records with html data
                     $cleaning_records[key($html_data)] = $html_data[key($html_data)];
-                    $this->_debug(__FUNCTION__, 'merged: ' .  json_encode($cleaning_records));
 
                     // sort by key (time)
                     krsort($cleaning_records);
@@ -4212,16 +4228,18 @@ EOF;
                 }
 
                 // build html table
+                $head = [
+                    $this->Translate('Day'),
+                    $this->Translate('Date'),
+                    $this->Translate('Cleaning Duration'),
+                    $this->Translate('Area'),
+                    $this->Translate('Errors'),
+                    $this->Translate('Completed'),
+                ];
+
                 $html = $this->_convertDataToTable([
                                                        'table' => [
-                                                           'head' => [
-                                                               $this->Translate('Day'),
-                                                               $this->Translate('Date'),
-                                                               $this->Translate('Cleaning Duration'),
-                                                               $this->Translate('Area'),
-                                                               $this->Translate('Errors'),
-                                                               $this->Translate('Completed'),
-                                                           ],
+                                                           'head' => $head,
                                                            'body' => $body_data
                                                        ]
                                                    ]);

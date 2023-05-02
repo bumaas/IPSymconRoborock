@@ -106,11 +106,26 @@ class Features extends stdClass
     public const GET_CONSUMABLES = 1; //get_consumables
 
     public const SUPPORT_101 = 101; //V1
-    public const SUPPORT_102 = 102; //V1
-    public const SUPPORT_CLEAN_TIME = 103;
-    public const SUPPORT_104 = 104; //V1
-    public const SUPPORT_105 = 105; //V1
-    public const MULTI_FLOOR_SUPPORT = 120; //get_multi_maps_list available
+    public const SUPPORT_102 = 102; //V1, S5
+    public const SUPPORT_CLEAN_TIME = 103; //S5
+    public const SUPPORT_104 = 104; //V1, S5
+    public const SUPPORT_105 = 105; //V1, S5
+    public const SUPPORT_111 = 111; //a10, S5, S8
+    public const SUPPORT_112 = 112; //a10, S5, S8
+    public const SUPPORT_113 = 113; //a10, S5, S8
+    public const SUPPORT_114 = 114; //a10, S5, S8
+    public const SUPPORT_115 = 115; //a10, S5, S8
+    public const SUPPORT_116 = 116; //a10, S5, S8
+    public const SUPPORT_117 = 117; //a10, S5, S8
+    public const SUPPORT_118 = 118; //a10, S5, S8
+    public const SUPPORT_119 = 119; //a10, S5, S8
+    public const MULTI_FLOOR_SUPPORT = 120; //get_multi_maps_list available , S8
+    public const SUPPORT_121 = 121; //a10, S8
+    public const SUPPORT_122 = 122; //a10, S5, S8
+    public const SUPPORT_123 = 123; //a10, S5, S8
+    public const SUPPORT_124 = 124; //a10, S8
+    public const SUPPORT_125 = 125; //a10, S5, S8
+
 }
 
 class roborock_vacuum
@@ -197,8 +212,23 @@ class roborock_vacuum_s5 extends roborock_vacuum
     ];
     public const FEATURES = [
         Features::GET_CONSUMABLES,
+        Features::SUPPORT_102,
+        Features::SUPPORT_CLEAN_TIME,
+        Features::SUPPORT_104,
+        Features::SUPPORT_105,
+        Features::SUPPORT_111,
+        Features::SUPPORT_112,
+        Features::SUPPORT_113,
+        Features::SUPPORT_114,
+        Features::SUPPORT_115,
+        Features::SUPPORT_116,
+        Features::SUPPORT_117,
+        Features::SUPPORT_118,
+        Features::SUPPORT_119,
+        Features::SUPPORT_122,
+        Features::SUPPORT_123,
+        Features::SUPPORT_124,
     ];
-
 }
 
 class roborock_vacuum_s5e extends roborock_vacuum
@@ -237,7 +267,24 @@ class roborock_vacuum_s6 extends roborock_vacuum //S6
 }
 class roborock_vacuum_a10 extends roborock_vacuum_s6 //S6 MaxV
 {
-   // public const FEATURES = [];
+    public const FEATURES = [
+        Features::GET_CONSUMABLES,
+        Features::SUPPORT_111,
+        Features::SUPPORT_112,
+        Features::SUPPORT_113,
+        Features::SUPPORT_114,
+        Features::SUPPORT_115,
+        Features::SUPPORT_116,
+        Features::SUPPORT_117,
+        Features::SUPPORT_118,
+        Features::SUPPORT_119,
+        Features::MULTI_FLOOR_SUPPORT,
+        Features::SUPPORT_121,
+        Features::SUPPORT_122,
+        Features::SUPPORT_123,
+        Features::SUPPORT_124,
+        Features::SUPPORT_125,
+    ];
 
 }
 
@@ -261,7 +308,21 @@ class roborock_vacuum_a15 extends roborock_vacuum //S7
 
     public const FEATURES = [
         Features::GET_CONSUMABLES,
+        Features::SUPPORT_111,
+        Features::SUPPORT_112,
+        Features::SUPPORT_113,
+        Features::SUPPORT_114,
+        Features::SUPPORT_115,
+        Features::SUPPORT_116,
+        Features::SUPPORT_117,
+        Features::SUPPORT_118,
+        Features::SUPPORT_119,
         Features::MULTI_FLOOR_SUPPORT,
+        Features::SUPPORT_121,
+        Features::SUPPORT_122,
+        Features::SUPPORT_123,
+        Features::SUPPORT_124,
+        Features::SUPPORT_125,
     ];
 
 }
@@ -285,7 +346,21 @@ class roborock_vacuum_a27 extends roborock_vacuum //S7 MaxV
 
     public const FEATURES = [
         Features::GET_CONSUMABLES,
+        Features::SUPPORT_111,
+        Features::SUPPORT_112,
+        Features::SUPPORT_113,
+        Features::SUPPORT_114,
+        Features::SUPPORT_115,
+        Features::SUPPORT_116,
+        Features::SUPPORT_117,
+        Features::SUPPORT_118,
+        Features::SUPPORT_119,
         Features::MULTI_FLOOR_SUPPORT,
+        Features::SUPPORT_121,
+        Features::SUPPORT_122,
+        Features::SUPPORT_123,
+        Features::SUPPORT_124,
+        Features::SUPPORT_125,
     ];
 
 }
