@@ -4186,7 +4186,7 @@ EOF;
 
                 if ($cleaning_records = $this->ReadAttributeString(self::ATTRIBUTE_CLEANING_RECORDS)) {
                     //to be compatible with older module versions
-                    if ($cleaning_records===''){
+                    if (!is_array($cleaning_records)){
                         $cleaning_records = '[]';
                     }
                     $cleaning_records = json_decode($cleaning_records, true, 512, JSON_THROW_ON_ERROR);
