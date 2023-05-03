@@ -293,7 +293,7 @@ class Roborock extends IPSModule
         $this->RegisterAttributeString(self::ATTRIBUTE_LOGIN_ACCOUNT_DATA, json_encode([], JSON_THROW_ON_ERROR));
         $this->RegisterAttributeString(self::ATTRIBUTE_LAST_NOTIFICATION_STATE, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_LAST_NOTIFICATION_ERROR, '');
-        $this->RegisterAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, '');
+        $this->RegisterAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, '[]');
         $this->RegisterAttributeString(self::ATTRIBUTE_MODEL, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_MAPFILE_URL, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode([], JSON_THROW_ON_ERROR));
@@ -4185,9 +4185,13 @@ EOF;
                 ];
 
                 if ($cleaning_records = $this->ReadAttributeString(self::ATTRIBUTE_CLEANING_RECORDS)) {
+                    //to be compatible with older module versions
+                    if ($cleaning_records===''){
+                        $cleaning_records = '[]';
+                    }
                     $cleaning_records = json_decode($cleaning_records, true, 512, JSON_THROW_ON_ERROR);
                     $this->_debug(__FUNCTION__, sprintf('cleaning_records: %s', $this->ReadAttributeString(self::ATTRIBUTE_CLEANING_RECORDS)));
-                    $this->_debug(__FUNCTION__, sprintf('html_data: %s', json_encode($html_data)));
+                    $this->_debug(__FUNCTION__, sprintf('html_data: %s', json_encode($html_data, JSON_THROW_ON_ERROR)));
                     // merge cleaning records with html data
                     $cleaning_records[key($html_data)] = $html_data[key($html_data)];
 
