@@ -299,6 +299,16 @@ class Roborock extends IPSModule
         $this->RegisterAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode([], JSON_THROW_ON_ERROR));
         $this->RegisterAttributeString(self::ATTRIBUTE_ROOM_NAMES, json_encode([], JSON_THROW_ON_ERROR));
         $this->RegisterAttributeString(self::ATTRIBUTE_ROOM_SELECTION, json_encode([], JSON_THROW_ON_ERROR));
+
+        //we will wait until the kernel is ready
+        $this->RegisterMessage(0, IPS_KERNELMESSAGE);
+
+        //we will set the instance status when the parent status changes
+
+        if($this->GetParent() > 0) {
+            $this->RegisterMessage($this->GetParent(), IM_CHANGESTATUS);
+        }
+
     }
 
     /** @noinspection ReturnTypeCanBeDeclaredInspection
@@ -336,6 +346,10 @@ class Roborock extends IPSModule
     public function ApplyChanges()
     {
         parent::ApplyChanges();
+
+        if (IPS_GetKernelRunlevel() !== KR_READY) {
+            return;
+        }
 
         $classname = get_class($this->device);
         if ($classname !== 'roborock_vacuum') {
@@ -662,14 +676,11 @@ class Roborock extends IPSModule
             )
         );
 
-        // run only, when kernel is ready
-        if (IPS_GetKernelRunlevel() === KR_READY) {
-            // validate configuration
-            $valid_config = $this->ValidateConfiguration();
+        // validate configuration
+        $valid_config = $this->ValidateConfiguration();
 
-            // set interval
-            $this->SetUpdateInterval($valid_config);
-        }
+        // set interval
+        $this->SetUpdateInterval($valid_config);
     }
 
     /**
@@ -684,11 +695,20 @@ class Roborock extends IPSModule
      */
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
-        if (($Message === IPS_KERNELMESSAGE) && ($Data[0] === KR_READY)) {
-            // validate configuration & set interval
-            $valid_config = $this->ValidateConfiguration();
-            $this->SetUpdateInterval($valid_config);
+        $this->_debug(__FUNCTION__, 'SenderID: ' . $SenderID . ', Message: ' . $Message . ', Data:' . json_encode($Data));
+
+        switch ($Message) {
+            case IPS_KERNELMESSAGE:
+                if ($Data[0] === KR_READY) {
+                    $this->ApplyChanges();
+                }
+                break;
+
+            case IM_CHANGESTATUS:
+                $this->ApplyChanges();
+                break;
         }
+
     }
 
     /**
@@ -4551,6 +4571,11 @@ EOF;
         }
 
         IPS_DeleteVariableProfile($Name);
+    }
+    private function GetParent()
+    {
+        $instance = IPS_GetInstance($this->InstanceID); //array
+        return ($instance['ConnectionID'] > 0) ? $instance['ConnectionID'] : 0; //ConnectionID
     }
 
 }

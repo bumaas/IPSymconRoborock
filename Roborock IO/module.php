@@ -75,6 +75,7 @@ class RoborockIO extends IPSModule
 
         //we will wait until the kernel is ready
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
+
     }
 
     /**
@@ -99,21 +100,8 @@ class RoborockIO extends IPSModule
 
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
-        switch ($Message) {
-            case IM_CHANGESTATUS:
-                if ($Data[0] === IS_ACTIVE) {
+        if (($Message === IPS_KERNELMESSAGE) && ($Data[0] === KR_READY)) {
                     $this->ApplyChanges();
-                }
-                break;
-
-            case IPS_KERNELMESSAGE:
-                if ($Data[0] === KR_READY) {
-                    $this->ApplyChanges();
-                }
-                break;
-
-            default:
-                break;
         }
     }
 
