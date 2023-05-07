@@ -96,6 +96,8 @@ Beispiel einer Darstellung im Webfront:
 
 ### Roborock Staubsauger Roboter:
 
+Für alle Funktionen gilt: der Parameter _$InstanceID_ ist die __*ObjektID*__ der Roborock Instanz
+
  _**Startet den Reinigungsvorgang**_
   
  ```php
@@ -140,50 +142,36 @@ _**Liste von Räumen holen**_
  Roborock_Stop($InstanceID);
  ```   
  
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
- 
- _**Pausiert den Reinigungsvorgang**_
+  _**Pausiert den Reinigungsvorgang**_
    
  ```php
  Roborock_Pause($InstanceID);
  ```   
   
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
-  
- _**Fährt zum Aufladen zur Ladestation**_
+  _**Fährt zum Aufladen zur Ladestation**_
     
  ```php
  Roborock_Charge($InstanceID);
  ```   
-   
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
-   
+  
  _**Weist den Sauger an sich mit einem Sound zur Lokalisierung zu melden**_
     
  ```php
  Roborock_Locate($InstanceID);
  ```   
    
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
-
  _**Startet eine Reinigung um den Standort des Saugers**_
     
  ```php
  Roborock_CleanSpot($InstanceID);
  ```   
    
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
- 
- 
- _**Liest den Status vom Roborock aus**_
+  _**Liest den Status vom Roborock aus**_
      
  ```php
  Roborock_Get_State($InstanceID);
  ```   
-    
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz  
- 
- Gibt zurück:
+  Gibt zurück:
  - Batterieladung
  - Reinigungsfläche
  - Reinigungszeit
@@ -196,31 +184,31 @@ _**Liste von Räumen holen**_
  Roborock_Get_Serial_Number($InstanceID);
  ```   
      
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz  
-   
  _**Liest Zustand der Verbrauchsgegenstände aus**_
        
  ```php
  Roborock_Get_Consumables($InstanceID);
  ```   
-      
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz  
  
  _**Liest Zusammenfassung der Reinigung aus**_
         
   ```php
   Roborock_GetCleanSummary($InstanceID);
   ```   
-       
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
   
  _**Liest Status Do Not Disturb Mode aus**_
           
  ```php
  Roborock_Get_DND_Mode($InstanceID);
  ```   
-         
-  Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz     
+ 
+_**Zum Zurücksetzen der Verbrauchsmaterialien**_
+```php
+Roborock_Reset_Filter($InstanceID);
+Roborock_Reset_Mainbrush($InstanceID);
+Roborock_Reset_Sidebrush($InstanceID);
+Roborock_Reset_Sensors($InstanceID);
+```
 
 ## 5. Konfiguration:
 

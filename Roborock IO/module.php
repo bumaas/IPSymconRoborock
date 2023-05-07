@@ -61,6 +61,7 @@ class RoborockIO extends IPSModule
     /**
      * create instance.
      *
+     * @noinspection ReturnTypeCanBeDeclaredInspection
      */
     public function Create()
     {
@@ -81,6 +82,7 @@ class RoborockIO extends IPSModule
     /**
      * apply changes from configuration form.
      *
+     * @noinspection ReturnTypeCanBeDeclaredInspection
      */
     public function ApplyChanges()
     {
@@ -98,6 +100,7 @@ class RoborockIO extends IPSModule
         $this->SetStatus(IS_ACTIVE);
     }
 
+    /** @noinspection ReturnTypeCanBeDeclaredInspection */
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
         if (($Message === IPS_KERNELMESSAGE) && ($Data[0] === KR_READY)) {
@@ -265,12 +268,10 @@ class RoborockIO extends IPSModule
                 $data_decrypted = $this->_decrypt($message);
 
                 // validate json response
-                if ($data_decrypted !== false) {
-                    if ($result = $this->_validateResponse($data_decrypted, $messageId)) {
-                        $this->SendDebug('socket [result]', json_encode($result, JSON_THROW_ON_ERROR), 0);
-                        $this->attempts = 0;
-                        return $result;
-                    }
+                if (($data_decrypted !== false) && $result = $this->_validateResponse($data_decrypted, $messageId)) {
+                    $this->SendDebug('socket [result]', json_encode($result, JSON_THROW_ON_ERROR), 0);
+                    $this->attempts = 0;
+                    return $result;
                 }
 
                 if ($this->attempts < 3) {
@@ -354,7 +355,7 @@ class RoborockIO extends IPSModule
      *
      * @param object $payload
      *
-     * @return void
+     * @return array|bool|false[]|string|string[]|null
      * @throws \JsonException
      */
     private function Retry(object $payload)
