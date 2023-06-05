@@ -649,7 +649,7 @@ class Roborock extends IPSModule
                 self::PROFILE_CLEANING_CYCLES,
                 $this->_getPosition()
             );
-            if ($this->GetValue(self::IDENT_CLEANING_CYCLES) === 0) {
+            if ((int) $this->GetValue(self::IDENT_CLEANING_CYCLES) === 0) {
                 $this->_SetValue(self::IDENT_CLEANING_CYCLES, 1);
             }
             $this->EnableAction(self::IDENT_CLEANING_CYCLES);
@@ -677,10 +677,10 @@ class Roborock extends IPSModule
         );
 
         // validate configuration
-        $valid_config = $this->ValidateConfiguration();
+        $this->ValidateConfiguration();
 
         // set interval
-        $this->SetUpdateInterval($valid_config);
+        $this->SetUpdateInterval();
     }
 
     /**
@@ -695,7 +695,7 @@ class Roborock extends IPSModule
      */
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
-        $this->_debug(__FUNCTION__, 'SenderID: ' . $SenderID . ', Message: ' . $Message . ', Data:' . json_encode($Data));
+        $this->_debug(__FUNCTION__, 'SenderID: ' . $SenderID . ', Message: ' . $Message . ', Data:' . json_encode($Data, JSON_THROW_ON_ERROR));
 
         switch ($Message) {
             case IPS_KERNELMESSAGE:
@@ -774,12 +774,16 @@ class Roborock extends IPSModule
     /**
      * set / unset update interval.
      *
-     * @param bool $enable
      */
-    private function SetUpdateInterval(bool $enable = true): void
+    private function SetUpdateInterval(): void
     {
-        $interval = $enable ? ($this->ReadPropertyInteger(self::PROPERTY_UPDATE_INTERVAL) * 1000) : 0;
+        if ($this->GetStatus() === IS_ACTIVE){
+            $interval = $this->ReadPropertyInteger(self::PROPERTY_UPDATE_INTERVAL) * 1000;
+        } else {
+            $interval = 0;
+        }
         $this->SetTimerInterval(self::TIMER_UPDATE, $interval);
+
         if ($interval === 0) {
             $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 0);
         }
@@ -791,10 +795,10 @@ class Roborock extends IPSModule
         $this->WriteAttributeString(self::ATTRIBUTE_TOKEN, $token);
 
         // validate configuration
-        $valid_config = $this->ValidateConfiguration();
+        $this->ValidateConfiguration();
 
         // set interval
-        $this->SetUpdateInterval($valid_config);
+        $this->SetUpdateInterval();
     }
 
     /**
@@ -1319,7 +1323,7 @@ class Roborock extends IPSModule
                 $mapName = $this->RequestData('get_map_v1');
                 $this->_debug(__FUNCTION__, sprintf('mapName: %s', json_encode($mapName, JSON_THROW_ON_ERROR)));
                 $count++;
-            } while ((!$mapName || ($mapName === 'retry')) && $count < 3);
+            } while ((!$mapName || ((string) $mapName === 'retry')) && $count < 3);
 
             $data = $this->getApiIO('/home/getmapfileurl', ['obj_name' => $mapName]);
 
@@ -1611,11 +1615,12 @@ class Roborock extends IPSModule
     /**
      * move robot to direction.
      *
-     * @param int      $direction -100..100
-     * @param int      $velocity  0..100
-     * @param int|null $time      in ms
+     * @param int $direction -100..100
+     * @param int $velocity  0..100
+     * @param int $time      in ms
      *
      * @return array|bool
+     * @throws \JsonException
      */
     public function Move_Direction(int $direction, int $velocity, int $time = 1000)
     {
@@ -3080,7 +3085,7 @@ class Roborock extends IPSModule
     public function SetJoystickHtml(): void
     {
         $joystick = file_get_contents(dirname(__FILE__, 2) . '/libs/joystick.html');
-        $joystick = str_replace('[instance_id]', $this->InstanceID, $joystick);
+        $joystick = str_replace('[instance_id]', (string) $this->InstanceID, $joystick);
         $this->SetValue(self::IDENT_REMOTE_CONTROL, $joystick);
     }
 
@@ -3362,7 +3367,7 @@ EOF;
 
         // -- token of device by getDeviceStatus --
         $deviceData = $this->getDeviceStatus();
-        if ($deviceData === false) {
+        if ($deviceData === []) {
             return false;
         }
         if (!isset($deviceData['result']['list'][0]['did'], $deviceData['result']['list'][0]['token'])) {
@@ -4132,29 +4137,21 @@ EOF;
         if (isset($data['result'][0])) {
             $record = $data['result'][0];
 
-            $start_time = 0;
-            if (isset($record[0])) {
-                $start_time = $record[0];
-            }
+            $start_time = $record[0]??0;
             if (isset($record['begin'])) {
                 $start_time = $record['begin'];
             }
 
-            $end_time = 0;
-            if (isset($record[1])) {
-                $end_time = $record[1];
-            }
+            $end_time = $record[1]??0;
             if (isset($record['end'])) {
                 $end_time = $record['end'];
             }
 
-            $cleaning_duration = 0;
-            if (isset($record[2])) {
-                $cleaning_duration = $record[2];
-            }
+            $cleaning_duration = $record[2]??0;
             if (isset($record['duration'])) {
                 $cleaning_duration = $record['duration'];
             }
+
             if ($cleaning_duration === 0){
                 $cleaning_duration = $end_time - $start_time;
             }
@@ -4167,18 +4164,12 @@ EOF;
                 $area = (float)$record['area'] / 1000000; //cm2 -> m2
             }
 
-            $errors = 0;
-            if (isset($record[4])) {
-                $errors = $record[4];
-            }
+            $errors = $record[4]??0;
             if (isset($record['error'])) {
                 $errors = $record['error'];
             }
 
-            $completed = 0;
-            if (isset($record[5])) {
-                $completed = $record[5];
-            }
+            $completed = $record[5]??0;
             if (isset($record['complete'])) {
                 $completed = $record['complete'];
             }
