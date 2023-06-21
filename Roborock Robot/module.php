@@ -3564,7 +3564,7 @@ EOF;
 
         curl_close($ch);
         if (($responsecode !== 200)) {
-            trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $url, $effectiveURL));
+            trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s, result: %s', __FUNCTION__, (int)$responsecode, $url, $effectiveURL, $result));
             return [];
         }
         return json_decode($result, true, 512, JSON_THROW_ON_ERROR);
