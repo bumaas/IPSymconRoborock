@@ -1327,10 +1327,10 @@ class Roborock extends IPSModule
             } while ((!$mapName || ((string) $mapName === 'retry')) && $count < 3);
 
             if ($mapName === 'retry'){
-                SetValueInteger(24034, GetValueInteger(24034) - 1);
+                //SetValueInteger(24034, GetValueInteger(24034) - 1);
                 return false;
             }
-            SetValueInteger(24034, GetValueInteger(24034) + 1);
+            //SetValueInteger(24034, GetValueInteger(24034) + 1);
 
             $data = $this->getApiIO('/home/getmapfileurl', ['obj_name' => $mapName]);
 
