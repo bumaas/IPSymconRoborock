@@ -863,11 +863,11 @@ class Roborock extends IPSModule
 
             // update maps picture
             if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE)) {
-                $this->GetMap();
+                //$this->GetMap(); //deaktiviert da zuviele Aufrufe
             }
 
             if (in_array($this->GetValue(self::IDENT_STATE), [4, 5, 6, 7, 11, 15, 16, 17, 18, 26], true)) {
-                $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 5000);
+                $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 10000);
             } elseif ($this->GetTimerInterval(self::TIMER_UPDATE_MAP) !== 0) {
                 $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 0);
                 // update clean summary
@@ -1303,7 +1303,7 @@ class Roborock extends IPSModule
     public function GetMap(): bool
     {
         if (!$this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE)) {
-            return false;
+            //return false;
         }
         //$url = $this->ReadAttributeString(self::ATTRIBUTE_MAPFILE_URL);
         $url = '';
@@ -1318,12 +1318,19 @@ class Roborock extends IPSModule
         }
 
         if (!$url) {
+            //trigger_error('get_map_v1 wurde aufgerufen. Die Anzahl der Zugriffe ist vermutlich pro Tag (?) beschränkt', E_USER_WARNING);
             $count = 0;
             do {
                 $mapName = $this->RequestData('get_map_v1');
                 $this->_debug(__FUNCTION__, sprintf('mapName: %s', json_encode($mapName, JSON_THROW_ON_ERROR)));
                 $count++;
             } while ((!$mapName || ((string) $mapName === 'retry')) && $count < 3);
+
+            if ($mapName === 'retry'){
+                SetValueInteger(24034, GetValueInteger(24034) - 1);
+                return false;
+            }
+            SetValueInteger(24034, GetValueInteger(24034) + 1);
 
             $data = $this->getApiIO('/home/getmapfileurl', ['obj_name' => $mapName]);
 

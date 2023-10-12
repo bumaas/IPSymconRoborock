@@ -137,7 +137,9 @@ class roborock_vacuum
         Consumable::SENSOR    => 'sensors'
     ];
 
+
     public const DEVICELIST = [
+        // see https://robotinfo.dev/
         'roborock.vacuum'     => 'Roborock Generic Vacuum Cleaner',
         'roborock.vacuum.m1s' => 'Mi Robot 1S',
         'rockrobo.vacuum.v1'  => 'Roborock V1',
@@ -148,6 +150,8 @@ class roborock_vacuum
         'roborock.vacuum.a15' => 'Roborock S7',
         'roborock.vacuum.a27' => 'Roborock S7 MaxV',
         'roborock.vacuum.a51' => 'Roborock S8',
+        'roborock.vacuum.a62' => 'Roborock S7 Pro Ultra',
+        'roborock.vacuum.a70' => 'Roborock S8 Pro Ultra',
     ];
 
     public const FANPOWER      = Fanpower::V2;

@@ -72,7 +72,7 @@ class RoborockIO extends IPSModule
         $this->SetBuffer('queue', '[]');
 
         // register timer
-        $this->RegisterTimer('RoborockQueue', 0, 'RoborockIO_HandleQueue(' . $this->InstanceID . ');');
+        $this->RegisterTimer('RoborockQueue', 0, sprintf('IPS_RequestAction(%s, "HandleQueue", "");', $this->InstanceID));
 
         //we will wait until the kernel is ready
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
@@ -159,13 +159,24 @@ class RoborockIO extends IPSModule
         return json_encode($form, JSON_THROW_ON_ERROR);
     }
 
+    public function RequestAction($Ident, $Value)
+    {
+        switch ($Ident){
+            case 'HandleQueue':
+                $this->HandleQueue();
+                break;
+            default:
+                trigger_error('Unexpected Ident: ' . $Ident, E_USER_ERROR);
+        }
+    }
+
     /**
      * Queue Handler.
      *
      * @return void
      * @throws \JsonException
      */
-    public function HandleQueue(): void
+    private function HandleQueue(): void
     {
         // get current queue
         $queue = json_decode($this->GetBuffer('queue'), false, 512, JSON_THROW_ON_ERROR);

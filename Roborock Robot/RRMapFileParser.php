@@ -36,6 +36,7 @@ class RRMapFileParser
     public const DOCK_TYPE               = 26;
     public const ENEMIES                 = 27;
     public const UNKNOWN_30              = 30; //since S8, SimonS
+    public const UNKNOWN_32              = 32; //since S8, cbeham
     public const UNKNOWN_33              = 33; //since S8, SimonS
     public const DIGEST                  = 1024;
     public const HEADER                  = 0x7272;
@@ -133,7 +134,7 @@ class RRMapFileParser
                 case self::IMAGE:
                     $this->imageSize = $blockDataLength;// (getUInt32LE(raw, blockStartPos + 0x04));
                     if ($blockHeaderLength > 0x1C) {
-                        IPS_LogMessage(__FUNCTION__, "block 2 unknown value @pos 8: " . $this->getUInt32LE($header, 0x08));
+                        IPS_LogMessage('Roborock MapFileParser - ' . __FUNCTION__, "block 2 unknown value @pos 8: " . $this->getUInt32LE($header, 0x08));
                     }
                     $this->top       = $this->getUInt32LE($header, $blockHeaderLength - 16);
                     $this->left      = $this->getUInt32LE($header, $blockHeaderLength - 12);
@@ -281,6 +282,7 @@ class RRMapFileParser
                 case self::DOCK_TYPE:
                 case self::ENEMIES:
                 case self::UNKNOWN_30:
+                case self::UNKNOWN_32:
                 case self::UNKNOWN_33:
                     // new blocktypes not yet decoded
                     break;
@@ -292,7 +294,7 @@ class RRMapFileParser
 
                 default:
                     if ($blockDataLength > 0) {
-                        IPS_LogMessage(
+                        IPS_LogMessage('Roborock MapFileParser - ' .
                             __FUNCTION__,
                             sprintf(
                                 'The blocktype %s is not yet supported. (header length: %s, data length: %s)',
