@@ -2143,7 +2143,7 @@ class Roborock extends IPSModule
         $roomNames = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES), true, 512, JSON_THROW_ON_ERROR);
         $mapsList  = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true, 512, JSON_THROW_ON_ERROR);
 
-        $ass = [[0, sprintf('- %s -', $this->Translate('All')), '', -1]];
+        $ass = [[0, sprintf('- %s -', $this->Translate('None')), '', -1]];
 
         if (count($mapsList) > 0) {
             $mapStatus = $this->GetValue(self::IDENT_MAP_STATUS);
@@ -3525,6 +3525,7 @@ EOF;
     {
         $loginLocationData = json_decode($this->ReadAttributeString(self::ATTRIBUTE_LOGIN_LOCATION_DATA), true, 512, JSON_THROW_ON_ERROR);
         if ($loginLocationData === []) {
+            $this->_debug(__FUNCTION__, 'no loginLocationData');
             return [];
         }
 
@@ -3551,6 +3552,7 @@ EOF;
 
         $loginAccountData = json_decode($this->ReadAttributeString(self::ATTRIBUTE_LOGIN_ACCOUNT_DATA), true, 512, JSON_THROW_ON_ERROR);
         if ($loginAccountData === []) {
+            $this->_debug(__FUNCTION__, 'no loginAccountData');
             return [];
         }
 
@@ -3558,6 +3560,7 @@ EOF;
         $body = http_build_query($body);
 
         $url = 'https://' . $server . 'api.io.mi.com/app' . $path;
+        $this->_debug(__FUNCTION__, sprintf('url: %s, params: %s', $url, json_encode($params)));
         $ch  = curl_init($url);
 
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);

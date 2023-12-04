@@ -112,7 +112,7 @@
       "Roomselection": "Raumauswahl",
       "Selected Rooms": "Getroffene Raumauswahl",
       "Cleaning Cycles": "Reinigungszyklen",
-      "All": "alle",
+      "None": "keine",
       "Locate": "Lokalisieren",
       "Extended Information (WLAN SSID, RSSI, firmware version, ip, model, mac)": "Erweiterte Informationen (WLAN SSID, RSSI, Firmware Version, IP-Adresse, Modell, MAC)",
       "Update Maps and Rooms": "Karten und Räume neu einlesen",
