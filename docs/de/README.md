@@ -437,6 +437,15 @@ _**Fährt zu den angegebenen Koordinaten**_
 
 Hinweis: die Basisstation hat die Koordinaten 2550, 2550. Eine Einheit entspricht ungefähr einem Millimeter.
 
+_**Holt die Karte**_
+
+ ```php
+ Roborock_GetMap(integer $InstanceID);
+ ```   
+
+Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
+
+
 
 ###  b. GUIDs und Datenaustausch:
 
