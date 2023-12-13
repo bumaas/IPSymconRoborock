@@ -863,7 +863,7 @@ class Roborock extends IPSModule
 
             // update maps picture
             if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE)) {
-                //$this->GetMap(); //deaktiviert da zuviele Aufrufe
+                //$this->GetMap(); //deaktiviert da zu viele Aufrufe
             }
 
             if (in_array($this->GetValue(self::IDENT_STATE), [4, 5, 6, 7, 11, 15, 16, 17, 18, 26], true)) {

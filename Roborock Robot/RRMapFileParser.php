@@ -32,7 +32,7 @@ class RRMapFileParser
     public const CUSTOM_CARPET           = 22;
     public const CL_FORBIDDEN_ZONES      = 23;
     public const FLOOR_MAP               = 24;
-    public const FURNITURES              = 25;
+    public const FURNITURE               = 25;
     public const DOCK_TYPE               = 26;
     public const ENEMIES                 = 27;
     public const UNKNOWN_30              = 30; //since S8, SimonS
@@ -95,11 +95,15 @@ class RRMapFileParser
 
     private bool   $isValid      = false;
 
+    /**
+     * @var callable
+     */
+    private $Logger_Dbg;
+
 
     public function __construct($raw, callable $Logger_Dbg)
     {
-
-        $this->Logger_Dbg       = $Logger_Dbg;
+        $this->Logger_Dbg = $Logger_Dbg;
 
         $mapHeaderLength    = $this->getUInt16($raw, 0x02);
         $mapDataLength      = $this->getUInt32LE($raw, 0x04);
@@ -110,7 +114,17 @@ class RRMapFileParser
 
         $blockStartPos = $this->getUInt16($raw, 0x02); // main header length
 
-        call_user_func($this->Logger_Dbg, __CLASS__, sprintf('HeaderLength: %s, DataLenght: %s, majorVersion: %s, minorVersion: %s', $mapHeaderLength, $mapDataLength, $this->majorVersion, $this->minorVersion));
+        call_user_func(
+            $this->Logger_Dbg,
+            __CLASS__,
+            sprintf(
+                'HeaderLength: %s, DataLength: %s, majorVersion: %s, minorVersion: %s',
+                $mapHeaderLength,
+                $mapDataLength,
+                $this->majorVersion,
+                $this->minorVersion
+            )
+        );
 
         while ($blockStartPos < strlen($raw)) {
             $blockHeaderLength = $this->getUInt16($raw, $blockStartPos + 0x02);
@@ -120,7 +134,11 @@ class RRMapFileParser
             $blockDataStart    = $blockStartPos + $blockHeaderLength;
 
             if ($blockDataLength) {
-                call_user_func($this->Logger_Dbg,__CLASS__, sprintf('Blocktype: %s, headerLenght: %s, dataLength: %s', $blocktype, $blockHeaderLength, $blockDataLength));
+                call_user_func(
+                    $this->Logger_Dbg,
+                    __CLASS__,
+                    sprintf('Blocktype: %s, headerLength: %s, dataLength: %s', $blocktype, $blockHeaderLength, $blockDataLength)
+                );
             }
 
             $data = substr($raw, $blockDataStart, $blockDataLength);
@@ -134,7 +152,10 @@ class RRMapFileParser
                 case self::IMAGE:
                     $this->imageSize = $blockDataLength;// (getUInt32LE(raw, blockStartPos + 0x04));
                     if ($blockHeaderLength > 0x1C) {
-                        IPS_LogMessage('Roborock MapFileParser - ' . __FUNCTION__, "block 2 unknown value @pos 8: " . $this->getUInt32LE($header, 0x08));
+                        IPS_LogMessage(
+                            'Roborock MapFileParser - ' . __FUNCTION__,
+                            "block 2 unknown value @pos 8: " . $this->getUInt32LE($header, 0x08)
+                        );
                     }
                     $this->top       = $this->getUInt32LE($header, $blockHeaderLength - 16);
                     $this->left      = $this->getUInt32LE($header, $blockHeaderLength - 12);
@@ -224,24 +245,24 @@ class RRMapFileParser
                     if ($obstacle2Pairs === 0) {
                         break;
                     }
-                    $obstacleDataLenght = $blockDataLength / $obstacle2Pairs;
+                    $obstacleDataLength = $blockDataLength / $obstacle2Pairs;
                     $obstacle2          = [];
                     for ($obstaclePair = 0; $obstaclePair < $obstacle2Pairs; $obstaclePair++) {
-                        $x0 = $this->getUInt16($data, $obstaclePair * $obstacleDataLenght + 0);
-                        $y0 = $this->getUInt16($data, $obstaclePair * $obstacleDataLenght + 2);
-                        $u0 = $this->getUInt16($data, $obstaclePair * $obstacleDataLenght + 4);
-                        $u1 = $this->getUInt16($data, $obstaclePair * $obstacleDataLenght + 6);
-                        $u2 = $this->getUInt32LE($data, $obstaclePair * $obstacleDataLenght + 8);
-                        if ($obstacleDataLenght === 28) {
-                            if (($data[$obstaclePair * $obstacleDataLenght + 12]) === '') {
+                        $x0 = $this->getUInt16($data, $obstaclePair * $obstacleDataLength + 0);
+                        $y0 = $this->getUInt16($data, $obstaclePair * $obstacleDataLength + 2);
+                        $u0 = $this->getUInt16($data, $obstaclePair * $obstacleDataLength + 4);
+                        $u1 = $this->getUInt16($data, $obstaclePair * $obstacleDataLength + 6);
+                        $u2 = $this->getUInt32LE($data, $obstaclePair * $obstacleDataLength + 8);
+                        if ($obstacleDataLength === 28) {
+                            if (($data[$obstaclePair * $obstacleDataLength + 12]) === '') {
                                 //echo "obstacle with photo: No text" . PHP_EOL;
                             } else {
-                                $txt = substr($data, $obstaclePair * $obstacleDataLenght + 12, 16);
+                                $txt = substr($data, $obstaclePair * $obstacleDataLength + 12, 16);
                                 //echo "obstacle with photo: {}" . $txt . PHP_EOL;
                             }
                             $obstacle2[] = [$x0, $y0, $u0, $u1, $u2];
                         } else {
-                            $u3          = $this->getUInt32LE($data, $obstaclePair * $obstacleDataLenght + 12);
+                            $u3          = $this->getUInt32LE($data, $obstaclePair * $obstacleDataLength + 12);
                             $obstacle2[] = [$x0, $y0, $u0, $u1, $u2, $u3];
                             //echo "obstacle without photo." . PHP_EOL;
                         }
@@ -251,11 +272,11 @@ class RRMapFileParser
 
                 case self::IGNORED_OBSTACLES2:
                     $ignoredObstaclePairs = $this->getUInt16($header, 0x08);
-                    $ignoredObstacle          = [];
+                    $ignoredObstacle      = [];
                     for ($obstaclePair = 0; $obstaclePair < $ignoredObstaclePairs; $obstaclePair++) {
-                        $x0 = $this->getUInt16($data, $obstaclePair * 6 + 0);
-                        $y0 = $this->getUInt16($data, $obstaclePair * 6 + 2);
-                        $u = $this->getUInt16($data, $obstaclePair * 6 + 4);
+                        $x0                = $this->getUInt16($data, $obstaclePair * 6 + 0);
+                        $y0                = $this->getUInt16($data, $obstaclePair * 6 + 2);
+                        $u                 = $this->getUInt16($data, $obstaclePair * 6 + 4);
                         $ignoredObstacle[] = [$x0, $y0, $u];
                     }
                     $this->obstacles[$blocktype] = $ignoredObstacle;
@@ -278,24 +299,24 @@ class RRMapFileParser
                 case self::CUSTOM_CARPET:
                 case self::CL_FORBIDDEN_ZONES:
                 case self::FLOOR_MAP:
-                case self::FURNITURES:
+                case self::FURNITURE:
                 case self::DOCK_TYPE:
                 case self::ENEMIES:
                 case self::UNKNOWN_30:
                 case self::UNKNOWN_32:
                 case self::UNKNOWN_33:
-                    // new blocktypes not yet decoded
+                    // new blocktype not yet decoded
                     break;
 
                 case self::DIGEST:
                     $this->isValid = bin2hex($data) === sha1(substr($raw, 0, $mapHeaderLength + $mapDataLength - 20));
-                    call_user_func($this->Logger_Dbg,__CLASS__, sprintf('valid: %s', (int) $this->isValid));
+                    call_user_func($this->Logger_Dbg, __CLASS__, sprintf('valid: %s', (int)$this->isValid));
                     break;
 
                 default:
                     if ($blockDataLength > 0) {
-                        IPS_LogMessage('Roborock MapFileParser - ' .
-                            __FUNCTION__,
+                        IPS_LogMessage(
+                            'Roborock MapFileParser - ' . __FUNCTION__,
                             sprintf(
                                 'The blocktype %s is not yet supported. (header length: %s, data length: %s)',
                                 $blocktype,

@@ -8,7 +8,7 @@ class Consumable extends stdClass
     public const FILTER        = 'filter';  //(Staub-)Filter
     public const FILTERELEMENT = 'filter_element'; //???
     public const SENSOR        = 'sensor'; //Sensoren
-    public const STRAINER      = 'strainer'; //(Wasser?)Sieb
+    public const STRAINER      = 'strainer'; //(Wasser?) Sieb
     public const DUSTCOLLECTOR = 'dust_collector'; //Staubsammler?
     public const CLEANINGBRUSH = 'cleaning_brush'; //Reinigungsbürste
 
