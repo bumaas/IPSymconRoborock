@@ -44,6 +44,8 @@ class Roborock extends IPSModule
     private const ATTRIBUTE_MAPS_LIST               = 'maps_list'; //hier sind alle Werte der Maps_List abgelegt
     private const ATTRIBUTE_ROOM_NAMES              = 'room_names'; //hier sind alle Texte unter der Referenznummer abgelegt [[referenz => Raumname], ...]
     private const ATTRIBUTE_ROOM_SELECTION          = 'room_selection'; //hier sind die für einen Reinigungsauftrag selektierten Räume abgelegt
+    private const ATTRIBUTE_AGENTID                 = 'agentId';
+    private const ATTRIBUTE_CLIENTID                = 'clientId';
 
     private const PROPERTY_IP                   = 'ip';
     private const PROPERTY_MODEL                = 'model';
@@ -61,7 +63,7 @@ class Roborock extends IPSModule
     private const PROPERTY_UPDATE_INTERVAL      = 'UpdateInterval';
     private const PROPERTY_CLEANING_ORDER       = 'CleaningOrder';
     private const PROPERTY_SERVER               = 'Server';
-    private const PROPERTY_CLEAN_TIME           ='clean_time';
+    private const PROPERTY_CLEAN_TIME           = 'clean_time';
 
     private const PROFILE_COMMAND         = 'Roborock.Command';
     private const PROFILE_ERRORCODE       = 'Roborock.Errorcode';
@@ -214,7 +216,7 @@ class Roborock extends IPSModule
     private const SINGLE_MAP = ['0' => ['mapFlag' => 0, 'MapName' => 'MyMap']];
 
     private const DEFAULT_VALUE_UPDATE_INTERVALL = 60;
-    private const MAX_NUMBER_OF_CLEAN_RECORDS = 5;
+    private const MAX_NUMBER_OF_CLEAN_RECORDS    = 5;
 
     // helper properties
     private int             $position = 0;
@@ -239,7 +241,6 @@ class Roborock extends IPSModule
      * create instance.
      *
      * @return void
-     * @noinspection ReturnTypeCanBeDeclaredInspection
      */
     public function Create()
     {
@@ -299,21 +300,19 @@ class Roborock extends IPSModule
         $this->RegisterAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode([], JSON_THROW_ON_ERROR));
         $this->RegisterAttributeString(self::ATTRIBUTE_ROOM_NAMES, json_encode([], JSON_THROW_ON_ERROR));
         $this->RegisterAttributeString(self::ATTRIBUTE_ROOM_SELECTION, json_encode([], JSON_THROW_ON_ERROR));
+        $this->RegisterAttributeString(self::ATTRIBUTE_AGENTID, $this->randomAgentId());
+        $this->RegisterAttributeString(self::ATTRIBUTE_CLIENTID, $this->randomClientId());
 
         //we will wait until the kernel is ready
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
 
         //we will set the instance status when the parent status changes
 
-        if($this->GetParent() > 0) {
+        if ($this->GetParent() > 0) {
             $this->RegisterMessage($this->GetParent(), IM_CHANGESTATUS);
         }
-
     }
 
-    /** @noinspection ReturnTypeCanBeDeclaredInspection
-     * @noinspection PhpMissingReturnTypeInspection
-     */
     public function Destroy()
     {
         $this->UnregisterProfile(sprintf('%s.%s', self::PROFILE_ROOMSELECTION, $this->InstanceID));
@@ -341,7 +340,6 @@ class Roborock extends IPSModule
      * apply changes from configuration form.
      *
      * @return void
-     * @noinspection ReturnTypeCanBeDeclaredInspection
      */
     public function ApplyChanges()
     {
@@ -649,7 +647,7 @@ class Roborock extends IPSModule
                 self::PROFILE_CLEANING_CYCLES,
                 $this->_getPosition()
             );
-            if ((int) $this->GetValue(self::IDENT_CLEANING_CYCLES) === 0) {
+            if ((int)$this->GetValue(self::IDENT_CLEANING_CYCLES) === 0) {
                 $this->_SetValue(self::IDENT_CLEANING_CYCLES, 1);
             }
             $this->EnableAction(self::IDENT_CLEANING_CYCLES);
@@ -691,7 +689,6 @@ class Roborock extends IPSModule
      * @param int   $Message
      * @param array $Data
      *
-     * @noinspection ReturnTypeCanBeDeclaredInspection
      */
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
     {
@@ -708,7 +705,6 @@ class Roborock extends IPSModule
                 $this->ApplyChanges();
                 break;
         }
-
     }
 
     /**
@@ -777,7 +773,7 @@ class Roborock extends IPSModule
      */
     private function SetUpdateInterval(): void
     {
-        if ($this->GetStatus() === IS_ACTIVE){
+        if ($this->GetStatus() === IS_ACTIVE) {
             $interval = $this->ReadPropertyInteger(self::PROPERTY_UPDATE_INTERVAL) * 1000;
         } else {
             $interval = 0;
@@ -938,7 +934,6 @@ class Roborock extends IPSModule
 
         //wenn ein Aufruf direkt erfolgt und nicht aus der Instanz heraus, dann soll er sofort ausgeführt werden /** @noinspection PhpUndefinedVariableInspection */
         //$this->SendDebug('IPS', json_encode($_IPS, JSON_THROW_ON_ERROR), 0);
-        /** @noinspection PhpUndefinedVariableInspection */
         if (($_IPS['SELF'] > 0 && $_IPS['SELF'] !== $this->InstanceID)
             || in_array($_IPS['SENDER'], ['Execute', 'Variable', 'RunScript', 'PHPModule'])) {
             $payload['immediate'] = true;
@@ -1250,10 +1245,9 @@ class Roborock extends IPSModule
         }
 
         ini_set('memory_limit', '48M');
-        $pic = new RRMapFileParser($data,
-            function (string $message, string $data) {
-                $this->_debug($message, $data);
-            });
+        $pic = new RRMapFileParser($data, function (string $message, string $data) {
+            $this->_debug($message, $data);
+        });
         if (!$pic->isValid()) {
             $this->_debug(__FUNCTION__, sprintf('pic is invalid: %s', $filename));
             return false;
@@ -1324,9 +1318,9 @@ class Roborock extends IPSModule
                 $mapName = $this->RequestData('get_map_v1');
                 $this->_debug(__FUNCTION__, sprintf('mapName: %s', json_encode($mapName, JSON_THROW_ON_ERROR)));
                 $count++;
-            } while ((!$mapName || ((string) $mapName === 'retry')) && $count < 3);
+            } while ((!$mapName || ((string)$mapName === 'retry')) && $count < 3);
 
-            if ($mapName === 'retry'){
+            if ($mapName === 'retry') {
                 //SetValueInteger(24034, GetValueInteger(24034) - 1);
                 return false;
             }
@@ -1355,10 +1349,9 @@ class Roborock extends IPSModule
         //$data = $this->loadMapFileFromFile(IPS_GetKernelDir() . 'logs\s7karte');
 
         ini_set('memory_limit', '48M');
-        $pic = new RRMapFileParser($data,
-            function (string $message, string $data) {
-                $this->_debug($message, $data);
-            });
+        $pic = new RRMapFileParser($data, function (string $message, string $data) {
+            $this->_debug($message, $data);
+        });
         if (!$pic->isValid()) {
             return false;
         }
@@ -3092,7 +3085,7 @@ class Roborock extends IPSModule
     public function SetJoystickHtml(): void
     {
         $joystick = file_get_contents(dirname(__FILE__, 2) . '/libs/joystick.html');
-        $joystick = str_replace('[instance_id]', (string) $this->InstanceID, $joystick);
+        $joystick = str_replace('[instance_id]', (string)$this->InstanceID, $joystick);
         $this->SetValue(self::IDENT_REMOTE_CONTROL, $joystick);
     }
 
@@ -3314,11 +3307,12 @@ EOF;
         $user     = $this->ReadPropertyString(self::PROPERTY_XIAOMI_USER);
         $password = $this->ReadPropertyString(self::PROPERTY_XIAOMI_PASSWORD);
 
-        $clientId = $this->randomClientId();
-        $this->SendDebug(__FUNCTION__, 'user/password: ' . json_encode([$user, $password], JSON_THROW_ON_ERROR), 0);
+        $clientId = $this->ReadAttributeString(self::ATTRIBUTE_CLIENTID);
+        $agentId = $this->ReadAttributeString(self::ATTRIBUTE_AGENTID);
+        $this->SendDebug(__FUNCTION__, 'user/password/agentId/clientId: ' . json_encode([$user, $password, $agentId, $clientId], JSON_THROW_ON_ERROR), 0);
 
         // -- login --
-        $loginData = $this->login($user, $clientId);
+        $loginData = $this->login($user, $agentId, $clientId);
 
         if (!$loginData || !isset($loginData['qs'], $loginData['callback'], $loginData['_sign'])) {
             $this->SendDebug(__FUNCTION__ . ': ERROR', 'Login failed, please check account at https://account.xiaomi.com', 0);
@@ -3333,7 +3327,7 @@ EOF;
         );
 
         // -- login_account --
-        $loginAccountData = $this->login_account($user, $password, $clientId, $loginData['qs'], $loginData['callback'], $loginData['_sign']);
+        $loginAccountData = $this->login_account($user, $password, $agentId, $clientId, $loginData['qs'], $loginData['callback'], $loginData['_sign']);
 
         if (!$loginAccountData || !isset($loginAccountData['ssecurity'], $loginAccountData['userId'], $loginAccountData['location'])) {
             $this->SendDebug(__FUNCTION__ . ': ERROR', 'Login failed, please check user/password at https://account.xiaomi.com', 0);
@@ -3356,7 +3350,7 @@ EOF;
         );
 
         // -- login_location --
-        $loginLocationData = $this->login_location($clientId, $loginAccountData['location']);
+        $loginLocationData = $this->login_location($agentId, $clientId, $loginAccountData['location']);
         if (!$loginLocationData || !isset($loginLocationData['userId'], $loginLocationData['serviceToken'])) {
             $this->SendDebug(__FUNCTION__ . ': ERROR', 'Login Location failed', 0);
             return false;
@@ -3409,11 +3403,20 @@ EOF;
         return $clientId;
     }
 
-    private function login(string $user, string $clientId)
+    private function randomAgentId(): string
+    {
+        $agentId = '';
+        for ($i = 0; $i < 7; $i++) {
+            $agentId .= chr(random_int(97, 122)); // buchstaben a bis z
+        }
+        return $agentId;
+    }
+
+    private function login(string $user, string $agentId, string $clientId)
     {
         $headers = [
             'Content-Type: application/x-www-form-urlencoded',
-            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $clientId . ' APP/xiaomi.smarthome APPV/62830',
+            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $agentId . ' APP/xiaomi.smarthome APPV/62830',
             'Cookie: sdkVersion=3.8.6; userId=' . trim($user) . '; deviceId=' . $clientId
         ];
         $url     = 'https://account.xiaomi.com/pass/serviceLogin?sid=xiaomiio&_json=true';
@@ -3434,11 +3437,11 @@ EOF;
         return $this->parseJson($result);
     }
 
-    private function login_account(string $user, string $password, string $clientId, string $qs, string $callback, string $sign)
+    private function login_account(string $user, string $password, string $agentId, string $clientId, string $qs, string $callback, string $sign)
     {
         $headers = [
             'Content-Type: application/x-www-form-urlencoded',
-            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-9D28921C354D7 APP/xiaomi.smarthome APPV/62830',
+            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $agentId . ' APP/xiaomi.smarthome APPV/62830',
             'Cookie: sdkVersion=accountsdk-18.8.15; deviceId=' . $clientId
         ];
         $form    = [
@@ -3473,11 +3476,11 @@ EOF;
         return $this->parseJson($result);
     }
 
-    private function login_location(string $clientId, string $url)
+    private function login_location(string $agentId, string $clientId, string $url)
     {
         $headers = [
             'Content-Type: application/x-www-form-urlencoded',
-            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-9D28921C354D7 APP/xiaomi.smarthome APPV/62830',
+            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $agentId . ' APP/xiaomi.smarthome APPV/62830',
             'Cookie: sdkVersion=accountsdk-18.8.15; deviceId=' . $clientId
         ];
         $ch      = curl_init($url);
@@ -3561,7 +3564,7 @@ EOF;
 
         $url = 'https://' . $server . 'api.io.mi.com/app' . $path;
         $this->_debug(__FUNCTION__, sprintf('url: %s, params: %s', $url, json_encode($params)));
-        $ch  = curl_init($url);
+        $ch = curl_init($url);
 
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -3574,7 +3577,16 @@ EOF;
 
         curl_close($ch);
         if (($responsecode !== 200)) {
-            trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s, result: %s', __FUNCTION__, (int)$responsecode, $url, $effectiveURL, $result));
+            trigger_error(
+                sprintf(
+                    '%s: responsecode: %s, URL: %s, effective URL: %s, result: %s',
+                    __FUNCTION__,
+                    (int)$responsecode,
+                    $url,
+                    $effectiveURL,
+                    $result
+                )
+            );
             return [];
         }
         return json_decode($result, true, 512, JSON_THROW_ON_ERROR);
@@ -4046,7 +4058,7 @@ EOF;
 
         // update clean record details
         foreach ($clean_records as $key => $record_id) {
-            if ($key >= self::MAX_NUMBER_OF_CLEAN_RECORDS){
+            if ($key >= self::MAX_NUMBER_OF_CLEAN_RECORDS) {
                 break;
             }
             $this->GetCleanRecord($record_id);
@@ -4147,22 +4159,22 @@ EOF;
         if (isset($data['result'][0])) {
             $record = $data['result'][0];
 
-            $start_time = $record[0]??0;
+            $start_time = $record[0] ?? 0;
             if (isset($record['begin'])) {
                 $start_time = $record['begin'];
             }
 
-            $end_time = $record[1]??0;
+            $end_time = $record[1] ?? 0;
             if (isset($record['end'])) {
                 $end_time = $record['end'];
             }
 
-            $cleaning_duration = $record[2]??0;
+            $cleaning_duration = $record[2] ?? 0;
             if (isset($record['duration'])) {
                 $cleaning_duration = $record['duration'];
             }
 
-            if ($cleaning_duration === 0){
+            if ($cleaning_duration === 0) {
                 $cleaning_duration = $end_time - $start_time;
             }
 
@@ -4174,12 +4186,12 @@ EOF;
                 $area = (float)$record['area'] / 1000000; //cm2 -> m2
             }
 
-            $errors = $record[4]??0;
+            $errors = $record[4] ?? 0;
             if (isset($record['error'])) {
                 $errors = $record['error'];
             }
 
-            $completed = $record[5]??0;
+            $completed = $record[5] ?? 0;
             if (isset($record['complete'])) {
                 $completed = $record['complete'];
             }
@@ -4207,7 +4219,7 @@ EOF;
 
                 if ($cleaning_records = $this->ReadAttributeString(self::ATTRIBUTE_CLEANING_RECORDS)) {
                     //to be compatible with older module versions
-                    if ($cleaning_records === ''){
+                    if ($cleaning_records === '') {
                         $cleaning_records = '[]';
                     } else {
                         $cleaning_records = json_decode($cleaning_records, true, 512, JSON_THROW_ON_ERROR);
@@ -4573,6 +4585,7 @@ EOF;
 
         IPS_DeleteVariableProfile($Name);
     }
+
     private function GetParent()
     {
         $instance = IPS_GetInstance($this->InstanceID); //array

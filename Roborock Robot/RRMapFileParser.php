@@ -294,6 +294,9 @@ class RRMapFileParser
                     }
                     break;
 
+                case self::GOTO_TARGET:
+                    break; //no need to print
+
                 case self::SMART_ZONES_PATH_TYPE:
                 case self::SMART_ZONES:
                 case self::CUSTOM_CARPET:
