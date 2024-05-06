@@ -3308,8 +3308,12 @@ EOF;
         $password = $this->ReadPropertyString(self::PROPERTY_XIAOMI_PASSWORD);
 
         $clientId = $this->ReadAttributeString(self::ATTRIBUTE_CLIENTID);
-        $agentId = $this->ReadAttributeString(self::ATTRIBUTE_AGENTID);
-        $this->SendDebug(__FUNCTION__, 'user/password/agentId/clientId: ' . json_encode([$user, $password, $agentId, $clientId], JSON_THROW_ON_ERROR), 0);
+        $agentId  = $this->ReadAttributeString(self::ATTRIBUTE_AGENTID);
+        $this->SendDebug(
+            __FUNCTION__,
+            'user/password/agentId/clientId: ' . json_encode([$user, $password, $agentId, $clientId], JSON_THROW_ON_ERROR),
+            0
+        );
 
         // -- login --
         $loginData = $this->login($user, $agentId, $clientId);
@@ -3327,7 +3331,8 @@ EOF;
         );
 
         // -- login_account --
-        $loginAccountData = $this->login_account($user, $password, $agentId, $clientId, $loginData['qs'], $loginData['callback'], $loginData['_sign']);
+        $loginAccountData =
+            $this->login_account($user, $password, $agentId, $clientId, $loginData['qs'], $loginData['callback'], $loginData['_sign']);
 
         if (!$loginAccountData || !isset($loginAccountData['ssecurity'], $loginAccountData['userId'], $loginAccountData['location'])) {
             $this->SendDebug(__FUNCTION__ . ': ERROR', 'Login failed, please check user/password at https://account.xiaomi.com', 0);
@@ -3574,17 +3579,19 @@ EOF;
         $result       = curl_exec($ch);
         $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+        $error        = curl_error($ch);
 
         curl_close($ch);
         if (($responsecode !== 200)) {
             trigger_error(
                 sprintf(
-                    '%s: responsecode: %s, URL: %s, effective URL: %s, result: %s',
+                    '%s: http responsecode: %s, URL: %s, effective URL: %s, result: %s, error: %s',
                     __FUNCTION__,
                     (int)$responsecode,
                     $url,
                     $effectiveURL,
-                    $result
+                    $result,
+                    $error
                 )
             );
             return [];
