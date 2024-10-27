@@ -934,6 +934,7 @@ class Roborock extends IPSModule
 
         //wenn ein Aufruf direkt erfolgt und nicht aus der Instanz heraus, dann soll er sofort ausgeführt werden /** @noinspection PhpUndefinedVariableInspection */
         //$this->SendDebug('IPS', json_encode($_IPS, JSON_THROW_ON_ERROR), 0);
+        /** @noinspection PhpUndefinedVariableInspection */
         if (($_IPS['SELF'] > 0 && $_IPS['SELF'] !== $this->InstanceID)
             || in_array($_IPS['SENDER'], ['Execute', 'Variable', 'RunScript', 'PHPModule'])) {
             $payload['immediate'] = true;
@@ -1357,11 +1358,7 @@ class Roborock extends IPSModule
         }
 
         $draw = new RRMapDraw($pic);
-        //echo '--------------GetImage!!!-----------------' . PHP_EOL;
         $picture = $draw->getImage($this->ReadPropertyInteger(self::PROPERTY_MAP_PICTURE_SCALE) / 100);
-
-        //echo '--------------Get OLD Image!!!-----------------'.PHP_EOL;
-        //$picture = $this->createPicture_old($data);
 
         if ($picture === '') {
             return false;

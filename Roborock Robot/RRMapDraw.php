@@ -13,18 +13,17 @@ class RRMapDraw
     private const TRANSPARENT = [1, 0, 0];
 
     private const COLOR_MAP_OUTSIDE = self::TRANSPARENT;
-    //private const COLOR_MAP_INSIDE   = [32, 115, 185];
     private const COLOR_MAP_INSIDE   = self::CYAN;
+    private const COLOR_BLACK_WALL   = [100, 100, 100]; //dark shade of gray
     private const COLOR_MAP_WALL     = self::COLOR_BLACK_WALL;
-    private const COLOR_CARPET       = [0xDF, 0xDF, 0xDF, 0xA0];
-    private const COLOR_GREY_WALL    = self::TRANSPARENT;
-    private const COLOR_BLACK_WALL   = [86, 101, 115]; //grey
+    private const COLOR_SCAN         = [223, 223, 223]; //sehr heller Grauton
+    //private const COLOR_CARPET       = [self::COLOR_SCAN[0], self::COLOR_SCAN[1], self::COLOR_SCAN[2], 160];
+    private const COLOR_GREY_WALL    = [200, 200, 200]; //light grey
     private const COLOR_PATH         = [147, 194, 238];
     private const COLOR_ZONES        = [0xAD, 0xD8, 0xFF, 0x8F];
     private const COLOR_NO_GO_ZONES  = [255, 33, 55, 110];
     private const COLOR_CHARGER_HALO = [0x66, 0xfe, 0xda, 0x7f];
     private const COLOR_ROBO         = [75, 235, 149];
-    private const COLOR_SCAN         = [0xDF, 0xDF, 0xDF];
 
     private const      ROOM1       = [240, 178, 122];
     private const      ROOM2       = [133, 193, 233];
@@ -111,9 +110,7 @@ class RRMapDraw
         $firstX  = ($this->firstX - self::CROPBORDER) > 0 ? $this->firstX - self::CROPBORDER : 0;
         $lastX   = (($this->lastX + self::CROPBORDER) < $this->rmfp->getImgWidth()) ? $this->lastX + self::CROPBORDER : $this->rmfp->getImgWidth();
         $firstY  = ($this->firstY - self::CROPBORDER) > 0 ? $this->firstY - self::CROPBORDER : 0;
-        $lastY   = (($this->lastY + self::CROPBORDER + (int)(8 * $scale)) < $this->rmfp->getImgHeight()) ? $this->lastY + self::CROPBORDER + (int)(8
-                                                                                                                                                   * $scale)
-            : $this->rmfp->getImgHeight();
+        $lastY   = (($this->lastY + self::CROPBORDER + (int)(8 * $scale)) < $this->rmfp->getImgHeight()) ? $this->lastY + self::CROPBORDER + (int)(8 * $scale) : $this->rmfp->getImgHeight();
         $nwidth  = (int)floor(($lastX - $firstX) * $scale);
         $nheight = (int)floor(($lastY - $firstY) * $scale);
 
@@ -125,12 +122,8 @@ class RRMapDraw
                          'height' => $nheight
                      ]
         );
-        $newImage = imagerotate($newImage, 180, 0);
 
-        imagecolortransparent(
-            $newImage,
-            imagecolorallocate($newImage, self::TRANSPARENT[0], self::TRANSPARENT[1], self::TRANSPARENT[2])
-        );
+        $newImage = $this->rotateAndMakeImageTransparent($newImage, 180);
 
         ob_start();
         imagepng($newImage, null, 9, PNG_NO_FILTER);      //imagepng() creates a PNG file from the given image.
@@ -166,7 +159,12 @@ class RRMapDraw
                         $obstacle = $walltype & 0x07;
                         switch ($obstacle) {
                             case 0:
-                                $color = imagecolorallocate($gdImage, self::COLOR_GREY_WALL[0], self::COLOR_GREY_WALL[1], self::COLOR_GREY_WALL[2]);
+                                $color = imagecolorallocate(
+                                    $gdImage,
+                                    self::COLOR_GREY_WALL[0],
+                                    self::COLOR_GREY_WALL[1],
+                                    self::COLOR_GREY_WALL[2]
+                                );
                                 break;
 
                             case 1:
@@ -174,8 +172,8 @@ class RRMapDraw
                                     $gdImage,
                                     self::COLOR_BLACK_WALL[0],
                                     self::COLOR_BLACK_WALL[1],
-                                    self::COLOR_BLACK_WALL[0]
-                                ); //black
+                                    self::COLOR_BLACK_WALL[2]
+                                );
                                 break;
 
                             case 7:
@@ -197,6 +195,7 @@ class RRMapDraw
                 imagefilledrectangle($gdImage, round($xPos - $t), round($yP - $t), round($xPos + $t), round($yP + $t), $color);
             }
         }
+
         if (count($unknownObstacles)) {
             IPS_LogMessage(__FUNCTION__, sprintf('Unknown Obstacles found: %s', json_encode($unknownObstacles, JSON_THROW_ON_ERROR)));
         }
@@ -420,7 +419,7 @@ class RRMapDraw
     {
         if ($addImage = @imagecreatefrompng($imgFile)) {
             $addImage = imagescale($addImage, imagesx($addImage) * $scale, -1);
-            $addImage = $this->rotate_transparent_img($addImage, 180);
+            $addImage = $this->rotateAndMakeImageTransparent($addImage, 180);
             $xpos     = round($x - (imagesx($addImage) / 2));
             $ypos     = round($y - (imagesy($addImage) / 2));
             //echo sprintf('%s: x: %s, y: %s, xpos: %s, ypos: %s', __FUNCTION__, $x, $y, $xpos, $ypos) . PHP_EOL;
@@ -430,9 +429,16 @@ class RRMapDraw
         }
     }
 
-    private function rotate_transparent_img($gdImage, int $angle)
+    /**
+     * This function is used to make an image transparent and rotate it.
+     *
+     * @param resource $gdImage Represents the image to be rotated.
+     * @param int $angle Represents the rotation angle.
+     * @return false|resource Returns the rotated image.
+     */
+    private function rotateAndMakeImageTransparent($gdImage, int $angle)
     {
-        $pngTransparency = imagecolorallocatealpha($gdImage, 0, 0, 0, 127);
+        $pngTransparency = imagecolorallocatealpha($gdImage, self::TRANSPARENT[0], self::TRANSPARENT[1], self::TRANSPARENT[2], 127);
         imagefill($gdImage, 0, 0, $pngTransparency);
 
         $result = imagerotate($gdImage, $angle, $pngTransparency);
