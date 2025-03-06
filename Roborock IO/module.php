@@ -9,7 +9,7 @@ include __DIR__ . '/../libs/picture.php';
  * Class RoborockIO
  * Xiaomi Mi Vacuum Cleaner I/O Device.
  */
-class RoborockIO extends IPSModule
+class RoborockIO extends IPSModuleStrict
 {
     // constants
     private const HELLO_MSG        = '21310020ffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
@@ -61,9 +61,8 @@ class RoborockIO extends IPSModule
     /**
      * create instance.
      *
-     * @noinspection ReturnTypeCanBeDeclaredInspection
      */
-    public function Create()
+    public function Create(): void
     {
         parent::Create();
 
@@ -82,9 +81,8 @@ class RoborockIO extends IPSModule
     /**
      * apply changes from configuration form.
      *
-     * @noinspection ReturnTypeCanBeDeclaredInspection
      */
-    public function ApplyChanges()
+    public function ApplyChanges(): void
     {
         parent::ApplyChanges();
 
@@ -101,7 +99,7 @@ class RoborockIO extends IPSModule
     }
 
     /** @noinspection ReturnTypeCanBeDeclaredInspection */
-    public function MessageSink($TimeStamp, $SenderID, $Message, $Data)
+    public function MessageSink($TimeStamp, $SenderID, $Message, $Data): void
     {
         if (($Message === IPS_KERNELMESSAGE) && ($Data[0] === KR_READY)) {
                     $this->ApplyChanges();
@@ -116,7 +114,7 @@ class RoborockIO extends IPSModule
      * @return string json data
      * @throws \JsonException
      */
-    public function ForwardData($JSONString)
+    public function ForwardData(string $JSONString): string
     {
         // receive data
         $data    = json_decode($JSONString, false, 512, JSON_THROW_ON_ERROR);
@@ -142,10 +140,10 @@ class RoborockIO extends IPSModule
         // save queue
         $this->SetBuffer('queue', json_encode($queue, JSON_THROW_ON_ERROR));
 
-        return true;
+        return '';
     }
 
-    public function GetConfigurationForm()
+    public function GetConfigurationForm(): string
     {
         $form = [
             'elements' => [
@@ -159,7 +157,7 @@ class RoborockIO extends IPSModule
         return json_encode($form, JSON_THROW_ON_ERROR);
     }
 
-    public function RequestAction($Ident, $Value)
+    public function RequestAction(string $Ident, mixed $Value): void
     {
         switch ($Ident){
             case 'HandleQueue':
@@ -385,7 +383,7 @@ class RoborockIO extends IPSModule
      * @return string|bool
      * @throws \JsonException
      */
-    protected function SendHello(string $discover_ip)
+    protected function SendHello(string $discover_ip):bool|string
     {
         // check if hello message was already sent
         if (!$this->first_request && !$discover_ip) {
@@ -728,7 +726,6 @@ class RoborockIO extends IPSModule
      */
     protected function ProcessHookData(): void
     {
-        //trigger_error(__FUNCTION__ . ': Unbekannter Aufruf !!!', E_USER_ERROR);
         // set defaults
         $cmd         = $_GET['cmd'] ?? '';
         $instance_id = $_GET['id'] ?? '';
