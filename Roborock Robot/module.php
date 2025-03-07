@@ -1074,7 +1074,7 @@ class Roborock extends IPSModuleStrict
      * @return array|string
      * @throws \JsonException
      */
-    private function ExecuteCallback(array $buffer): array|string
+    private function ExecuteCallback(array $buffer): array|string|int
     {
         // check if callback exists
         $callback = strtr(strtolower($buffer['method']), ['.' => '_']) . '_callback';

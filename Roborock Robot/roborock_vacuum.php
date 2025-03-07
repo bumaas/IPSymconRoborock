@@ -151,6 +151,7 @@ class roborock_vacuum
         'roborock.vacuum.a27' => 'Roborock S7 MaxV',
         'roborock.vacuum.a51' => 'Roborock S8',
         'roborock.vacuum.a62' => 'Roborock S7 Pro Ultra',
+        'roborock.vacuum.a65' => 'Roborock S7 Max Ultra',
         'roborock.vacuum.a70' => 'Roborock S8 Pro Ultra',
     ];
 
@@ -369,3 +370,6 @@ class roborock_vacuum_a27 extends roborock_vacuum //S7 MaxV
 
 }
 
+class roborock_vacuum_a65 extends roborock_vacuum_a27 //S7 Max Ultra
+{
+}
