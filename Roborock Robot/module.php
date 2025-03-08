@@ -983,9 +983,10 @@ class Roborock extends IPSModuleStrict
      * @param string $method
      * @param array  $options
      *
-     * @return array|bool
+     * @return array|bool|string|int|null
+     * @throws \JsonException
      */
-    private function RequestData(string $method, array $options = []): array|bool
+    private function RequestData(string $method, array $options = []): array|bool|string|int|null
     {
         // build payload
         $payload = [
@@ -1071,10 +1072,10 @@ class Roborock extends IPSModuleStrict
      *
      * @param array $buffer
      *
-     * @return array|string
+     * @return array|string|int|bool|null
      * @throws \JsonException
      */
-    private function ExecuteCallback(array $buffer): array|string|int
+    private function ExecuteCallback(array $buffer): array|string|int|bool|null
     {
         // check if callback exists
         $callback = strtr(strtolower($buffer['method']), ['.' => '_']) . '_callback';
@@ -1113,85 +1114,74 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * check if sound files are installing.
-     *
-     */
-    public function sound_progress():array|bool
-    {
-        return $this->RequestData('get_sound_progress', [
-            'immediate' => true
-        ]);
-    }
-
-    /**
      * start cleaning.
      *
-     * @return array|bool
+     * @return void
      * @throws \JsonException
      */
-    public function Start(): array|bool
+    public function Start(): void
     {
         $this->_SetValue(self::IDENT_COMMAND, 0);
-        return $this->RequestData('app_start');
+        $this->RequestData('app_start');
     }
 
     /**
      * stop cleaning.
      *
-     * @return array|bool
+     * @return void
      * @throws \JsonException
      */
-    public function Stop(): array|bool
+    public function Stop(): void
     {
         $this->_SetValue(self::IDENT_COMMAND, 2);
-        return $this->RequestData('app_stop');
+        $this->RequestData('app_stop');
     }
 
     /**
      * start spot cleaning.
      *
-     * @return array|bool
+     * @return void
      * @throws \JsonException
      */
-    public function CleanSpot(): array|bool
+    public function CleanSpot(): void
     {
         $this->_SetValue(self::IDENT_COMMAND, 3);
-        return $this->RequestData('app_spot');
+        $this->RequestData('app_spot');
     }
 
     /**
      * pause cleaning.
      *
-     * @return array|bool
+     * @return void
      * @throws \JsonException
      */
-    public function Pause(): array|bool
+    public function Pause(): void
     {
         $this->_SetValue(self::IDENT_COMMAND, 1);
-        return $this->RequestData('app_pause');
+        $this->RequestData('app_pause');
     }
 
     /**
      * return to dock.
      *
-     * @return array|bool
+     * @return void
      * @throws \JsonException
      */
-    public function Charge():array|bool
+    public function Charge(): void
     {
         $this->_SetValue(self::IDENT_COMMAND, 4);
-        return $this->RequestData('app_charge');
+        $this->RequestData('app_charge');
     }
 
     /**
      * locate vacuum cleaner by voice message.
      *
-     * @return array|bool
+     * @return void
      */
-    public function Locate(): array|bool
+    public function Locate(): void
     {
         $this->_SetValue(self::IDENT_COMMAND, 5);
-        return $this->RequestData('find_me');
+        $this->RequestData('find_me');
     }
 
     public function StartCleaning(): void
@@ -1290,10 +1280,10 @@ class Roborock extends IPSModuleStrict
      * @param int|array $record_id
      *
      */
-    private function GetCleanRecord($record_id): void
+    private function GetCleanRecord(int|array $record_id): void
     {
         $this->RequestData('get_clean_record', [
-            'params' => is_array($record_id) ? $record_id : [(int)$record_id]
+            'params' => is_array($record_id) ? $record_id : [$record_id]
         ]);
     }
 
@@ -1466,7 +1456,7 @@ class Roborock extends IPSModuleStrict
      * @return array|bool
      * @throws \JsonException
      */
-    public function Get_State(): array|bool
+    public function Get_State(): array|false
     {
         return $this->RequestData('get_status');
     }
@@ -1476,7 +1466,7 @@ class Roborock extends IPSModuleStrict
      *
      * @return array|bool
      */
-    public function Get_Serial_Number(): array|bool
+    public function Get_Serial_Number(): string|bool
     {
         return $this->RequestData('get_serial_number');
     }
@@ -1663,13 +1653,13 @@ class Roborock extends IPSModuleStrict
      *
      * @param int $power
      *
-     * @return array|bool
+     * @return void
      * @throws \JsonException
      */
-    public function Set_Fan_Power(int $power): array|bool
+    public function Set_Fan_Power(int $power): void
     {
         $this->_SetValue(self::IDENT_FAN_POWER, $power);
-        return $this->RequestData('set_custom_mode', [
+        $this->RequestData('set_custom_mode', [
             'params' => [$power]
         ]);
     }
@@ -1885,12 +1875,12 @@ class Roborock extends IPSModuleStrict
      * @param int $x
      * @param int $y
      *
-     * @return array|bool
+     * @return void
      * @throws \JsonException
      */
-    public function GotoTarget(int $x, int $y): array|bool
+    public function GotoTarget(int $x, int $y): void
     {
-        return $this->RequestData('app_goto_target', [
+        $this->RequestData('app_goto_target', [
             'params' => [
                 $x,
                 $y
@@ -1994,25 +1984,16 @@ class Roborock extends IPSModuleStrict
         $this->SetDNDTimer($start_hour, $start_minutes, $end_hour, $end_minutes);
     }
 
-    /**
-     * get sounds.
-     *
-     * @return bool|array
-     * @throws \JsonException
-     */
-    public function Get_Sound(): bool|array
-    {
-        return $this->RequestData('get_current_sound');
-    }
 
     /**
      * get sound volume.
      *
-     * @return array|bool
+     * @return void
+     * @throws \JsonException
      */
-    public function Get_SoundVolume(): bool|array
+    private function Get_SoundVolume(): void
     {
-        return $this->RequestData('get_sound_volume');
+        $this->RequestData('get_sound_volume');
     }
 
     /**
@@ -2020,13 +2001,13 @@ class Roborock extends IPSModuleStrict
      *
      * @param int $volume
      *
-     * @return bool|array
+     * @return void
      * @throws \JsonException
      */
-    public function Set_SoundVolume(int $volume): bool|array
+    private function Set_SoundVolume(int $volume): void
     {
         $this->_SetValue(self::IDENT_VOLUME, $volume);
-        return $this->RequestData('change_sound_volume', [
+        $this->RequestData('change_sound_volume', [
             'params' => [$volume]
         ]);
     }
@@ -2036,12 +2017,12 @@ class Roborock extends IPSModuleStrict
      *
      * @param int $segmentid
      *
-     * @return bool|array
+     * @return void
      * @throws \JsonException
      */
-    public function Start_Segment_Clean(int $segmentid): bool|array
+    public function Start_Segment_Clean(int $segmentid): void
     {
-        return $this->RequestData('app_segment_clean', [
+        $this->RequestData('app_segment_clean', [
             'params' => [
                 $segmentid
             ]
@@ -2053,12 +2034,12 @@ class Roborock extends IPSModuleStrict
      *
      * @param string $segmentIds json encoded array of segmentids
      *
-     * @return bool|array
+     * @return void
      * @throws \JsonException
      */
-    public function Start_Segment_Clean_Ex(string $segmentIds): bool|array
+    public function Start_Segment_Clean_Ex(string $segmentIds): void
     {
-        return $this->RequestData('app_segment_clean', [
+        $this->RequestData('app_segment_clean', [
             'params' => json_decode($segmentIds, true, 512, JSON_THROW_ON_ERROR)
         ]);
     }
@@ -2887,7 +2868,7 @@ class Roborock extends IPSModuleStrict
         return $this->GetNumberZones() + 1;
     }
 
-    public function GetZones()
+    public function GetZones(): array
     {
         $zones_json = $this->ReadPropertyString('zonecoordinates');
         $this->_debug('Zones', $zones_json);
@@ -3263,7 +3244,7 @@ class Roborock extends IPSModuleStrict
      *
      * @return string
      */
-    private function _zeroPadding($number, int $padding = 2): string
+    private function _zeroPadding(int|string $number, int $padding = 2): string
     {
         return str_pad((string)$number, $padding, '0', STR_PAD_LEFT);
     }
@@ -3993,7 +3974,7 @@ EOF;
         $ret['battery'] = $battery;
 
         $state = (int)$result['state'];
-        if ($state === StateCode::CHARGING && $battery === 100) {
+        if ($state === StateCode::CHARGING->value && $battery === 100) {
             $this->_SetValue(self::IDENT_STATE, 100);
         } else {
             $this->_SetValue(self::IDENT_STATE, $state);
@@ -4635,19 +4616,6 @@ EOF;
     private function get_map_v1_callback(array $data): string
     {
         return $data['result'][0] ?? '';
-    }
-
-    /**
-     * Callback: Sound Progress.
-     *
-     * @param array $data
-     *
-     * @return bool|array
-     * @noinspection PhpUnusedPrivateMethodInspection
-     */
-    private function get_sound_progress_callback(array $data): bool|array
-    {
-        return $data['result']['progress'] ?? false;
     }
 
     private function UnregisterProfile(string $Name): void

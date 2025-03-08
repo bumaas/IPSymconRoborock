@@ -169,7 +169,7 @@ _**Liste von Räumen holen**_
   _**Liest den Status vom Roborock aus**_
      
  ```php
- Roborock_Get_State($InstanceID);
+ Roborock_Get_State($InstanceID): array;
  ```   
   Gibt zurück:
  - Batterieladung
@@ -181,25 +181,25 @@ _**Liste von Räumen holen**_
  _**Seriennummer des Roborock**_
       
  ```php
- Roborock_Get_Serial_Number($InstanceID);
+ Roborock_Get_Serial_Number($InstanceID): string;
  ```   
      
  _**Liest Zustand der Verbrauchsgegenstände aus**_
        
  ```php
- Roborock_Get_Consumables($InstanceID);
+ Roborock_Get_Consumables($InstanceID): array;
  ```   
  
  _**Liest Zusammenfassung der Reinigung aus**_
         
   ```php
-  Roborock_GetCleanSummary($InstanceID);
+  Roborock_GetCleanSummary($InstanceID): array;
   ```   
   
  _**Liest Status Do Not Disturb Mode aus**_
           
  ```php
- Roborock_Get_DND_Mode($InstanceID);
+ Roborock_Get_DND_Mode($InstanceID): array;
  ```   
  
 _**Zum Zurücksetzen der Verbrauchsmaterialien**_
@@ -297,7 +297,7 @@ Roborock_Reset_Sensors($InstanceID);
  _**Seriennummer des Roborock**_
       
  ```php
- Roborock_Get_Serial_Number($InstanceID);
+ Roborock_Get_Serial_Number($InstanceID): string;
  ```   
      
  Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz  
@@ -305,7 +305,7 @@ Roborock_Reset_Sensors($InstanceID);
  _**Liest Zustand der Verbrauchsgegenstände aus**_
        
  ```php
- Roborock_Get_Consumables($InstanceID);
+ Roborock_Get_Consumables($InstanceID): array;
  ```   
       
  Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz  
@@ -313,7 +313,7 @@ Roborock_Reset_Sensors($InstanceID);
  _**Liest Zusammenfassung der Reinigung aus**_
         
   ```php
-  Roborock_GetCleanSummary($InstanceID);
+  Roborock_GetCleanSummary($InstanceID): array;
   ```   
        
  Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
@@ -321,7 +321,7 @@ Roborock_Reset_Sensors($InstanceID);
  _**Liest Status Do Not Disturb Mode aus**_
           
  ```php
- Roborock_Get_DND_Mode($InstanceID);
+ Roborock_Get_DND_Mode($InstanceID): array;
  ```   
          
  Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz     
@@ -329,36 +329,13 @@ Roborock_Reset_Sensors($InstanceID);
  _**Stellt die Saugleistung des Staubsaugerroboters ein**_
           
  ```php
- Roborock_Fan_Power(integer $InstanceID, integer $power);
+ Roborock_Set_Fan_Power(integer $InstanceID, integer $power);
  ```   
          
  Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
+
  Parameter _$power_ Wert von 0 - 100 zum Einstellen der Leistung     
 
-_**Liest die gereinigte Fläche aus**_
-          
- ```php
- Roborock_Get_Area_Cleaned(integer $InstanceID);
- ```   
-         
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz     
-
-_**Liest die Zeit der Saugvorgänge aus**_
-          
- ```php
- Roborock_Get_Time_Cleaned(integer $InstanceID);
- ```   
-         
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz     
-
-_**Liest die Anzahl der Reinigungen aus**_
-          
- ```php
- Roborock_Get_Cleaning_Cycles(integer $InstanceID);
- ```   
-         
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz     
- 
 _**Reinigt in der Zone der angegebenen Koordinaten**_
           
  ```php
@@ -440,7 +417,7 @@ Hinweis: die Basisstation hat die Koordinaten 2550, 2550. Eine Einheit entsprich
 _**Holt die Karte**_
 
  ```php
- Roborock_GetMap(integer $InstanceID);
+ Roborock_GetMap(integer $InstanceID): bool;
  ```   
 
 Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz

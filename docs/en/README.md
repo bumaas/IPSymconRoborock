@@ -323,7 +323,7 @@ The red dot represents the current position of the vacuum cleaner.
  _**Get the state from the Roborock**_
      
  ```php
- Roborock_Get_State($InstanceID);
+ Roborock_Get_State($InstanceID): array;
  ```   
     
  Parameter _$InstanceID_ __*ObjectID*__ from the Roborock instance  
@@ -451,7 +451,7 @@ Returns:
   _**Serial number from the Roborock**_
        
   ```php
-  Roborock_Get_Serial_Number($InstanceID);
+  Roborock_Get_Serial_Number($InstanceID): string;
   ```   
       
   Parameter _$InstanceID_ __*ObjectID*__ from the Roborock instance  
