@@ -1342,7 +1342,11 @@ class Roborock extends IPSModuleStrict
         curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
         $result       = curl_exec($ch);
+        $this->_debug(__FUNCTION__, sprintf('curl_exec: %s', $result));
+
         $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $this->_debug(__FUNCTION__, sprintf('curl_getinfo: %s', $responsecode));
+
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
 
         curl_close($ch);
