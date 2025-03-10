@@ -1346,7 +1346,7 @@ class Roborock extends IPSModuleStrict
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
 
         curl_close($ch);
-        if (($responsecode !== 200)) {
+        if (!in_array($responsecode, [0, 200])) {
             trigger_error(sprintf('%s: responsecode: %s URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $url, $effectiveURL));
             return '';
         }
