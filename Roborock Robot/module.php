@@ -35,7 +35,7 @@ enum StateCode: int
     // Optional: Methode, um den Namen als String zurückzugeben
     public function getDescription(): string
     {
-        return match($this) {
+        return match ($this) {
             self::UNKNOWN => 'Unknown',
             self::STARTING_UP => 'Starting up',
             self::SLEEPING => 'Sleeping',
@@ -425,14 +425,23 @@ class Roborock extends IPSModuleStrict
 
         //  register profiles
         $this->RegisterProfileAssociation(
-            self::PROFILE_COMMAND, 'Execute', '', '', 0, 4, 0, 0, VARIABLETYPE_INTEGER, [
-                                     [0, $this->Translate('Start'), 'HollowLargeArrowRight', -1, 1],
-                                     [1, $this->Translate('Pause'), 'Close', -1],
-                                     [2, $this->Translate('Stop'), 'Close', -1],
-                                     [3, $this->Translate('Spot'), 'Climate', -1],
-                                     [4, $this->Translate('Charge'), 'Battery', -1],
-                                     [5, $this->Translate('Locate'), 'Motion', -1]
-                                 ]
+            self::PROFILE_COMMAND,
+            'Execute',
+            '',
+            '',
+            0,
+            4,
+            0,
+            0,
+            VARIABLETYPE_INTEGER,
+            [
+                [0, $this->Translate('Start'), 'HollowLargeArrowRight', -1, 1],
+                [1, $this->Translate('Pause'), 'Close', -1],
+                [2, $this->Translate('Stop'), 'Close', -1],
+                [3, $this->Translate('Spot'), 'Climate', -1],
+                [4, $this->Translate('Charge'), 'Battery', -1],
+                [5, $this->Translate('Locate'), 'Motion', -1]
+            ]
         );
 
         $ass = [];
@@ -470,9 +479,18 @@ class Roborock extends IPSModuleStrict
         );
 
         $this->RegisterProfileAssociation(
-            self::PROFILE_FINDME, 'Robot', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, [
-                                    [0, $this->Translate('find robot'), '', 0x3ADF00]
-                                ]
+            self::PROFILE_FINDME,
+            'Robot',
+            '',
+            '',
+            0,
+            0,
+            0,
+            0,
+            VARIABLETYPE_INTEGER,
+            [
+                [0, $this->Translate('find robot'), '', 0x3ADF00]
+            ]
         );
 
         if ($this->ReadPropertyBoolean(self::PROPERTY_FAN_POWER)) {
@@ -1248,7 +1266,7 @@ class Roborock extends IPSModuleStrict
      *
      * @return array|bool
      */
-    public function Reset_Sidebrush():array|bool
+    public function Reset_Sidebrush(): array|bool
     {
         return $this->Reset_Consumable($this->device::CONSUMABLES[Consumable::SIDEBRUSH]);
     }
@@ -1341,17 +1359,17 @@ class Roborock extends IPSModuleStrict
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        $result       = curl_exec($ch);
-        $this->_debug(__FUNCTION__, sprintf('curl_exec: %s', $result));
+        $result = curl_exec($ch);
+        $this->_debug(__FUNCTION__, sprintf('curl_exec: %s', $result === false ? 'false' : $result));
 
         $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $this->_debug(__FUNCTION__, sprintf('curl_getinfo: %s', $responsecode));
 
-        $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-
         curl_close($ch);
-        if (!in_array($responsecode, [0, 200], true)) {
-            trigger_error(sprintf('%s: responsecode: %s (Type: %s), URL: %s, effective URL: %s', __FUNCTION__, json_encode($responsecode), gettype($responsecode), $url, $effectiveURL));
+        if ($responsecode !== 200) {
+            $this->_debug(__FUNCTION__,
+                sprintf('%s: responsecode: %s, curl_getinfo: %s', __FUNCTION__, json_encode($responsecode), json_encode(curl_getinfo($ch)))
+            );
             return '';
         }
 
@@ -1429,7 +1447,7 @@ class Roborock extends IPSModuleStrict
             return false;
         }
 
-        $draw = new RRMapDraw($pic);
+        $draw    = new RRMapDraw($pic);
         $picture = $draw->getImage($this->ReadPropertyInteger(self::PROPERTY_MAP_PICTURE_SCALE) / 100);
 
         if ($picture === '') {
@@ -1770,8 +1788,13 @@ class Roborock extends IPSModuleStrict
      * @return array|bool
      * @throws \JsonException
      */
-    public function ZoneClean(int $lower_left_corner_x, int $lower_left_corner_y, int $upper_right_corner_x, int $upper_right_corner_y, int $number): array|bool
-    {
+    public function ZoneClean(
+        int $lower_left_corner_x,
+        int $lower_left_corner_y,
+        int $upper_right_corner_x,
+        int $upper_right_corner_y,
+        int $number
+    ): array|bool {
         return $this->RequestData('app_zoned_clean', [
             'params' => [
                 [
@@ -2135,7 +2158,7 @@ class Roborock extends IPSModuleStrict
                 $this->loadMapFileFromFile($Value);
                 break;
             case 'SendPushNotificationTest':
-                $this->SendPushNotification('state', (int) StateCode::CLEANING); //CLEANING
+                $this->SendPushNotification('state', (int)StateCode::CLEANING); //CLEANING
                 break;
             case 'UpdateMapsAndRooms':
                 $this->UpdateFormField(self::FF_MAPANDROOMLIST, 'enabled', false); //Eingabe deaktivieren
@@ -2357,21 +2380,21 @@ class Roborock extends IPSModuleStrict
         // get codes by state_id
         if ($type === 'error') {
             $prefix = $this->Translate('Error') . ': ';
-            $error = ErrorCode::tryFrom($id);
+            $error  = ErrorCode::tryFrom($id);
             if ($error) {
                 $description = $this->Translate($error->getDescription());
             } else {
-                $description = (string) $id;
+                $description = (string)$id;
             }
 
             $notification_attribute = self::ATTRIBUTE_LAST_NOTIFICATION_ERROR;
         } else {
             $prefix = '';
-            $state = StateCode::tryFrom($id);
+            $state  = StateCode::tryFrom($id);
             if ($state) {
                 $description = $this->Translate($state->getDescription());
             } else {
-                $description = (string) $id;
+                $description = (string)$id;
             }
 
             $notification_attribute = self::ATTRIBUTE_LAST_NOTIFICATION_STATE;
@@ -4570,7 +4593,11 @@ EOF;
     private function change_sound_volume_callback(array $data): bool
     {
         // start & stop device quickly, to check volume
-        if (in_array($this->GetValue(self::IDENT_STATE), [StateCode::SLEEPING, StateCode::WAITING, StateCode::CHARGING, StateCode::PAUSE, StateCode::DOCKING, StateCode::FULL], true)) {
+        if (in_array(
+            $this->GetValue(self::IDENT_STATE),
+            [StateCode::SLEEPING, StateCode::WAITING, StateCode::CHARGING, StateCode::PAUSE, StateCode::DOCKING, StateCode::FULL],
+            true
+        )) {
             $this->Start();
             $this->Stop();
         }
