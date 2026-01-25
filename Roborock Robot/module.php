@@ -175,6 +175,10 @@ class Roborock extends IPSModuleStrict
     private const ATTRIBUTE_AGENTID                 = 'agentId';
     private const ATTRIBUTE_CLIENTID                = 'clientId';
 
+    private const BUFFER_VERIFICATION_URL        = 'notification_url';
+    private const BUFFER_VERIFICATION_FLAG        = 'flag';
+    private const BUFFER_IDENTITY_SESSION        = 'identity_session';
+
     private const PROPERTY_IP                   = 'ip';
     private const PROPERTY_MODEL                = 'model';
     private const PROPERTY_VOLUME               = 'volume';
@@ -313,8 +317,10 @@ class Roborock extends IPSModuleStrict
     {
         parent::Create();
 
-        // connect to parent i/o device
-        $this->ConnectParent('{4743ED9C-720B-D5EA-9B0C-0585803284F3}'); // IO Device
+        // Init Buffers
+        $this->SetBuffer(self::BUFFER_IDENTITY_SESSION, '');
+        $this->SetBuffer(self::BUFFER_VERIFICATION_FLAG, 0);
+        $this->SetBuffer(self::BUFFER_VERIFICATION_URL, '');
 
         // register public properties
         $this->RegisterPropertyString(self::PROPERTY_IP, '');
@@ -1021,6 +1027,7 @@ class Roborock extends IPSModuleStrict
         //wenn ein Aufruf direkt erfolgt und nicht aus der Instanz heraus, dann soll er sofort ausgeführt werden /** @noinspection PhpUndefinedVariableInspection */
         //$this->SendDebug('IPS', json_encode($_IPS, JSON_THROW_ON_ERROR), 0);
         /** @noinspection PhpUndefinedVariableInspection */
+        /** @global array $_IPS */
         if (($_IPS['SELF'] > 0 && $_IPS['SELF'] !== $this->InstanceID)
             || in_array($_IPS['SENDER'], ['Execute', 'Variable', 'RunScript', 'PHPModule'])) {
             $payload['immediate'] = true;
@@ -3057,7 +3064,15 @@ class Roborock extends IPSModuleStrict
             [
                 'type'    => 'Button',
                 'caption' => 'Xiaomi Login Test',
-                'onClick' => '$module = new IPSModule($id); if (Roborock_GetTokenFromXiaomi($id)){echo $module->Translate(\'OK\');} else {echo $module->Translate(\'Error\');};',
+                'onClick' => [
+                    '$module = new IPSModuleStrict($id);',
+                    '$Result = Roborock_GetTokenFromXiaomi($id);',
+                    'if ($Result === true){',
+                    '  echo $module->Translate(\'OK\');',
+                    '} elseif ($Result === false) {',
+                    '  echo $module->Translate(\'Error\');',
+                    '};'
+                    ],
                 'visible' => ($this->ReadPropertyString(self::PROPERTY_XIAOMI_USER) !== '')
                              && ($this->ReadPropertyString(
                             self::PROPERTY_XIAOMI_PASSWORD
@@ -3116,6 +3131,51 @@ class Roborock extends IPSModuleStrict
                 'caption' => 'Push Notification Test',
                 'visible' => $this->ReadPropertyInteger('notification_instance') > 0,
                 'onClick' => 'IPS_RequestAction($id, "SendPushNotificationTest", 0);'
+            ],
+            [
+                'type' =>'PopupAlert',
+                'name' => 'VerifyPopup',
+                'popup'=> [
+                    'closeCaption' => 'Abort',
+                    'items'=> [
+                        [
+                            'type' => 'Label',
+                            'bold' => true,
+                            'name' => 'VerifyTitle',
+                            'caption' => 'Verify Login'
+                        ],
+                        [
+                            'type' => 'Label',
+                            'name' => 'VerifyMessage',
+                            'caption' => ''
+                        ],
+                        [
+                            'type' => 'Button',
+                            'caption' => 'Send',
+                            'name' => 'SendVerificationCodeButton',
+                            'onClick' => 'echo Roborock_SendVerificationCode($id);'
+                        ],
+                        [
+                            'type' => 'Label',
+                            'bold' => true,
+                            'caption' => 'Enter the verification code below and click Submit to continue.'
+                        ],
+                        [
+                            'type' => 'ValidationTextBox',
+                            'name' => 'VerifyCode',
+                            'caption' => 'Verification Code'
+                        ]
+                    ],
+                    'buttons' => [
+                        [
+                            'type' => 'Button',
+                            'caption' => 'Submit',
+                            'name' => 'SubmitVerificationCodeButton',
+                            'onClick' => 'echo Roborock_SubmitVerificationCode($id, $VerifyCode);'
+                        ]
+                    ]
+                ],
+                'visible' => false
             ]
         ];
     }
@@ -3282,7 +3342,7 @@ class Roborock extends IPSModuleStrict
      * @param string|null $notification
      * @param string|null $message
      */
-    private function _debug(string $notification = null, string $message = null): void
+    private function _debug(?string $notification = null, ?string $message = null): void
     {
         $this->SendDebug($notification, $message, 0);
     }
@@ -3413,7 +3473,7 @@ EOF;
 
 
     // Xiaomi App Login Test
-    public function GetTokenFromXiaomi(): bool
+    public function GetTokenFromXiaomi(): bool|int
     {
         // read properties
         $user     = $this->ReadPropertyString(self::PROPERTY_XIAOMI_USER);
@@ -3445,7 +3505,29 @@ EOF;
         // -- login_account --
         $loginAccountData =
             $this->login_account($user, $password, $agentId, $clientId, $loginData['qs'], $loginData['callback'], $loginData['_sign']);
+        if ($loginAccountData['securityStatus'] == 16) { // 2FA
+            $this->SendDebug(__FUNCTION__ . ': WARNING', 'Additional verification required', 0);
+            $this->SetBuffer(self::BUFFER_VERIFICATION_URL, $loginAccountData['notificationUrl']);
+            $this->SetBuffer(self::BUFFER_IDENTITY_SESSION, '');
+            $this->SetBuffer(self::BUFFER_VERIFICATION_FLAG, 0);
 
+            list($VerifyMessage, $ErrorMessage) = $this->StartVerifyDevice();
+
+            $this->UpdateFormField('LogoutButton', 'visible', true);
+            $this->UpdateFormField('LoginButton', 'visible', false);
+            $this->UpdateFormField('LoginPopup', 'visible', false);
+            
+            $this->UpdateFormField('VerifyMessage', 'caption', $VerifyMessage);
+            if ($VerifyMessage != '') {
+                $this->UpdateFormField('VerifyMessage', 'caption', $VerifyMessage);
+            } else {
+                $this->UpdateFormField('VerifyMessage', 'caption', $this->Translate($ErrorMessage));
+                $this->UpdateFormField('VerifyMessage', 'color', 0xff0000);
+                $this->UpdateFormField('SubmitVerificationCodeButton', 'visible', false);
+            }
+            $this->UpdateFormField('VerifyPopup', 'visible', true);
+            return 16;
+        }
         if (!$loginAccountData || !isset($loginAccountData['ssecurity'], $loginAccountData['userId'], $loginAccountData['location'])) {
             $this->SendDebug(__FUNCTION__ . ': ERROR', 'Login failed, please check user/password at https://account.xiaomi.com', 0);
             return false;
@@ -3509,6 +3591,238 @@ EOF;
 
         $this->SendDebug(__FUNCTION__, sprintf('No Token found for \'%s\'', $host), 0);
         return false;
+    }
+
+    /**
+     * StartVerifyDevice
+     *
+     * @return array
+     */
+    private function StartVerifyDevice(): array
+    {
+        $this->SendDebug('Cloud Login', 'Device verification process initiated', 0);
+        $IdentityUrl = str_replace('fe/service/identity/authStart', 'identity/list', $this->GetBuffer(self::BUFFER_VERIFICATION_URL));
+        $headers = [
+            'Content-Type: application/x-www-form-urlencoded',
+            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $this->ReadAttributeString(self::ATTRIBUTE_AGENTID) . ' APP/xiaomi.smarthome APPV/62830',
+            'Cookie: sdkVersion=accountsdk-18.8.15; deviceId=' . $this->ReadAttributeString(self::ATTRIBUTE_CLIENTID)
+        ];
+
+        $ch      = curl_init($IdentityUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HEADER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+
+        $result       = curl_exec($ch);
+        $header_size  = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+        if (($responsecode !== 200)) {
+            trigger_error(sprintf('%s: responsecode: %s , URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $IdentityUrl, $effectiveURL));
+            return ['', 'Error on fetching verification list'];
+        }
+        $header = substr($result, 0, $header_size);
+        $result = substr($result, $header_size);
+        $identity_session = explode('identity_session=', $header)[1];
+        $identity_session = explode(';', $identity_session)[0];
+        if ($identity_session === '') {
+            return ['', 'Error on parsing identity session'];
+        }
+        $this->SetBuffer(self::BUFFER_IDENTITY_SESSION, $identity_session);
+        $Json = self::parseJson($result);
+        if ($Json === null) {
+            return ['', 'Error on parsing verification list'];
+        }
+        $this->SetBuffer(self::BUFFER_VERIFICATION_FLAG, (int) $Json['flag']);
+        $VerifyUrl = RoborockApiVerifyIdentity::getUrl((int) $Json['flag'])
+        . http_build_query(
+            [
+                '_flag'  => (int) $Json['flag'],
+                '_json'  => 'true'
+            ]
+        );
+        $headers = [
+            'Content-Type: application/x-www-form-urlencoded',
+            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $this->ReadAttributeString(self::ATTRIBUTE_AGENTID) . ' APP/xiaomi.smarthome APPV/62830',
+            'Cookie: identity_session='. $identity_session .';sdkVersion=accountsdk-18.8.15;deviceId=' . $this->ReadAttributeString(self::ATTRIBUTE_CLIENTID)
+        ];
+        $ch      = curl_init($VerifyUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        $result       = curl_exec($ch);
+        $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+        if (($responsecode !== 200)) {
+            trigger_error(sprintf('%s: responsecode: %s , URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $IdentityUrl, $effectiveURL));
+            return ['', 'Error on fetching verification message'];
+        }
+        $Json = self::parseJson($result);
+        if ($Json === null) {
+            return ['', 'Error on parsing verification message'];
+        }
+        if ($Json['code'] !== 0) {
+            if (isset($Json['tips'])) {
+                return $Json['tips'];
+            }
+            return ['', 'Error on fetching verification message'];
+        }
+        list($Message, $Index) = RoborockApiVerifyIdentity::getMessageTextAndIndex((int)$this->GetBuffer(self::BUFFER_VERIFICATION_FLAG));
+        $Message = sprintf($this->Translate($Message), $Json[$Index]);
+        return [$Message, ''];
+    }
+
+    /**
+     * SendVerificationCode
+     *
+     * @return string
+     */
+    public function SendVerificationCode(): string
+    {
+        $this->SendDebug(__FUNCTION__, '', 0);
+        $VerifyUrl = RoborockApiCheckIdentity::getUrl((int)$this->GetBuffer(self::BUFFER_VERIFICATION_FLAG)) . http_build_query([
+            '_dc'   => (int) (time() * 1000)
+        ]);
+        $headers = [
+            'Content-Type: application/x-www-form-urlencoded',
+            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $this->ReadAttributeString(self::ATTRIBUTE_AGENTID) . ' APP/xiaomi.smarthome APPV/62830',
+            'Cookie: identity_session='. $this->GetBuffer(self::BUFFER_IDENTITY_SESSION) .';sdkVersion=accountsdk-18.8.15;deviceId=' . $this->ReadAttributeString(self::ATTRIBUTE_CLIENTID)
+        ];
+        $form = [
+            'retry'  => 0,
+            'icode'  => '',
+            '_json'  => 'true'
+        ];
+        $ch   = curl_init($VerifyUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $form);
+        curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        $result       = curl_exec($ch);
+        $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+        if (($responsecode !== 200)) {
+            trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $VerifyUrl, $effectiveURL));
+            return 'Error in request to send verification code';
+        }
+        $Json = self::parseJson($result);
+        if ($Json === null) {
+            return 'Error in parsing result from send verification request';
+        }
+        if ($Json['code'] !== 0) {
+            if (isset($Json['tips'])) {
+                return $Json['tips'];
+            }
+            return 'Error in request to send verification code';
+        }
+        $this->UpdateFormField('SendVerificationCodeButton', 'enabled', false);
+        $this->UpdateFormField('SendVerificationCodeButton', 'caption', $this->Translate('Code sent'));
+        return '';
+    }
+
+    /**
+     * SubmitVerificationCode
+     *
+     * @param  string $Code
+     * @return string
+     */
+    public function SubmitVerificationCode(string $Code): string
+    {
+        $this->SendDebug(__FUNCTION__, $Code, 0);
+        $headers = [
+            'Content-Type: application/x-www-form-urlencoded',
+            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $this->ReadAttributeString(self::ATTRIBUTE_AGENTID) . ' APP/xiaomi.smarthome APPV/62830',
+            'Cookie: identity_session='. $this->GetBuffer(self::BUFFER_IDENTITY_SESSION) .';sdkVersion=accountsdk-18.8.15;deviceId=' . $this->ReadAttributeString(self::ATTRIBUTE_CLIENTID)
+        ];
+        $VerifyUrl = RoborockApiVerifyIdentity::getUrl((int)$this->GetBuffer(self::BUFFER_VERIFICATION_FLAG)) . http_build_query([
+            '_dc'   => (int) (time() * 1000)
+        ]);
+        $form = [
+            '_flag'  => (int)$this->GetBuffer(self::BUFFER_VERIFICATION_FLAG),
+            '_json'  => 'true',
+            'ticket' => $Code,
+            'trust'  => 'true'
+        ];
+        $ch   = curl_init($VerifyUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($form));
+        curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        $result       = curl_exec($ch);
+        $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+            $this->SendDebug(__FUNCTION__, $result, 0);
+        if (($responsecode !== 200)) {
+            trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $VerifyUrl, $effectiveURL));
+            return 'Error on submit verification code';
+        }
+        $Json = self::parseJson($result);
+        if ($Json === null) {
+            return 'Error on parsing verification result';
+        }
+        if ($Json['code'] !== 0) {
+            if (isset($Json['tips'])) {
+                return $Json['tips'];
+            }
+            return 'Error on submit verification code';
+        }
+        $LoginUrl = $Json['location'];
+        $ch      = curl_init($LoginUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_HEADER, 1);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        $result       = curl_exec($ch);
+        $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+        if (($responsecode !== 200)) {
+            trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $url, $effectiveURL));
+            return 'Error on finalizing verification';
+        }
+        $userId = explode('userId=', $result)[1];
+        $userId = explode(';', $userId)[0];
+
+        $cUserId = explode('cUserId=', $result)[1];
+        $cUserId = explode(';', $cUserId)[0];
+
+        $serviceToken = explode('serviceToken=', $result)[1];
+        $serviceToken = explode(';', $serviceToken)[0];
+
+        $this->WriteAttributeString(self::ATTRIBUTE_LOGIN_LOCATION_DATA, json_encode([
+            'userId'       => $userId,
+            'serviceToken' => $serviceToken
+            ],
+            JSON_THROW_ON_ERROR));
+
+        $Lines = explode("\r\n", $result);
+        $location='';
+        foreach ($Lines as $Line) {
+            $line_array = explode(':', $Line);
+            $Field = strtolower(trim(array_shift($line_array)));
+            if ($Field == 'location') {
+                $location = trim(implode(':', $line_array));
+                continue;
+            }
+            if ($Field == 'extension-pragma') {
+                $Data = json_decode(trim(implode(':', $line_array)), true);
+                $this->SetBuffer(self::BUFFER_VERIFICATION_URL,'');
+                $this->WriteAttributeString(self::ATTRIBUTE_LOGIN_ACCOUNT_DATA, json_encode(
+                [
+                    'ssecurity' => $Data['ssecurity'],
+                    'userId'    => $userId,
+                    'location'  => $location
+                ],JSON_THROW_ON_ERROR));
+                $this->SendDebug('Cloud Login', 'Device verification successful', 0);
+                return $this->Translate('MESSAGE:Verification successful!');
+            }
+        }
+        return 'Error on finalizing verification';
     }
 
     private function randomClientId(): string
@@ -4689,3 +5003,80 @@ EOF;
 
 }
 
+/**
+ * ApiVerifyIdentity
+ */
+class RoborockApiVerifyIdentity
+{
+    public const Phone = 4;
+    public const Email = 8;
+    public static $TypeToPath =
+        [
+            self::Phone => 'https://account.xiaomi.com/identity/auth/verifyPhone?',
+            self::Email => 'https://account.xiaomi.com/identity/auth/verifyEmail?',
+        ];
+
+    /**
+     * getUrl
+     *
+     * @param  int $Type
+     * @return string
+     */
+    public static function getUrl(int $Type): string
+    {
+        if (!array_key_exists($Type, self::$TypeToPath)) {
+            throw new \Exception('Unknown verification type: ' . $Type);
+        }
+        return self::$TypeToPath[$Type];
+    }
+    /**
+     * getMessageTextAndIndex
+     *
+     * @param  int $Flag
+     * @return array
+     */
+    public static function getMessageTextAndIndex(int $Flag): array
+    {
+        switch ($Flag) {
+            case self::Email:
+                return [
+                    'Send the confirmation code to the email address (%s).',
+                    'maskedEmail'
+                ];
+            case self::Phone:
+                return [
+                    'Send the confirmation code to the phone number (%s).',
+                    'maskedPhone'
+                ];
+        }
+        return [];
+    }
+}
+
+/**
+ * ApiCheckIdentity
+ */
+class RoborockApiCheckIdentity
+{
+    public const Phone = 4;
+    public const Email = 8;
+    public static $TypeToPath =
+        [
+            self::Phone => 'https://account.xiaomi.com/identity/auth/sendPhoneTicket?',
+            self::Email => 'https://account.xiaomi.com/identity/auth/sendEmailTicket?',
+        ];
+
+    /**
+     * getUrl
+     *
+     * @param  int $Type
+     * @return string
+     */
+    public static function getUrl(int $Type): string
+    {
+        if (!array_key_exists($Type, self::$TypeToPath)) {
+            throw new \Exception('Unknown verification type: ' . $Type);
+        }
+        return self::$TypeToPath[$Type];
+    }
+}
