@@ -3175,7 +3175,7 @@ class Roborock extends IPSModuleStrict
                         ]
                     ]
                 ],
-                'visible' => false
+                'visible' => $this->GetBuffer(self::BUFFER_VERIFICATION_URL) != ''
             ]
         ];
     }
