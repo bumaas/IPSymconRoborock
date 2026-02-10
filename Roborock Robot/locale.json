@@ -59,7 +59,7 @@
       "Dock location beacon lost": "Dock-Standortsignal verloren",
       "No-go zone detected": "Sperrzone entdeckt",
       "VibraRise system jammed": "VibraRise System klemmt",
-      "Robot on carpet":  "Roboter auf Teppich",
+      "Robot on carpet": "Roboter auf Teppich",
       "Charging station blocked during automatic emptying": "Ladestation blockiert bei automatischer Entleerung",
       "Hall sensor for clean water tank triggered": "Hallsensor für Reinwassertank ausgelöst",
       "Check the dirty water tank.": "Überprüfen Sie den Schmutzwassertank.",
@@ -203,7 +203,25 @@
       "Room ID": "Raumnummer",
       "Map Name": "Kartenname",
       "Room Name": "Raumname",
-      "ignore Room": "ignorieren"
+      "ignore Room": "ignorieren",
+      "Verify Login": "Anmeldung prüfen",
+      "Send the confirmation code to the email address (%s).": "Bestätigungscode an die E-Mail-Adresse (%s) senden.",
+      "Send the confirmation code to the phone number (%s).": "Bestätigungscode an die Telefonnummer (%s) senden.",
+      "Send": " Senden",
+      "Code sent": "Code gesendet",
+      "Enter the verification code below and click Submit to continue.": "Geben Sie den Verifizierungscode unten ein und klicken Sie auf Absenden, um fortzufahren.",
+      "Verification Code": "Verifizierungscode",
+      "Abort": " Abbrechen",
+      "Submit": "Absenden",
+      "Unauthorized": "Nicht autorisiert",
+      "MESSAGE:Verification successful!": "MESSAGE:Verifizierung erfolgreich!",
+      "Error on fetching verification list": "Fehler beim Abrufen der Verifizierungsliste",
+      "Error on parsing identity session": "Fehler beim Parsen der Identitätssitzung",
+      "Error on parsing verification list": "Fehler beim Parsen der Verifizierungsliste",
+      "Error on fetching verification message": "Fehler beim Abrufen der Verifizierungsnachricht",
+      "Error on parsing verification message": "Fehler beim Parsen der Verifizierungsnachricht",
+      "Error in request to send verification code": "Fehler bei der Anforderung zum Senden des Verifizierungscodes",
+      "Error in parsing result from send verification request": "Fehler beim Parsen des Ergebnisses der Anforderung zum senden des Verifizierungscodes"
     }
   }
 }
