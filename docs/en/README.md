@@ -234,6 +234,8 @@ The configuration form opens. Please specify here:
   - Webfront to send push messages
   - Selection of the desired functions or displays in the webfront
 
+Note: If Xiaomi requires two-factor authentication, a verification popup appears. Request the code via email/SMS and enter it to continue the login.
+
 ### d. Setup of the map upload (ONLY for rooted devices!)
 At the moment you can not read the map view from the outside.
 For **rooted** devices you can use the following workaround. Here, however, only the created map is currently synchronized, without the already sucked surfaces or the position of the vaccum cleaner, it is still being worked on.

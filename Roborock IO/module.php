@@ -79,7 +79,7 @@ class RoborockIO extends IPSModuleStrict
     }
 
     /**
-     * apply changes from configuration form.
+     * apply changes from the configuration form.
      *
      */
     public function ApplyChanges(): void
@@ -98,7 +98,6 @@ class RoborockIO extends IPSModuleStrict
         $this->SetStatus(IS_ACTIVE);
     }
 
-    /** @noinspection ReturnTypeCanBeDeclaredInspection */
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data): void
     {
         if (($Message === IPS_KERNELMESSAGE) && ($Data[0] === KR_READY)) {
@@ -123,7 +122,7 @@ class RoborockIO extends IPSModuleStrict
         // debug log
         $this->_debug('forwarded data', json_encode($data->Buffer, JSON_THROW_ON_ERROR));
 
-        // return immediately on discover request
+        // return immediately on discovery request
         if ($payload->method === 'discover') {
             return json_encode($this->Discover($payload->ip), JSON_THROW_ON_ERROR);
         }
@@ -202,7 +201,7 @@ class RoborockIO extends IPSModuleStrict
                     $buffer['token']  = $this->token;
                 }
 
-                // send to children
+                // send it to children
                 $this->SendDataToChildren(
                     json_encode([
                                     'DataID'     => '{36FF43CE-F065-DD20-F1A8-A7C99C25D7A2}',
@@ -216,14 +215,15 @@ class RoborockIO extends IPSModuleStrict
     }
 
     /**
-     * send command & receive response.
+     * send a command and receive a response.
+     *
      *
      * @param object $payload
      *
-     * @return string json data
+     * @return array|bool|string|null json data
      * @throws \JsonException
      */
-    private function Send(object $payload)
+    private function Send(object $payload): array|bool|string|null
     {
         $this->attempts++;
 
@@ -258,7 +258,7 @@ class RoborockIO extends IPSModuleStrict
             $packet = hex2bin($this->_buildMessage($message));
             $this->_debug('socket [packet]', $packet, 1);
 
-            // send message to socket
+            // send a message to socket
             if ($bytes = socket_sendto($this->socket, $packet, strlen($packet), 0, $this->ip, self::PORT_UDP)) {
                 $this->_debug('socket [send]', $bytes . ' bytes');
             } else {
@@ -285,7 +285,7 @@ class RoborockIO extends IPSModuleStrict
 
                 if ($this->attempts < 3) {
                     return $this->Retry($payload);
-                } // on invalid response, retry attempt
+                } // on invalid response, retry an attempt
 
                 return false;
             }
@@ -310,7 +310,7 @@ class RoborockIO extends IPSModuleStrict
      * @return void
      * @throws \JsonException
      */
-    private function SendData(int $instance_id, $data, bool $doTimeout = true): void
+    private function SendData(int $instance_id, array|string $data, bool $doTimeout = true): void
     {
         // get instance settings
         $token = IPS_GetProperty($instance_id, 'token');
@@ -367,7 +367,7 @@ class RoborockIO extends IPSModuleStrict
      * @return array|bool|false[]|string|string[]|null
      * @throws \JsonException
      */
-    private function Retry(object $payload)
+    private function Retry(object $payload): array|bool|string|null
     {
         IPS_Sleep(1000);
         $this->_increaseMessageId(100);
@@ -385,7 +385,7 @@ class RoborockIO extends IPSModuleStrict
      */
     protected function SendHello(string $discover_ip):bool|string
     {
-        // check if hello message was already sent
+        // check if a hello message was already sent
         if (!$this->first_request && !$discover_ip) {
             return true;
         }
@@ -405,7 +405,7 @@ class RoborockIO extends IPSModuleStrict
         // build hello message
         $hello_packet = hex2bin(self::HELLO_MSG);
 
-        // send hello message
+        // send a hello message
         if ($bytes = socket_sendto($this->socket, $hello_packet, strlen($hello_packet), 0, $ip, self::PORT_UDP)) {
             $this->_debug(($discover_ip ? 'discover' : 'socket') . ' [response]', $bytes . ' bytes sent to ' . $ip . ':' . self::PORT_UDP);
         } else {
@@ -425,7 +425,7 @@ class RoborockIO extends IPSModuleStrict
                 $this->_debug('socket [HELLO]', json_encode($hello, JSON_THROW_ON_ERROR));
             }
 
-            // return HELLO message on discover
+            // return HELLO message on discovery
             if ($discover_ip) {
                 return $hello;
             }
@@ -441,10 +441,10 @@ class RoborockIO extends IPSModuleStrict
      *
      * @param string $ip
      *
-     * @return array|bool
+     * @return bool|array|string
      * @throws \JsonException
      */
-    protected function Discover(string $ip)
+    protected function Discover(string $ip): bool|array|string
     {
         // send HELLO and retrieve token
         if ($discover = $this->SendHello($ip)) {
@@ -459,7 +459,7 @@ class RoborockIO extends IPSModuleStrict
      */
     private function SocketCreate(): void
     {
-        /** do nothing, if socket was already created */
+        /** do nothing if the socket was already created */
         if ($this->socket) {
             $this->_debug('socket [instance]', 'already created');
         } /** create socket */ elseif ($this->socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP)) {
@@ -470,7 +470,7 @@ class RoborockIO extends IPSModuleStrict
     }
 
     /**
-     * sends a reception timeout to socket.
+     * sends a reception timeout to the socket.
      *
      * @param int $timeout
      */
@@ -532,7 +532,7 @@ class RoborockIO extends IPSModuleStrict
      * @return array|bool|mixed|string
      * @throws \JsonException
      */
-    private function _validateResponse(string $json, int $MessageId)
+    private function _validateResponse(string $json, int $MessageId): mixed
     {
         $result = false;
         $data   = @json_decode($json, true, 512, JSON_THROW_ON_ERROR);
@@ -651,7 +651,7 @@ class RoborockIO extends IPSModuleStrict
 
         // retrieve token
         if (($this->length === '0020') && ((strlen($message) / 2) === 32)) {
-            // get new token
+            // get a new token
             $tmp_token = $this->_validateToken(substr($message, 32, 32));
 
             // set new token, if valid
@@ -695,9 +695,9 @@ class RoborockIO extends IPSModuleStrict
      *
      * @param string $data
      *
-     * @return string
+     * @return false|string
      */
-    private function _decrypt(string $data)
+    private function _decrypt(string $data): false|string
     {
         if (!$ret = openssl_decrypt(hex2bin($data), 'AES-128-CBC', hex2bin($this->key), OPENSSL_RAW_DATA, hex2bin($this->iv))) {
             $this->_Debug(
@@ -805,13 +805,13 @@ class RoborockIO extends IPSModuleStrict
                 $img_x = 0;
                 $img_y = 0;
                 foreach (file($_FILES['coordinates']['tmp_name']) as $line) {
-                    if (strpos($line, 'estimate') !== false) {
+                    if (str_contains($line, 'estimate')) {
                         $d = explode('estimate', $line);
                         $d = trim($d[1]);
 
                         [$y, $x] = explode(' ', $d, 3);
 
-                        // calculate pixel from center of the image, with offset
+                        // calculate pixel from the center of the image, with offset
                         $img_x = $center_x + ($x * 20);
                         $img_y = $center_y + ($y * 20);
 

@@ -16,7 +16,7 @@ Modul für IP-Symcon ab Version 6.3
 
 ## 1. Funktionsumfang
 
-Mit dem Modul ist es möglich einen [Roborock](https://www.roborock.com/ "Roborock") Staubsauger-Roboter (Xiaomi) von IP-Symcon aus zu steuern. 
+Mit dem Modul ist es möglich, einen [Roborock](https://www.roborock.com/ "Roborock") Staubsauger-Roboter (Xiaomi) von IP-Symcon aus zu steuern. 
 
 ### Funktionen:  
 
@@ -37,7 +37,7 @@ Mit dem Modul ist es möglich einen [Roborock](https://www.roborock.com/ "Roboro
     - Summe der Reinigungszeit
     - Batterieleistung
     - Anzahl der Reinigungen
-    - Übersicht letzte Reinigungen
+    - Übersicht der letzten Reinigungen
     - Ansicht des Status der Verbrauchsmaterialien
     - Seriennummer
     - Hardware Version
@@ -73,7 +73,9 @@ Es öffnet sich das Konfigurationsformular. Hier ist anzugeben:
 
 Optional können die Statusvariablen ausgewählt werden sowie Pushnachrichten definiert werden.
 
-Im Expertenbereich kann das Aktualissierungsintervall (Standard ist 60 s) modifiziert werden. Es sollte nicht zu niedrig gesetzt werden, da die Kommunikation mit dem Gerät recht langsam ist. Zudem kann ein abweichender Server angegeben werden, von dem der Token bezogen werden soll. Für China kann 'cn' angegeben werden, oder er kann leer gelassen werden. Standard ist 'de'.
+Hinweis: Wenn Xiaomi eine Zwei-Faktor-Authentifizierung verlangt, erscheint ein Verifizierungs-Pop-up. Dort den Code per E-Mail/SMS anfordern und eingeben, dann wird der Login fortgesetzt.
+
+Im Expertenbereich kann das Aktualisierungsintervall (Standard ist 60 s) modifiziert werden. Es sollte nicht zu niedrig gesetzt werden, da die Kommunikation mit dem Gerät recht langsam ist. Zudem kann ein abweichender Server angegeben werden, von dem das Token bezogen werden soll. Für China kann 'cn' angegeben werden, oder er kann leer gelassen werden. Standard ist 'de'.
 
 Im Aktionsbereich des Formulars können die Statusvariablen getestet werden ("Testbereich"). 
 
@@ -82,7 +84,7 @@ Unter "Raumnamen ändern" (sichtbar, wenn die Statusvariablen für einen _Reinig
 ![RoomNames](img/RoomNames.png "Raumnamen ändern")
 Hinweis: beim Einlesen werden immer die Räume der aktuell geladenen Karte eingelesen.
 
-Falls die Statusvariable _Kartenbild_ ausgewählt wurde, werden zusätzlich Funktionen zum Holen der Karte und zum Anzeigen angeboten.
+Falls die Statusvariable _Kartenbild_ ausgewählt wurde, werden zusätzliche Funktionen zum Holen der Karte und zum Anzeigen angeboten.
 
 **Reinigungsauftrag definieren**
 
@@ -123,7 +125,7 @@ Es kann entweder eine JSON kodierte Liste der zu reinigenden Räume (Segmente) a
 $segmentIDs = json_encode ([16, 17, 18]);
 ```
 
-oder es kann zusätzlich noch eine Anzahl an Wiederholungen mitgegeben werden
+oder es kann zusätzlich eine Anzahl an Wiederholungen mitgegeben werden
 ```php
 $segmentIds = json_encode ([['segments' => [16, 17, 18], 'repeat' => 2]]);
 ```

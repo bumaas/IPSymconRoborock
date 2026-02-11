@@ -175,9 +175,9 @@ class Roborock extends IPSModuleStrict
     private const ATTRIBUTE_AGENTID                 = 'agentId';
     private const ATTRIBUTE_CLIENTID                = 'clientId';
 
-    private const BUFFER_VERIFICATION_URL        = 'notification_url';
-    private const BUFFER_VERIFICATION_FLAG        = 'flag';
-    private const BUFFER_IDENTITY_SESSION        = 'identity_session';
+    private const BUFFER_VERIFICATION_URL  = 'notification_url';
+    private const BUFFER_VERIFICATION_FLAG = 'flag';
+    private const BUFFER_IDENTITY_SESSION  = 'identity_session';
 
     private const PROPERTY_IP                   = 'ip';
     private const PROPERTY_MODEL                = 'model';
@@ -319,7 +319,7 @@ class Roborock extends IPSModuleStrict
 
         // Init Buffers
         $this->SetBuffer(self::BUFFER_IDENTITY_SESSION, '');
-        $this->SetBuffer(self::BUFFER_VERIFICATION_FLAG, 0);
+        $this->SetBuffer(self::BUFFER_VERIFICATION_FLAG, '');
         $this->SetBuffer(self::BUFFER_VERIFICATION_URL, '');
 
         // register public properties
@@ -525,9 +525,10 @@ class Roborock extends IPSModuleStrict
 
         // Remote Control
         if ($this->ReadPropertyBoolean(self::PROPERTY_REMOTE)) {
-            $id = $this->RegisterVariableString(self::IDENT_REMOTE_CONTROL, $this->Translate('Remote Control'), '~HTMLBox', $this->_getPosition());
-            IPS_SetIcon($id, 'Move');
-            $this->SetJoystickHtml();
+            if ($this->RegisterVariableString(self::IDENT_REMOTE_CONTROL, $this->Translate('Remote Control'), '~HTMLBox', $this->_getPosition())) {
+                IPS_SetIcon($this->GetIDForIdent(self::IDENT_REMOTE_CONTROL), 'Move');
+                $this->SetJoystickHtml();
+            }
         } else {
             $this->UnregisterVariable(self::IDENT_REMOTE_CONTROL);
         }
@@ -673,16 +674,18 @@ class Roborock extends IPSModuleStrict
 
         // serial number
         if ($this->ReadPropertyBoolean('serial_number')) {
-            $id = $this->RegisterVariableString(self::IDENT_SERIAL_NUMBER, $this->Translate('Serial Number'), '', $this->_getPosition());
-            IPS_SetIcon($id, 'Robot');
+            if ($this->RegisterVariableString(self::IDENT_SERIAL_NUMBER, $this->Translate('Serial Number'), '', $this->_getPosition())) {
+                IPS_SetIcon($this->GetIDForIdent(self::IDENT_SERIAL_NUMBER), 'Robot');
+            }
         } else {
             $this->UnregisterVariable(self::IDENT_SERIAL_NUMBER);
         }
 
         // timer details
         if ($this->ReadPropertyBoolean('timer_details')) {
-            $id = $this->RegisterVariableString('timer_details', $this->Translate('Timer Details'), '~HTMLBox', $this->_getPosition());
-            IPS_SetIcon($id, 'Clock');
+            if ($this->RegisterVariableString('timer_details', $this->Translate('Timer Details'), '~HTMLBox', $this->_getPosition())) {
+                IPS_SetIcon($this->GetIDForIdent('timer_details'), 'Clock');
+            }
         } else {
             $this->UnregisterVariable('timer_details');
         }
@@ -949,9 +952,11 @@ class Roborock extends IPSModuleStrict
             }
 
             // update maps picture
+            /* deaktiviert da zu viele Aufrufe
             if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE)) {
-                //$this->GetMap(); //deaktiviert da zu viele Aufrufe
+                $this->GetMap();
             }
+            */
 
             if (in_array($this->GetValue(self::IDENT_STATE), [4, 5, 6, 7, 11, 15, 16, 17, 18, 26], true)) {
                 $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 10000);
@@ -1025,8 +1030,7 @@ class Roborock extends IPSModuleStrict
         // force immediate option on ips sender
 
         //wenn ein Aufruf direkt erfolgt und nicht aus der Instanz heraus, dann soll er sofort ausgeführt werden /** @noinspection PhpUndefinedVariableInspection */
-        //$this->SendDebug('IPS', json_encode($_IPS, JSON_THROW_ON_ERROR), 0);
-        /** @noinspection PhpUndefinedVariableInspection */
+        //$this->SendDebug('IPS', json_encode($_IPS, JSON_THROW_ON_ERROR), 0); /** @noinspection PhpUndefinedVariableInspection */
         /** @global array $_IPS */
         if (($_IPS['SELF'] > 0 && $_IPS['SELF'] !== $this->InstanceID)
             || in_array($_IPS['SENDER'], ['Execute', 'Variable', 'RunScript', 'PHPModule'])) {
@@ -1374,8 +1378,12 @@ class Roborock extends IPSModuleStrict
 
         curl_close($ch);
         if ($responsecode !== 200) {
-            $this->_debug(__FUNCTION__,
-                sprintf('%s: responsecode: %s, curl_getinfo: %s', __FUNCTION__, json_encode($responsecode), json_encode(curl_getinfo($ch)))
+            $this->_debug(
+                __FUNCTION__,
+                sprintf('%s: responsecode: %s, curl_getinfo: %s', __FUNCTION__,
+                        json_encode($responsecode, JSON_THROW_ON_ERROR),
+                        json_encode(curl_getinfo($ch), JSON_THROW_ON_ERROR)
+                )
             );
             return '';
         }
@@ -1394,9 +1402,11 @@ class Roborock extends IPSModuleStrict
      */
     public function GetMap(): bool
     {
+        /*
         if (!$this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE)) {
-            //return false;
+            return false;
         }
+        */
         //$url = $this->ReadAttributeString(self::ATTRIBUTE_MAPFILE_URL);
         $url = '';
 
@@ -3072,7 +3082,7 @@ class Roborock extends IPSModuleStrict
                     '} elseif ($Result === false) {',
                     '  echo $module->Translate(\'Error\');',
                     '};'
-                    ],
+                ],
                 'visible' => ($this->ReadPropertyString(self::PROPERTY_XIAOMI_USER) !== '')
                              && ($this->ReadPropertyString(
                             self::PROPERTY_XIAOMI_PASSWORD
@@ -3133,49 +3143,49 @@ class Roborock extends IPSModuleStrict
                 'onClick' => 'IPS_RequestAction($id, "SendPushNotificationTest", 0);'
             ],
             [
-                'type' =>'PopupAlert',
-                'name' => 'VerifyPopup',
-                'popup'=> [
+                'type'    => 'PopupAlert',
+                'name'    => 'VerifyPopup',
+                'popup'   => [
                     'closeCaption' => 'Abort',
-                    'items'=> [
+                    'items'        => [
                         [
-                            'type' => 'Label',
-                            'bold' => true,
-                            'name' => 'VerifyTitle',
+                            'type'    => 'Label',
+                            'bold'    => true,
+                            'name'    => 'VerifyTitle',
                             'caption' => 'Verify Login'
                         ],
                         [
-                            'type' => 'Label',
-                            'name' => 'VerifyMessage',
+                            'type'    => 'Label',
+                            'name'    => 'VerifyMessage',
                             'caption' => ''
                         ],
                         [
-                            'type' => 'Button',
+                            'type'    => 'Button',
                             'caption' => 'Send',
-                            'name' => 'SendVerificationCodeButton',
+                            'name'    => 'SendVerificationCodeButton',
                             'onClick' => 'echo Roborock_SendVerificationCode($id);'
                         ],
                         [
-                            'type' => 'Label',
-                            'bold' => true,
+                            'type'    => 'Label',
+                            'bold'    => true,
                             'caption' => 'Enter the verification code below and click Submit to continue.'
                         ],
                         [
-                            'type' => 'ValidationTextBox',
-                            'name' => 'VerifyCode',
+                            'type'    => 'ValidationTextBox',
+                            'name'    => 'VerifyCode',
                             'caption' => 'Verification Code'
                         ]
                     ],
-                    'buttons' => [
+                    'buttons'      => [
                         [
-                            'type' => 'Button',
+                            'type'    => 'Button',
                             'caption' => 'Submit',
-                            'name' => 'SubmitVerificationCodeButton',
+                            'name'    => 'SubmitVerificationCodeButton',
                             'onClick' => 'echo Roborock_SubmitVerificationCode($id, $VerifyCode);'
                         ]
                     ]
                 ],
-                'visible' => $this->GetBuffer(self::BUFFER_VERIFICATION_URL) != ''
+                'visible' => $this->GetBuffer(self::BUFFER_VERIFICATION_URL) !== ''
             ]
         ];
     }
@@ -3505,20 +3515,20 @@ EOF;
         // -- login_account --
         $loginAccountData =
             $this->login_account($user, $password, $agentId, $clientId, $loginData['qs'], $loginData['callback'], $loginData['_sign']);
-        if ($loginAccountData['securityStatus'] == 16) { // 2FA
+        if ($loginAccountData['securityStatus'] === 16) { // 2FA
             $this->SendDebug(__FUNCTION__ . ': WARNING', 'Additional verification required', 0);
             $this->SetBuffer(self::BUFFER_VERIFICATION_URL, $loginAccountData['notificationUrl']);
             $this->SetBuffer(self::BUFFER_IDENTITY_SESSION, '');
-            $this->SetBuffer(self::BUFFER_VERIFICATION_FLAG, 0);
+            $this->SetBuffer(self::BUFFER_VERIFICATION_FLAG, '');
 
-            list($VerifyMessage, $ErrorMessage) = $this->StartVerifyDevice();
+            [$VerifyMessage, $ErrorMessage] = $this->StartVerifyDevice();
 
             $this->UpdateFormField('LogoutButton', 'visible', true);
             $this->UpdateFormField('LoginButton', 'visible', false);
             $this->UpdateFormField('LoginPopup', 'visible', false);
-            
+
             $this->UpdateFormField('VerifyMessage', 'caption', $VerifyMessage);
-            if ($VerifyMessage != '') {
+            if ($VerifyMessage !== '') {
                 $this->UpdateFormField('VerifyMessage', 'caption', $VerifyMessage);
             } else {
                 $this->UpdateFormField('VerifyMessage', 'caption', $this->Translate($ErrorMessage));
@@ -3602,13 +3612,14 @@ EOF;
     {
         $this->SendDebug('Cloud Login', 'Device verification process initiated', 0);
         $IdentityUrl = str_replace('fe/service/identity/authStart', 'identity/list', $this->GetBuffer(self::BUFFER_VERIFICATION_URL));
-        $headers = [
+        $headers     = [
             'Content-Type: application/x-www-form-urlencoded',
-            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $this->ReadAttributeString(self::ATTRIBUTE_AGENTID) . ' APP/xiaomi.smarthome APPV/62830',
+            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $this->ReadAttributeString(self::ATTRIBUTE_AGENTID)
+            . ' APP/xiaomi.smarthome APPV/62830',
             'Cookie: sdkVersion=accountsdk-18.8.15; deviceId=' . $this->ReadAttributeString(self::ATTRIBUTE_CLIENTID)
         ];
 
-        $ch      = curl_init($IdentityUrl);
+        $ch = curl_init($IdentityUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HEADER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -3619,35 +3630,39 @@ EOF;
         $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
         if (($responsecode !== 200)) {
-            trigger_error(sprintf('%s: responsecode: %s , URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $IdentityUrl, $effectiveURL));
+            trigger_error(
+                sprintf('%s: responsecode: %s , URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $IdentityUrl, $effectiveURL)
+            );
             return ['', 'Error on fetching verification list'];
         }
-        $header = substr($result, 0, $header_size);
-        $result = substr($result, $header_size);
+        $header           = substr($result, 0, $header_size);
+        $result           = substr($result, $header_size);
         $identity_session = explode('identity_session=', $header)[1];
         $identity_session = explode(';', $identity_session)[0];
         if ($identity_session === '') {
             return ['', 'Error on parsing identity session'];
         }
         $this->SetBuffer(self::BUFFER_IDENTITY_SESSION, $identity_session);
-        $Json = self::parseJson($result);
+        $Json = $this->parseJson($result);
         if ($Json === null) {
             return ['', 'Error on parsing verification list'];
         }
-        $this->SetBuffer(self::BUFFER_VERIFICATION_FLAG, (int) $Json['flag']);
-        $VerifyUrl = RoborockApiVerifyIdentity::getUrl((int) $Json['flag'])
-        . http_build_query(
-            [
-                '_flag'  => (int) $Json['flag'],
-                '_json'  => 'true'
-            ]
-        );
-        $headers = [
+        $this->SetBuffer(self::BUFFER_VERIFICATION_FLAG, $Json['flag']);
+        $VerifyUrl = RoborockApiVerifyIdentity::getUrl((int)$Json['flag']) . http_build_query(
+                [
+                    '_flag' => (int)$Json['flag'],
+                    '_json' => 'true'
+                ]
+            );
+        $headers   = [
             'Content-Type: application/x-www-form-urlencoded',
-            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $this->ReadAttributeString(self::ATTRIBUTE_AGENTID) . ' APP/xiaomi.smarthome APPV/62830',
-            'Cookie: identity_session='. $identity_session .';sdkVersion=accountsdk-18.8.15;deviceId=' . $this->ReadAttributeString(self::ATTRIBUTE_CLIENTID)
+            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $this->ReadAttributeString(self::ATTRIBUTE_AGENTID)
+            . ' APP/xiaomi.smarthome APPV/62830',
+            'Cookie: identity_session=' . $identity_session . ';sdkVersion=accountsdk-18.8.15;deviceId=' . $this->ReadAttributeString(
+                self::ATTRIBUTE_CLIENTID
+            )
         ];
-        $ch      = curl_init($VerifyUrl);
+        $ch        = curl_init($VerifyUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
@@ -3655,20 +3670,19 @@ EOF;
         $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
         if (($responsecode !== 200)) {
-            trigger_error(sprintf('%s: responsecode: %s , URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $IdentityUrl, $effectiveURL));
+            trigger_error(
+                sprintf('%s: responsecode: %s , URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $IdentityUrl, $effectiveURL)
+            );
             return ['', 'Error on fetching verification message'];
         }
-        $Json = self::parseJson($result);
+        $Json = $this->parseJson($result);
         if ($Json === null) {
             return ['', 'Error on parsing verification message'];
         }
         if ($Json['code'] !== 0) {
-            if (isset($Json['tips'])) {
-                return $Json['tips'];
-            }
-            return ['', 'Error on fetching verification message'];
+            return $Json['tips'] ?? ['', 'Error on fetching verification message'];
         }
-        list($Message, $Index) = RoborockApiVerifyIdentity::getMessageTextAndIndex((int)$this->GetBuffer(self::BUFFER_VERIFICATION_FLAG));
+        [$Message, $Index] = RoborockApiVerifyIdentity::getMessageTextAndIndex((int)$this->GetBuffer(self::BUFFER_VERIFICATION_FLAG));
         $Message = sprintf($this->Translate($Message), $Json[$Index]);
         return [$Message, ''];
     }
@@ -3682,19 +3696,23 @@ EOF;
     {
         $this->SendDebug(__FUNCTION__, '', 0);
         $VerifyUrl = RoborockApiCheckIdentity::getUrl((int)$this->GetBuffer(self::BUFFER_VERIFICATION_FLAG)) . http_build_query([
-            '_dc'   => (int) (time() * 1000)
-        ]);
-        $headers = [
+                                                                                                                                    '_dc' => (time(
+                                                                                                                                                   )
+                                                                                                                                                   * 1000)
+                                                                                                                                ]);
+        $headers   = [
             'Content-Type: application/x-www-form-urlencoded',
-            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $this->ReadAttributeString(self::ATTRIBUTE_AGENTID) . ' APP/xiaomi.smarthome APPV/62830',
-            'Cookie: identity_session='. $this->GetBuffer(self::BUFFER_IDENTITY_SESSION) .';sdkVersion=accountsdk-18.8.15;deviceId=' . $this->ReadAttributeString(self::ATTRIBUTE_CLIENTID)
+            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $this->ReadAttributeString(self::ATTRIBUTE_AGENTID)
+            . ' APP/xiaomi.smarthome APPV/62830',
+            'Cookie: identity_session=' . $this->GetBuffer(self::BUFFER_IDENTITY_SESSION) . ';sdkVersion=accountsdk-18.8.15;deviceId='
+            . $this->ReadAttributeString(self::ATTRIBUTE_CLIENTID)
         ];
-        $form = [
-            'retry'  => 0,
-            'icode'  => '',
-            '_json'  => 'true'
+        $form      = [
+            'retry' => 0,
+            'icode' => '',
+            '_json' => 'true'
         ];
-        $ch   = curl_init($VerifyUrl);
+        $ch        = curl_init($VerifyUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $form);
@@ -3707,15 +3725,12 @@ EOF;
             trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $VerifyUrl, $effectiveURL));
             return 'Error in request to send verification code';
         }
-        $Json = self::parseJson($result);
+        $Json = $this->parseJson($result);
         if ($Json === null) {
             return 'Error in parsing result from send verification request';
         }
         if ($Json['code'] !== 0) {
-            if (isset($Json['tips'])) {
-                return $Json['tips'];
-            }
-            return 'Error in request to send verification code';
+            return $Json['tips'] ?? 'Error in request to send verification code';
         }
         $this->UpdateFormField('SendVerificationCodeButton', 'enabled', false);
         $this->UpdateFormField('SendVerificationCodeButton', 'caption', $this->Translate('Code sent'));
@@ -3725,27 +3740,32 @@ EOF;
     /**
      * SubmitVerificationCode
      *
-     * @param  string $Code
+     * @param string $Code
+     *
      * @return string
      */
     public function SubmitVerificationCode(string $Code): string
     {
         $this->SendDebug(__FUNCTION__, $Code, 0);
-        $headers = [
+        $headers   = [
             'Content-Type: application/x-www-form-urlencoded',
-            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $this->ReadAttributeString(self::ATTRIBUTE_AGENTID) . ' APP/xiaomi.smarthome APPV/62830',
-            'Cookie: identity_session='. $this->GetBuffer(self::BUFFER_IDENTITY_SESSION) .';sdkVersion=accountsdk-18.8.15;deviceId=' . $this->ReadAttributeString(self::ATTRIBUTE_CLIENTID)
+            'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $this->ReadAttributeString(self::ATTRIBUTE_AGENTID)
+            . ' APP/xiaomi.smarthome APPV/62830',
+            'Cookie: identity_session=' . $this->GetBuffer(self::BUFFER_IDENTITY_SESSION) . ';sdkVersion=accountsdk-18.8.15;deviceId='
+            . $this->ReadAttributeString(self::ATTRIBUTE_CLIENTID)
         ];
         $VerifyUrl = RoborockApiVerifyIdentity::getUrl((int)$this->GetBuffer(self::BUFFER_VERIFICATION_FLAG)) . http_build_query([
-            '_dc'   => (int) (time() * 1000)
-        ]);
-        $form = [
+                                                                                                                                     '_dc' => (time(
+                                                                                                                                                    )
+                                                                                                                                                    * 1000)
+                                                                                                                                 ]);
+        $form      = [
             '_flag'  => (int)$this->GetBuffer(self::BUFFER_VERIFICATION_FLAG),
             '_json'  => 'true',
             'ticket' => $Code,
             'trust'  => 'true'
         ];
-        $ch   = curl_init($VerifyUrl);
+        $ch        = curl_init($VerifyUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($ch, CURLOPT_POST, true);
@@ -3755,23 +3775,20 @@ EOF;
         $result       = curl_exec($ch);
         $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-            $this->SendDebug(__FUNCTION__, $result, 0);
+        $this->SendDebug(__FUNCTION__, $result, 0);
         if (($responsecode !== 200)) {
             trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $VerifyUrl, $effectiveURL));
             return 'Error on submit verification code';
         }
-        $Json = self::parseJson($result);
+        $Json = $this->parseJson($result);
         if ($Json === null) {
             return 'Error on parsing verification result';
         }
         if ($Json['code'] !== 0) {
-            if (isset($Json['tips'])) {
-                return $Json['tips'];
-            }
-            return 'Error on submit verification code';
+            return $Json['tips'] ?? 'Error on submit verification code';
         }
         $LoginUrl = $Json['location'];
-        $ch      = curl_init($LoginUrl);
+        $ch       = curl_init($LoginUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_HEADER, 1);
@@ -3782,42 +3799,47 @@ EOF;
         $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
         if (($responsecode !== 200)) {
-            trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $url, $effectiveURL));
+            trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $LoginUrl, $effectiveURL));
             return 'Error on finalizing verification';
         }
         $userId = explode('userId=', $result)[1];
         $userId = explode(';', $userId)[0];
 
-        $cUserId = explode('cUserId=', $result)[1];
-        $cUserId = explode(';', $cUserId)[0];
-
         $serviceToken = explode('serviceToken=', $result)[1];
         $serviceToken = explode(';', $serviceToken)[0];
 
-        $this->WriteAttributeString(self::ATTRIBUTE_LOGIN_LOCATION_DATA, json_encode([
-            'userId'       => $userId,
-            'serviceToken' => $serviceToken
-            ],
-            JSON_THROW_ON_ERROR));
+        $this->WriteAttributeString(
+            self::ATTRIBUTE_LOGIN_LOCATION_DATA,
+            json_encode([
+                            'userId'       => $userId,
+                            'serviceToken' => $serviceToken
+                        ],
+                        JSON_THROW_ON_ERROR)
+        );
 
-        $Lines = explode("\r\n", $result);
-        $location='';
+        $Lines    = explode("\r\n", $result);
+        $location = '';
         foreach ($Lines as $Line) {
             $line_array = explode(':', $Line);
-            $Field = strtolower(trim(array_shift($line_array)));
-            if ($Field == 'location') {
+            $Field      = strtolower(trim(array_shift($line_array)));
+            if ($Field === 'location') {
                 $location = trim(implode(':', $line_array));
                 continue;
             }
-            if ($Field == 'extension-pragma') {
-                $Data = json_decode(trim(implode(':', $line_array)), true);
-                $this->SetBuffer(self::BUFFER_VERIFICATION_URL,'');
-                $this->WriteAttributeString(self::ATTRIBUTE_LOGIN_ACCOUNT_DATA, json_encode(
-                [
-                    'ssecurity' => $Data['ssecurity'],
-                    'userId'    => $userId,
-                    'location'  => $location
-                ],JSON_THROW_ON_ERROR));
+            if ($Field === 'extension-pragma') {
+                $Data = json_decode(trim(implode(':', $line_array)), true, 512, JSON_THROW_ON_ERROR);
+                $this->SetBuffer(self::BUFFER_VERIFICATION_URL, '');
+                $this->WriteAttributeString(
+                    self::ATTRIBUTE_LOGIN_ACCOUNT_DATA,
+                    json_encode(
+                        [
+                            'ssecurity' => $Data['ssecurity'],
+                            'userId'    => $userId,
+                            'location'  => $location
+                        ],
+                        JSON_THROW_ON_ERROR
+                    )
+                );
                 $this->SendDebug('Cloud Login', 'Device verification successful', 0);
                 return $this->Translate('MESSAGE:Verification successful!');
             }
@@ -4629,7 +4651,7 @@ EOF;
                 return $data;
             }
 
-            // update html, when enabled
+            // update HTML, when enabled
             if ($this->ReadPropertyBoolean(self::PROPERTY_CLEAN_TIME)) {
                 $html_data = [
                     $data['starttime'] => $data
@@ -4645,7 +4667,7 @@ EOF;
                     $this->_debug(__FUNCTION__, sprintf('cleaning_records: %s', $this->ReadAttributeString(self::ATTRIBUTE_CLEANING_RECORDS)));
                     $this->_debug(__FUNCTION__, sprintf('html_data: %s', json_encode($html_data, JSON_THROW_ON_ERROR)));
 
-                    // merge cleaning records with html data
+                    // merge cleaning records with HTML data
                     $cleaning_records[key($html_data)] = $html_data[key($html_data)];
 
                     // sort by key (time)
@@ -4659,7 +4681,7 @@ EOF;
 
                 $this->WriteAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, json_encode($cleaning_records, JSON_THROW_ON_ERROR));
 
-                // build html
+                // build HTML
                 $body_data = [];
                 foreach ($cleaning_records as $clean_record) {
                     $start_time        = $clean_record['starttime'];
@@ -4685,7 +4707,7 @@ EOF;
                     ];
                 }
 
-                // build html table
+                // build HTML table
                 $head = [
                     $this->Translate('Day'),
                     $this->Translate('Date'),
@@ -4702,7 +4724,7 @@ EOF;
                                                        ]
                                                    ]);
 
-                // save html table
+                // save HTML table
                 $this->_SetValue('cleaning_records', $html);
             }
 
@@ -4757,78 +4779,6 @@ EOF;
         ];
     }
 
-    /**
-     * Callback: Timer.
-     *
-     * @param array $data
-     *
-     * @return array
-     */
-    private function get_timer_callback(array $data): array
-    {
-        if (isset($data['result'])) {
-            $timers = $data['result'];
-            if (empty($timers)) {
-                // save html table
-                $this->_SetValue('timer_details', '');
-                return ['timer' => 'no timer set'];
-            }
-            $timer_list = [];
-            foreach ($timers as $timer) {
-                $setuptime = $timer[0]; // setup time of this schedule (Unix time)
-                // $setuptimestring = date('h:i:s',$setuptime);
-                $timer_active = $timer[1]; // Is this schedule active
-                $timing       = $timer[2];
-                $time_detail  = $timing[0];
-                $command      = $timing[1][0];
-                // $unknown = $timing[1][1];
-                $timer_data = explode(' ', $time_detail);
-                $minute     = $timer_data[0];
-                if ($minute === '0') {
-                    $minute = '00';
-                }
-                $hour         = $timer_data[1];
-                $day_of_month = $timer_data[2];
-                $month        = $timer_data[3];
-                $day_of_week  = $timer_data[4];
-                $repetition   = $this->_getTimerDay($day_of_week);
-                $time_string  = $hour . ':' . $minute;
-
-                $timer_entry[]                          = [
-                    $time_string . '<br>' . $repetition,
-                    $timer_active
-                ];
-                $timer_list[$setuptime]['timer_active'] = $timer_active;
-                $timer_list[$setuptime]['minute']       = $minute;
-                $timer_list[$setuptime]['hour']         = $hour;
-                $timer_list[$setuptime]['day_of_month'] = $day_of_month;
-                $timer_list[$setuptime]['month']        = $month;
-                $timer_list[$setuptime]['time_string']  = $time_string;
-                $timer_list[$setuptime]['repetition']   = $repetition;
-                $timer_list[$setuptime]['command']      = $command;
-            }
-
-            // build html table
-            $html = $this->_convertDataToTable([
-                                                   'table' => [
-                                                       'head' => [
-                                                           $this->Translate('Timer'),
-                                                           $this->Translate('Status'),
-                                                       ],
-                                                       'body' => $timer_entry
-                                                   ]
-                                               ]);
-
-            // save html table
-            $this->_SetValue('timer_details', $html);
-
-            // return values
-            return $timer_list;
-        }
-
-        // fallback
-        return [];
-    }
 
     /**
      * Callback: Fan Power.
@@ -4897,30 +4847,6 @@ EOF;
     }
 
     /**
-     * Callback: Change Sound Volume.
-     *
-     * @param array $data
-     *
-     * @return bool
-     * @noinspection PhpUnusedPrivateMethodInspection
-     */
-    private function change_sound_volume_callback(array $data): bool
-    {
-        // start & stop device quickly, to check volume
-        if (in_array(
-            $this->GetValue(self::IDENT_STATE),
-            [StateCode::SLEEPING, StateCode::WAITING, StateCode::CHARGING, StateCode::PAUSE, StateCode::DOCKING, StateCode::FULL],
-            true
-        )) {
-            $this->Start();
-            $this->Stop();
-        }
-
-        // fallback
-        return true;
-    }
-
-    /**
      * Callback: Start Remote Control.
      *
      * @param array $data
@@ -4982,7 +4908,11 @@ EOF;
         }
 
         foreach (IPS_GetMediaListByType(MEDIATYPE_CHART) as $mediaID) {
-            $content = json_decode(base64_decode(IPS_GetMediaContent($mediaID)), true, 512, JSON_THROW_ON_ERROR);
+            $mediaContent = @IPS_GetMediaContent($mediaID);
+            if (!is_string($mediaContent)) {
+                continue;
+            }
+            $content = json_decode(base64_decode($mediaContent), true, 512, JSON_THROW_ON_ERROR);
             if (isset($content['axes'])) {
                 foreach ($content['axes'] as $axis) {
                     if ($axis['profile'] === $Name) {
@@ -5010,46 +4940,47 @@ class RoborockApiVerifyIdentity
 {
     public const Phone = 4;
     public const Email = 8;
-    public static $TypeToPath =
-        [
-            self::Phone => 'https://account.xiaomi.com/identity/auth/verifyPhone?',
-            self::Email => 'https://account.xiaomi.com/identity/auth/verifyEmail?',
-        ];
+
+    public static array $TypeToPath = [
+        self::Phone => 'https://account.xiaomi.com/identity/auth/verifyPhone?',
+        self::Email => 'https://account.xiaomi.com/identity/auth/verifyEmail?',
+    ];
 
     /**
      * getUrl
      *
-     * @param  int $Type
+     * @param int $Type
+     *
      * @return string
      */
     public static function getUrl(int $Type): string
     {
         if (!array_key_exists($Type, self::$TypeToPath)) {
-            throw new \Exception('Unknown verification type: ' . $Type);
+            throw new RuntimeException('Unknown verification type: ' . $Type);
         }
         return self::$TypeToPath[$Type];
     }
+
     /**
      * getMessageTextAndIndex
      *
-     * @param  int $Flag
+     * @param int $Flag
+     *
      * @return array
      */
     public static function getMessageTextAndIndex(int $Flag): array
     {
-        switch ($Flag) {
-            case self::Email:
-                return [
-                    'Send the confirmation code to the email address (%s).',
-                    'maskedEmail'
-                ];
-            case self::Phone:
-                return [
-                    'Send the confirmation code to the phone number (%s).',
-                    'maskedPhone'
-                ];
-        }
-        return [];
+        return match ($Flag) {
+            self::Email => [
+                'Send the confirmation code to the email address (%s).',
+                'maskedEmail'
+            ],
+            self::Phone => [
+                'Send the confirmation code to the phone number (%s).',
+                'maskedPhone'
+            ],
+            default => [],
+        };
     }
 }
 
@@ -5060,22 +4991,23 @@ class RoborockApiCheckIdentity
 {
     public const Phone = 4;
     public const Email = 8;
-    public static $TypeToPath =
-        [
-            self::Phone => 'https://account.xiaomi.com/identity/auth/sendPhoneTicket?',
-            self::Email => 'https://account.xiaomi.com/identity/auth/sendEmailTicket?',
-        ];
+
+    public static $TypeToPath = [
+        self::Phone => 'https://account.xiaomi.com/identity/auth/sendPhoneTicket?',
+        self::Email => 'https://account.xiaomi.com/identity/auth/sendEmailTicket?',
+    ];
 
     /**
      * getUrl
      *
-     * @param  int $Type
+     * @param int $Type
+     *
      * @return string
      */
     public static function getUrl(int $Type): string
     {
         if (!array_key_exists($Type, self::$TypeToPath)) {
-            throw new \Exception('Unknown verification type: ' . $Type);
+            throw new RuntimeException('Unknown verification type: ' . $Type);
         }
         return self::$TypeToPath[$Type];
     }
