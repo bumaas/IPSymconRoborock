@@ -4209,15 +4209,15 @@ EOF;
      * @return false|string
      * @throws \JsonException
      */
-    private function load_multi_map_callback(array $data): false|string
+    private function load_multi_map_callback(array $data): false|int
     {
-        //       $this->SendDebug(__FUNCTION__, json_encode($data), 0);
-
+        $this->SendDebug(__FUNCTION__, json_encode($data), 0);
         if (isset($data['result'][0]) && $data['result'][0] === 'ok') {
-            $map_status = $data['params'][0];
+            $map_status = (int) $data['params'][0];
             $this->_SetValue(self::IDENT_MAP_STATUS, $map_status);
 
             if ($this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
+                $this->RequestData('get_room_mapping', ['immediate' => true]);
                 $this->WriteRoomSelectionProfile();
                 $this->UpdateRoomsSelected();
             }
@@ -4379,9 +4379,13 @@ EOF;
         }
 
         if (isset($result['map_status'])) {
+            $prev_map_status = $this->GetValue(self::IDENT_MAP_STATUS);
             $map_status = (int)$result['map_status'] >> 2;
             $this->_SetValue(self::IDENT_MAP_STATUS, $map_status);
             $ret['map_status'] = $map_status;
+            if ($map_status !== $prev_map_status && $this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
+                $this->RequestData('get_room_mapping', ['immediate' => true]);
+            }
         }
 
 
