@@ -223,7 +223,7 @@ class Roborock extends IPSModuleStrict
     private const IDENT_WATER_QUANTITY            = 'water_quantity';
     private const IDENT_CONSUMABLES               = 'consumables';
     private const IDENT_WATER_BOX_STATUS          = 'water_box_status';
-    private const IDENT_WATER_BOX_CARRIAGE_STATUS = 'water_box_carriage_status'; //Anmerkung: der Unterschied zwischen 'water_box_status' und 'water_box_carriage_status' ist unklar
+    private const IDENT_WATER_BOX_CARRIAGE_STATUS = 'water_box_carriage_status'; //Anmerkung: Der Unterschied zwischen 'water_box_status' und 'water_box_carriage_status' ist unklar
     private const IDENT_MAP_STATUS                = 'map_status';
     private const IDENT_MAP_PICTURE               = 'map_picture';
     private const IDENT_MAP_PICTURE_FILE          = 'map_picture_file';
@@ -410,7 +410,7 @@ class Roborock extends IPSModuleStrict
 
 
     /**
-     * apply changes from configuration form.
+     * apply changes from the configuration form.
      *
      * @return void
      */
@@ -843,7 +843,7 @@ class Roborock extends IPSModuleStrict
 
         $this->_debug('info', json_encode($info, JSON_THROW_ON_ERROR));
 
-        // yay, configuration is valid!
+        // yay, the configuration is valid!
         $this->SetStatus(IS_ACTIVE);
 
         if (get_class($this->device) === 'roborock_vacuum') {
@@ -958,7 +958,18 @@ class Roborock extends IPSModuleStrict
             }
             */
 
-            if (in_array($this->GetValue(self::IDENT_STATE), [4, 5, 6, 7, 11, 15, 16, 17, 18, 26], true)) {
+            if (in_array($this->GetValue(self::IDENT_STATE), [
+                StateCode::REMOTE_CONTROL->value,
+                StateCode::CLEANING->value,
+                StateCode::RETURNING_TO_BASE->value,
+                StateCode::MANUAL_MODE->value,
+                StateCode::SPOT_CLEANING->value,
+                StateCode::DOCKING->value,
+                StateCode::GO_TO->value,
+                StateCode::ZONE_CLEAN->value,
+                StateCode::ROOM_CLEAN->value,
+                StateCode::RETURNING_TO_BASE_FOR_MOP_WASHING->value
+            ], true)) {
                 $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 10000);
             } elseif ($this->GetTimerInterval(self::TIMER_UPDATE_MAP) !== 0) {
                 $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 0);
@@ -994,13 +1005,18 @@ class Roborock extends IPSModuleStrict
         // merge payload & options
         $buffer = array_merge($payload, $options);
 
-        // send to i/o device
+        // send it to an i/o device
         $this->_debug('send', json_encode($buffer, JSON_THROW_ON_ERROR));
 
         $data = json_encode(['DataID' => '{F7DC50D6-DCE6-27CE-49B2-A363593EBB3B}', 'Buffer' => $buffer], JSON_THROW_ON_ERROR);
         if ($io = @$this->SendDataToParent($data)) {
             // return data
+            try {
             return json_decode($io, true, 512, JSON_THROW_ON_ERROR);
+            } catch (JsonException $ex) {
+                $this->_debug(__FUNCTION__, 'Invalid JSON from parent: ' . $ex->getMessage());
+                return false;
+            }
         }
 
         return false;
@@ -1017,11 +1033,19 @@ class Roborock extends IPSModuleStrict
      */
     private function RequestData(string $method, array $options = []): array|bool|string|int|null
     {
+        $request_id = (int) $this->GetBuffer('request_id');
+        $request_id++;
+        if ($request_id >= 9999) {
+            $request_id = 1;
+        }
+        $this->SetBuffer('request_id', (string) $request_id);
+
         // build payload
         $payload = [
             'InstanceID' => $this->InstanceID,
             'token'      => $this->ReadAttributeString(self::ATTRIBUTE_TOKEN),
             'ip'         => $this->ReadPropertyString(self::PROPERTY_IP),
+            'request_id' => $this->InstanceID . '-' . $request_id,
             'immediate'  => false,
             'method'     => $method,
             'params'     => []
@@ -1040,12 +1064,12 @@ class Roborock extends IPSModuleStrict
         // merge payload & options
         $buffer = array_merge($payload, $options);
 
-        // send to i/o device
+        // send it to an i/o device
         $this->_debug('send', json_encode($buffer, JSON_THROW_ON_ERROR));
 
         $data = json_encode(['DataID' => '{F7DC50D6-DCE6-27CE-49B2-A363593EBB3B}', 'Buffer' => $buffer], JSON_THROW_ON_ERROR);
         if ($io_json = @$this->SendDataToParent($data)) {
-            // receive data on immediately requests
+            // receive data on immediate requests
             $this->_debug('send (return)', $io_json);
 
             if ($buffer['immediate']) {
@@ -1077,13 +1101,13 @@ class Roborock extends IPSModuleStrict
     public function ReceiveData(string $JSONString): string
     {
         //$this->SendDebug(__FUNCTION__ . ': JSONString', $JSONString, 0);
-        // convert json payload to array
+        // convert JSON payload to array
         $payload = json_decode($JSONString, true, 512, JSON_THROW_ON_ERROR);
 
         // extract buffer
         $buffer = $payload['Buffer'];
 
-        // check token and save, if diffs from current one
+        // check token and save, if diffs from the current one
         $current_token = $this->ReadAttributeString(self::ATTRIBUTE_TOKEN);
         if (isset($buffer['token']) && ($buffer['token'] !== $current_token) && (strlen($buffer['token']) === 32)) {
             $this->WriteAttributeString(self::ATTRIBUTE_TOKEN, $buffer['token']);
@@ -1097,7 +1121,7 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * Check if a callback exist and execute method.
+     * Check if a callback exists and execute the method.
      *
      * @param array $buffer
      *
@@ -1115,7 +1139,7 @@ class Roborock extends IPSModuleStrict
 
         $this->_debug('receive - no callback', $buffer['method'] . ': ' . json_encode($buffer, JSON_THROW_ON_ERROR));
 
-        // return original buffer, when no callback was found
+        // return the original buffer when no callback was found
         $this->_debug('receive', json_encode($buffer, JSON_THROW_ON_ERROR));
         return $buffer;
     }
@@ -1138,7 +1162,7 @@ class Roborock extends IPSModuleStrict
             $this->WriteAttributeString(self::ATTRIBUTE_TOKEN, $token);
         }
 
-        // return true, when token length is 32 byte
+        // return true, when token length is 32 bytes
         return strlen($token) === 32;
     }
 
@@ -1215,7 +1239,10 @@ class Roborock extends IPSModuleStrict
 
     public function StartCleaning(): void
     {
-        $roomSelection  = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_SELECTION), true, 512, JSON_THROW_ON_ERROR);
+        $roomSelection  = $this->SafeJsonDecode(
+            $this->ReadAttributeString(self::ATTRIBUTE_ROOM_SELECTION),
+            __FUNCTION__ . ' room_selection'
+        ) ?? [];
         $segments       = array_keys($roomSelection);
         $cleaningCycles = (int)$this->GetValue(self::IDENT_CLEANING_CYCLES);
         if ($cleaningCycles === 1) {
@@ -1293,7 +1320,7 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * get clean summary.
+     * get a clean summary.
      *
      * @return array|bool
      * @throws \JsonException
@@ -1317,7 +1344,7 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * get clean record map.
+     * get a clean record map.
      *
      * @return array|bool
      * @throws \JsonException
@@ -1343,15 +1370,23 @@ class Roborock extends IPSModuleStrict
         }
 
         ini_set('memory_limit', '48M');
-        $pic = new RRMapFileParser($data, function (string $message, string $data) {
-            $this->_debug($message, $data);
-        });
+        $pic = new RRMapFileParser(
+            $data,
+            function (string $message, string $data): void {
+                $this->_debug($message, $data);
+            },
+            function (string $message, string $data): void {
+                $this->LogMessage($message . ': ' . $data, KL_WARNING);
+            }
+        );
         if (!$pic->isValid()) {
             $this->_debug(__FUNCTION__, sprintf('pic is invalid: %s', $filename));
             return false;
         }
 
-        $draw    = new RRMapDraw($pic);
+        $draw    = new RRMapDraw($pic, function (string $message, string $data): void {
+            $this->LogMessage($message . ': ' . $data, KL_WARNING);
+        });
         $picture = $draw->getImage($this->ReadPropertyInteger(self::PROPERTY_MAP_PICTURE_SCALE) / 100);
 
         if ($picture === '') {
@@ -1457,14 +1492,22 @@ class Roborock extends IPSModuleStrict
         //$data = $this->loadMapFileFromFile(IPS_GetKernelDir() . 'logs\s7karte');
 
         ini_set('memory_limit', '48M');
-        $pic = new RRMapFileParser($data, function (string $message, string $data) {
-            $this->_debug($message, $data);
-        });
+        $pic = new RRMapFileParser(
+            $data,
+            function (string $message, string $data): void {
+                $this->_debug($message, $data);
+            },
+            function (string $message, string $data): void {
+                $this->LogMessage($message . ': ' . $data, KL_WARNING);
+            }
+        );
         if (!$pic->isValid()) {
             return false;
         }
 
-        $draw    = new RRMapDraw($pic);
+        $draw    = new RRMapDraw($pic, function (string $message, string $data): void {
+            $this->LogMessage($message . ': ' . $data, KL_WARNING);
+        });
         $picture = $draw->getImage($this->ReadPropertyInteger(self::PROPERTY_MAP_PICTURE_SCALE) / 100);
 
         if ($picture === '') {
@@ -1729,7 +1772,7 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * move robot to direction.
+     * move robot to a direction.
      *
      * @param int $direction -100..100
      * @param int $velocity  0..100
@@ -1794,7 +1837,7 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * Roborock Vacuum 2 clean zone with coordinates for area, use a rectangle with values for the lower left corner and the upper right corner.
+     * Roborock Vacuum 2 clean zone with coordinates for the area, use a rectangle with values for the lower left corner and the upper right corner.
      *
      * @param int $lower_left_corner_x
      * @param int $lower_left_corner_y
@@ -1914,7 +1957,7 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * Roborock Vacuum 2 go to coordinates.
+     * Roborock Vacuum 2 go-to coordinates.
      *
      * @param int $x
      * @param int $y
@@ -2200,14 +2243,20 @@ class Roborock extends IPSModuleStrict
                 $RoomValues = json_decode($Value, true, 512, JSON_THROW_ON_ERROR);
 
                 //aktualisieren des Raumnamens
-                $Texts = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES), true, 512, JSON_THROW_ON_ERROR);
+                $Texts = $this->SafeJsonDecode(
+                    $this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES),
+                    __FUNCTION__ . ' room_names'
+                ) ?? [];
 
                 $Texts[$RoomValues[self::FF_COL_ROOMTEXTREFERENCE]] = $RoomValues[self::FF_COL_ROOMNAME]; //update Name of Room
 
                 $this->WriteAttributeString(self::ATTRIBUTE_ROOM_NAMES, json_encode($Texts, JSON_THROW_ON_ERROR));
 
                 //aktualisieren des Ignore Flags
-                $savedMapsList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true, 512, JSON_THROW_ON_ERROR);
+                $savedMapsList = $this->SafeJsonDecode(
+                    $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST),
+                    __FUNCTION__ . ' maps_list'
+                ) ?? [];
                 //$map = $savedMapsList[$]
                 $savedMapsList[$RoomValues[self::FF_COL_PARENT_MAP_ID]]['rooms'][$RoomValues[self::FF_COL_ROOMID]][self::FF_COL_IGNORE_ROOM] =
                     $RoomValues[self::FF_COL_IGNORE_ROOM];
@@ -2224,7 +2273,10 @@ class Roborock extends IPSModuleStrict
 
     private function ProcessSelectedRoom(int $roomId): void
     {
-        $roomSelection = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_SELECTION), true, 512, JSON_THROW_ON_ERROR);
+        $roomSelection = $this->SafeJsonDecode(
+            $this->ReadAttributeString(self::ATTRIBUTE_ROOM_SELECTION),
+            __FUNCTION__ . ' room_selection'
+        ) ?? [];
 
         if ($roomId === 0) { // 0 = all
             $roomSelection = [];
@@ -2239,7 +2291,10 @@ class Roborock extends IPSModuleStrict
 
     private function UpdateRoomsSelected(): void
     {
-        $roomSelection = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_SELECTION), true, 512, JSON_THROW_ON_ERROR);
+        $roomSelection = $this->SafeJsonDecode(
+            $this->ReadAttributeString(self::ATTRIBUTE_ROOM_SELECTION),
+            __FUNCTION__ . ' room_selection'
+        ) ?? [];
 
         $objectID = IPS_GetObjectIDByIdent(self::IDENT_ROOMSELECTION, $this->InstanceID);
 
@@ -2257,8 +2312,14 @@ class Roborock extends IPSModuleStrict
 
     private function WriteRoomSelectionProfile(): void
     {
-        $roomNames = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES), true, 512, JSON_THROW_ON_ERROR);
-        $mapsList  = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true, 512, JSON_THROW_ON_ERROR);
+        $roomNames = $this->SafeJsonDecode(
+            $this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES),
+            __FUNCTION__ . ' room_names'
+        ) ?? [];
+        $mapsList  = $this->SafeJsonDecode(
+            $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST),
+            __FUNCTION__ . ' maps_list'
+        ) ?? [];
 
         $ass = [[0, sprintf('- %s -', $this->Translate('None')), '', -1]];
 
@@ -2293,7 +2354,7 @@ class Roborock extends IPSModuleStrict
     protected function RegisterProfile($Name, $Icon, $Prefix, $Suffix, $MinValue, $MaxValue, $StepSize, $Digits, $Vartype): void
     {
         if (!IPS_VariableProfileExists($Name)) {
-            IPS_CreateVariableProfile($Name, $Vartype); // 0 boolean, 1 int, 2 float, 3 string,
+            IPS_CreateVariableProfile($Name, $Vartype);
         } else {
             $profile = IPS_GetVariableProfile($Name);
             if ($profile['ProfileType'] !== $Vartype) {
@@ -2360,13 +2421,13 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * checks, if a token is available.
+     * checks if a token is available.
      *
      * @return bool
      */
     private function CheckUserAndPassword(): bool
     {
-        // if token is valid, everything is ok
+        // if the token is valid, everything is ok
         if ($this->ReadAttributeString(self::ATTRIBUTE_TOKEN)) {
             return true;
         }
@@ -2390,7 +2451,6 @@ class Roborock extends IPSModuleStrict
      * @param bool   $force_send
      *
      * @return void
-     * @throws \JsonException
      */
     private function SendPushNotification(string $type, int $id = 0, bool $force_send = false): void
     {
@@ -2421,7 +2481,7 @@ class Roborock extends IPSModuleStrict
         $last_notification = $this->ReadAttributeString($notification_attribute);
         $this->WriteAttributeString($notification_attribute, (string)$id);
 
-        // return, when last notification is the same as current notification or id is 0
+        // return, when the last notification is the same as the current notification or id is 0
         if ((($last_notification === (string)$id) && !$force_send) || ($id === 0)) {
             return;
         }
@@ -2429,8 +2489,11 @@ class Roborock extends IPSModuleStrict
         // check notification instance (webfront)
         // get notification settings
         if (($instance_id = $this->ReadPropertyInteger('notification_instance'))
-            && $notifications = @json_decode($this->ReadPropertyString('notifications'), true, 512, JSON_THROW_ON_ERROR)) {
-            // loop notifications and search for current state
+            && ($notifications = $this->SafeJsonDecode(
+                $this->ReadPropertyString('notifications'),
+                __FUNCTION__ . ' notifications'
+            ))) {
+            // loop notifications and search for the current state
             foreach ($notifications as $notification) {
                 if ($notification['state_id'] === (string)$id) {
                     // check if notification is enabled
@@ -2470,7 +2533,7 @@ class Roborock extends IPSModuleStrict
 
         // merge with current settings
         if ($current_notifications = @$this->ReadPropertyString('notifications')) {
-            $current_notifications = json_decode($current_notifications, true, 512, JSON_THROW_ON_ERROR);
+            $current_notifications = $this->SafeJsonDecode($current_notifications, __FUNCTION__ . ' notifications') ?? [];
             foreach ($current_notifications as $current) {
                 // loop and replace settings
                 foreach ($notifications as &$n) {
@@ -2485,6 +2548,20 @@ class Roborock extends IPSModuleStrict
         }
 
         return json_encode($notifications, JSON_THROW_ON_ERROR);
+    }
+
+    private function SafeJsonDecode(string $json, string $context): ?array
+    {
+        if ($json === '') {
+            return null;
+        }
+        try {
+            $decoded = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $ex) {
+            $this->_debug(__FUNCTION__, $context . ': ' . $ex->getMessage());
+            return null;
+        }
+        return is_array($decoded) ? $decoded : null;
     }
 
     /***********************************************************
@@ -2510,7 +2587,7 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * return form configurations on configuration step.
+     * return form configurations on the configuration step.
      *
      * @return array
      */
@@ -2919,7 +2996,7 @@ class Roborock extends IPSModuleStrict
         if ($zones_json === '') {
             $zones = [];
         } else {
-            $zones = json_decode($zones_json, true, 512, JSON_THROW_ON_ERROR);
+            $zones = $this->SafeJsonDecode($zones_json, __FUNCTION__ . ' zonecoordinates') ?? [];
         }
         return $zones;
     }
@@ -3223,8 +3300,14 @@ class Roborock extends IPSModuleStrict
 
     private function GetMapAndRoomListFormValues(): array
     {
-        $maps_list = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true, 512, JSON_THROW_ON_ERROR);
-        $RoomNames = json_decode($this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES), true, 512, JSON_THROW_ON_ERROR);
+        $maps_list = $this->SafeJsonDecode(
+            $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST),
+            __FUNCTION__ . ' maps_list'
+        ) ?? [];
+        $RoomNames = $this->SafeJsonDecode(
+            $this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES),
+            __FUNCTION__ . ' room_names'
+        ) ?? [];
         $this->_debug(__FUNCTION__, 'maps_list: ' . json_encode($maps_list, JSON_THROW_ON_ERROR));
         $this->_debug(__FUNCTION__, 'RoomNames: ' . json_encode($RoomNames, JSON_THROW_ON_ERROR));
 
@@ -3262,7 +3345,7 @@ class Roborock extends IPSModuleStrict
      ***********************************************************/
 
     /**
-     * updates remote variable with joystick html.
+     * updates remote variable with joystick HTML.
      */
     public function SetJoystickHtml(): void
     {
@@ -3272,7 +3355,7 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * check for variable and set value.
+     * check for variable and set a value.
      *
      * @param $ident
      * @param $value
@@ -3334,7 +3417,7 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * add leading zeros to number.
+     * add leading zeros to the number.
      *
      * @param int|string $number
      * @param int        $padding
@@ -3359,7 +3442,7 @@ class Roborock extends IPSModuleStrict
 
 
     /**
-     * return incremented position.
+     * return the incremented position.
      *
      * @return int
      */
@@ -3433,29 +3516,6 @@ EOF;
         $html .= '</table>';
 
         return $html;
-    }
-
-    /**
-     * Get description timer day.
-     *
-     * @param $day_of_week
-     *
-     * @return string
-     */
-    private function _getTimerDay($day_of_week): string
-    {
-        if ($day_of_week === '*') {
-            $timer_day = 'once';
-        } elseif ($day_of_week === '1,2,3,4,5') {
-            $timer_day = 'weekdays';
-        } elseif ($day_of_week === '0,6') {
-            $timer_day = 'weekends';
-        } elseif ($day_of_week === '0,1,2,3,4,5,6') {
-            $timer_day = 'every day';
-        } else {
-            $timer_day = 'custom';
-        }
-        return $this->Translate($timer_day);
     }
 
     /**
@@ -3575,7 +3635,7 @@ EOF;
             0
         );
 
-        // -- token of device by getDeviceStatus --
+        // -- token of the device by getDeviceStatus --
         $deviceData = $this->getDeviceStatus();
         if ($deviceData === []) {
             return false;
@@ -3979,7 +4039,10 @@ EOF;
 
     private function getApiIO(string $path, array $values): array
     {
-        $loginLocationData = json_decode($this->ReadAttributeString(self::ATTRIBUTE_LOGIN_LOCATION_DATA), true, 512, JSON_THROW_ON_ERROR);
+        $loginLocationData = $this->SafeJsonDecode(
+            $this->ReadAttributeString(self::ATTRIBUTE_LOGIN_LOCATION_DATA),
+            __FUNCTION__ . ' login_location_data'
+        ) ?? [];
         if ($loginLocationData === []) {
             $this->_debug(__FUNCTION__, 'no loginLocationData');
             return [];
@@ -4006,7 +4069,10 @@ EOF;
             'value' => json_encode($values, JSON_THROW_ON_ERROR)
         ];
 
-        $loginAccountData = json_decode($this->ReadAttributeString(self::ATTRIBUTE_LOGIN_ACCOUNT_DATA), true, 512, JSON_THROW_ON_ERROR);
+        $loginAccountData = $this->SafeJsonDecode(
+            $this->ReadAttributeString(self::ATTRIBUTE_LOGIN_ACCOUNT_DATA),
+            __FUNCTION__ . ' login_account_data'
+        ) ?? [];
         if ($loginAccountData === []) {
             $this->_debug(__FUNCTION__, 'no loginAccountData');
             return [];
@@ -4176,7 +4242,10 @@ EOF;
         }
 
         $mapFlag  = $this->GetValue(self::IDENT_MAP_STATUS);
-        $MapsList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true, 512, JSON_THROW_ON_ERROR);
+        $MapsList = $this->SafeJsonDecode(
+            $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST),
+            __FUNCTION__ . ' maps_list'
+        ) ?? [];
         $this->_debug(__FUNCTION__, sprintf('MapsList (old): %s', $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST)));
         $this->_debug(__FUNCTION__, sprintf('rooms: %s', json_encode($rooms, JSON_THROW_ON_ERROR)));
 
@@ -4211,7 +4280,7 @@ EOF;
      */
     private function load_multi_map_callback(array $data): false|int
     {
-        $this->SendDebug(__FUNCTION__, json_encode($data), 0);
+        $this->SendDebug(__FUNCTION__, json_encode($data, JSON_THROW_ON_ERROR), 0);
         if (isset($data['result'][0]) && $data['result'][0] === 'ok') {
             $map_status = (int) $data['params'][0];
             $this->_SetValue(self::IDENT_MAP_STATUS, $map_status);
@@ -4587,7 +4656,10 @@ EOF;
 
     private function UpdateAttributeMapsListWithMaps(array $maps): void
     {
-        $savedList = json_decode($this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST), true, 512, JSON_THROW_ON_ERROR);
+        $savedList = $this->SafeJsonDecode(
+            $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST),
+            __FUNCTION__ . ' maps_list'
+        ) ?? [];
 
         foreach ($maps as $mapFlag => $map) {
             if (isset($savedList[$mapFlag])) {
@@ -4666,7 +4738,10 @@ EOF;
                     if ($cleaning_records === '') {
                         $cleaning_records = '[]';
                     } else {
-                        $cleaning_records = json_decode($cleaning_records, true, 512, JSON_THROW_ON_ERROR);
+                        $cleaning_records = $this->SafeJsonDecode(
+                            $cleaning_records,
+                            __FUNCTION__ . ' cleaning_records'
+                        ) ?? [];
                     }
                     $this->_debug(__FUNCTION__, sprintf('cleaning_records: %s', $this->ReadAttributeString(self::ATTRIBUTE_CLEANING_RECORDS)));
                     $this->_debug(__FUNCTION__, sprintf('html_data: %s', json_encode($html_data, JSON_THROW_ON_ERROR)));
@@ -4916,7 +4991,7 @@ EOF;
             if (!is_string($mediaContent)) {
                 continue;
             }
-            $content = json_decode(base64_decode($mediaContent), true, 512, JSON_THROW_ON_ERROR);
+            $content = $this->SafeJsonDecode(base64_decode($mediaContent) ?: '', __FUNCTION__ . ' media_content');
             if (isset($content['axes'])) {
                 foreach ($content['axes'] as $axis) {
                     if ($axis['profile'] === $Name) {
@@ -4996,7 +5071,7 @@ class RoborockApiCheckIdentity
     public const Phone = 4;
     public const Email = 8;
 
-    public static $TypeToPath = [
+    public static array $TypeToPath = [
         self::Phone => 'https://account.xiaomi.com/identity/auth/sendPhoneTicket?',
         self::Email => 'https://account.xiaomi.com/identity/auth/sendEmailTicket?',
     ];

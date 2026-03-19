@@ -99,11 +99,17 @@ class RRMapFileParser
      * @var callable
      */
     private $Logger_Dbg;
+    /**
+     * @var callable
+     */
+    private $Logger_Log;
 
 
-    public function __construct($raw, callable $Logger_Dbg)
+    public function __construct($raw, callable $Logger_Dbg, ?callable $Logger_Log = null)
     {
         $this->Logger_Dbg = $Logger_Dbg;
+        $this->Logger_Log = $Logger_Log ?? static function (string $message, string $data): void {
+        };
 
         $mapHeaderLength    = $this->getUInt16($raw, 0x02);
         $mapDataLength      = $this->getUInt32LE($raw, 0x04);
@@ -152,9 +158,10 @@ class RRMapFileParser
                 case self::IMAGE:
                     $this->imageSize = $blockDataLength;// (getUInt32LE(raw, blockStartPos + 0x04));
                     if ($blockHeaderLength > 0x1C) {
-                        IPS_LogMessage(
-                            'Roborock MapFileParser - ' . __FUNCTION__,
-                            "block 2 unknown value @pos 8: " . $this->getUInt32LE($header, 0x08)
+                        call_user_func(
+                            $this->Logger_Log,
+                            __CLASS__ . '::' . __FUNCTION__,
+                            'block 2 unknown value @pos 8: ' . $this->getUInt32LE($header, 0x08)
                         );
                     }
                     $this->top       = $this->getUInt32LE($header, $blockHeaderLength - 16);
@@ -318,8 +325,9 @@ class RRMapFileParser
 
                 default:
                     if ($blockDataLength > 0) {
-                        IPS_LogMessage(
-                            'Roborock MapFileParser - ' . __FUNCTION__,
+                        call_user_func(
+                            $this->Logger_Log,
+                            __CLASS__ . '::' . __FUNCTION__,
                             sprintf(
                                 'The blocktype %s is not yet supported. (header length: %s, data length: %s)',
                                 $blocktype,

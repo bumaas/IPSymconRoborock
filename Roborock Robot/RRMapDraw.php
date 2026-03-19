@@ -69,6 +69,10 @@ class RRMapDraw
 
 
     private RRMapFileParser $rmfp;
+    /**
+     * @var callable
+     */
+    private $logger;
 
     private int             $firstX     = 0;
 
@@ -80,9 +84,11 @@ class RRMapDraw
 
     private bool            $multicolor = false;
 
-    public function __construct(RRMapFileParser $rmfp)
+    public function __construct(RRMapFileParser $rmfp, ?callable $logger = null)
     {
-        $this->rmfp = $rmfp;
+        $this->rmfp   = $rmfp;
+        $this->logger = $logger ?? static function (string $message, string $data): void {
+        };
     }
 
 
@@ -197,7 +203,11 @@ class RRMapDraw
         }
 
         if (count($unknownObstacles)) {
-            IPS_LogMessage(__FUNCTION__, sprintf('Unknown Obstacles found: %s', json_encode($unknownObstacles, JSON_THROW_ON_ERROR)));
+            call_user_func(
+                $this->logger,
+                __CLASS__ . '::' . __FUNCTION__,
+                sprintf('Unknown Obstacles found: %s', json_encode($unknownObstacles, JSON_THROW_ON_ERROR))
+            );
         }
     }
 
@@ -425,7 +435,7 @@ class RRMapDraw
             //echo sprintf('%s: x: %s, y: %s, xpos: %s, ypos: %s', __FUNCTION__, $x, $y, $xpos, $ypos) . PHP_EOL;
             imagecopy($gdImage, $addImage, $xpos, $ypos, 0, 0, imagesx($addImage), imagesy($addImage));
         } else {
-            IPS_LogMessage(__FUNCTION__, "Error loading image {}: " . $imgFile);
+            call_user_func($this->logger, __CLASS__ . '::' . __FUNCTION__, sprintf('Error loading image: %s', $imgFile));
         }
     }
 

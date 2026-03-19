@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use JetBrains\PhpStorm\NoReturn;
+
 include __DIR__ . '/../libs/picture.php';
 
 
@@ -22,7 +24,7 @@ class RoborockIO extends IPSModuleStrict
 
     private string $ip;
 
-    private        $socket;
+    private \Socket|null  $socket = null;
 
     private int    $attempts      = 0;
 
@@ -90,8 +92,8 @@ class RoborockIO extends IPSModuleStrict
             return;
         }
 
-        // register Webhook
-        $this->RegisterWebhook('/hook/Roborock');
+        // register webhook via native IPSModuleStrict handling
+        $this->RegisterHook('/hook/Roborock');
 
         $this->SetTimerInterval('RoborockQueue', 200);
 
@@ -129,7 +131,11 @@ class RoborockIO extends IPSModuleStrict
 
         // send & receive command immediately
         if ($payload->immediate) {
-            return json_encode($this->Send($payload), JSON_THROW_ON_ERROR);
+            $result = $this->Send($payload);
+            if (is_array($result) && isset($payload->request_id)) {
+                $result['request_id'] = $payload->request_id;
+            }
+            return json_encode($result, JSON_THROW_ON_ERROR);
         }
 
         // otherwise, append to queue
@@ -158,12 +164,10 @@ class RoborockIO extends IPSModuleStrict
 
     public function RequestAction(string $Ident, mixed $Value): void
     {
-        switch ($Ident){
-            case 'HandleQueue':
+        if ($Ident === 'HandleQueue') {
                 $this->HandleQueue();
-                break;
-            default:
-                trigger_error('Unexpected Ident: ' . $Ident, E_USER_ERROR);
+        } else {
+            trigger_error('Unexpected Ident: ' . $Ident, E_USER_ERROR);
         }
     }
 
@@ -199,6 +203,9 @@ class RoborockIO extends IPSModuleStrict
                 if (is_array($buffer)) {
                     $buffer['method'] = $item->method;
                     $buffer['token']  = $this->token;
+                    if (isset($item->request_id)) {
+                        $buffer['request_id'] = $item->request_id;
+                    }
                 }
 
                 // send it to children
@@ -486,6 +493,7 @@ class RoborockIO extends IPSModuleStrict
     /**
      * handles socket error messages.
      */
+    #[NoReturn]
     private function SocketErrorHandler(): void
     {
         $error_code = socket_last_error();
@@ -883,41 +891,4 @@ class RoborockIO extends IPSModuleStrict
         }
     }
 
-    /**
-     * Register Webhook.
-     *
-     * @param string $webhook
-     * @param bool   $delete
-     *
-     * @throws \JsonException
-     */
-    protected function RegisterWebhook(string $webhook, bool $delete = false): void
-    {
-        $ids = IPS_GetInstanceListByModuleID('{015A6EB8-D6E5-4B93-B496-0D3F77AE9FE1}');
-
-        if (count($ids) > 0) {
-            $hooks = json_decode(IPS_GetProperty($ids[0], 'Hooks'), true, 512, JSON_THROW_ON_ERROR);
-            $found = false;
-            foreach ($hooks as $index => $hook) {
-                if ($hook['Hook'] === $webhook) {
-                    if ($hook['TargetID'] === $this->InstanceID && !$delete) {
-                        return;
-                    }
-
-                    if ($delete && $hook['TargetID'] === $this->InstanceID) {
-                        continue;
-                    }
-
-                    $hooks[$index]['TargetID'] = $this->InstanceID;
-                    $found                     = true;
-                }
-            }
-            if (!$found) {
-                $hooks[] = ['Hook' => $webhook, 'TargetID' => $this->InstanceID];
-            }
-
-            IPS_SetProperty($ids[0], 'Hooks', json_encode($hooks, JSON_THROW_ON_ERROR));
-            IPS_ApplyChanges($ids[0]);
-        }
-    }
 }
