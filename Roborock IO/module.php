@@ -93,7 +93,7 @@ class RoborockIO extends IPSModuleStrict
         }
 
         // register webhook via native IPSModuleStrict handling
-        $this->RegisterHook('/hook/Roborock');
+        $this->RegisterHook('Roborock');
 
         $this->SetTimerInterval('RoborockQueue', 200);
 

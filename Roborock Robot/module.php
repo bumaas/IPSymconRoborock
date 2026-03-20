@@ -3551,9 +3551,10 @@ EOF;
 
         $clientId = $this->ReadAttributeString(self::ATTRIBUTE_CLIENTID);
         $agentId  = $this->ReadAttributeString(self::ATTRIBUTE_AGENTID);
+        $maskedPassword = str_repeat('*', max(8, strlen($password)));
         $this->SendDebug(
             __FUNCTION__,
-            'user/password/agentId/clientId: ' . json_encode([$user, $password, $agentId, $clientId], JSON_THROW_ON_ERROR),
+            'user/password/agentId/clientId: ' . json_encode([$user, $maskedPassword, $agentId, $clientId], JSON_THROW_ON_ERROR),
             0
         );
 
@@ -3575,7 +3576,7 @@ EOF;
         // -- login_account --
         $loginAccountData =
             $this->login_account($user, $password, $agentId, $clientId, $loginData['qs'], $loginData['callback'], $loginData['_sign']);
-        if ($loginAccountData['securityStatus'] === 16) { // 2FA
+        if (is_array($loginAccountData) && (($loginAccountData['securityStatus'] ?? 0) === 16)) { // 2FA
             $this->SendDebug(__FUNCTION__ . ': WARNING', 'Additional verification required', 0);
             $this->SetBuffer(self::BUFFER_VERIFICATION_URL, $loginAccountData['notificationUrl']);
             $this->SetBuffer(self::BUFFER_IDENTITY_SESSION, '');
@@ -3599,6 +3600,17 @@ EOF;
             return 16;
         }
         if (!$loginAccountData || !isset($loginAccountData['ssecurity'], $loginAccountData['userId'], $loginAccountData['location'])) {
+            $loginAccountDebug = is_array($loginAccountData)
+                ? [
+                    'code'           => $loginAccountData['code'] ?? null,
+                    'desc'           => $loginAccountData['desc'] ?? null,
+                    'description'    => $loginAccountData['description'] ?? null,
+                    'securityStatus' => $loginAccountData['securityStatus'] ?? null,
+                    'result'         => $loginAccountData['result'] ?? null,
+                    'meta'           => $loginAccountData['__meta'] ?? null
+                ]
+                : ['type' => gettype($loginAccountData)];
+            $this->SendDebug(__FUNCTION__ . ': ERROR', 'Login account response: ' . json_encode($loginAccountDebug, JSON_THROW_ON_ERROR), 0);
             $this->SendDebug(__FUNCTION__ . ': ERROR', 'Login failed, please check user/password at https://account.xiaomi.com', 0);
             return false;
         }
@@ -3978,6 +3990,7 @@ EOF;
         curl_setopt($ch, CURLOPT_ENCODING, 'gzip');
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
         $result       = curl_exec($ch);
+        $curlError    = curl_error($ch);
         $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
 
@@ -3986,7 +3999,15 @@ EOF;
             trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $url, $effectiveURL));
             return false;
         }
-        return $this->parseJson($result);
+        $parsed = $this->parseJson($result);
+        if (is_array($parsed)) {
+            $parsed['__meta'] = [
+                'responseCode' => $responsecode,
+                'effectiveURL' => $effectiveURL,
+                'curlError'    => $curlError
+            ];
+        }
+        return $parsed;
     }
 
     private function login_location(string $agentId, string $clientId, string $url): false|array
