@@ -73,7 +73,7 @@ class RoborockIO extends IPSModuleStrict
         $this->SetBuffer('queue', '[]');
 
         // register timer
-        $this->RegisterTimer('RoborockQueue', 0, sprintf('IPS_RequestAction(%s, "HandleQueue", "");', $this->InstanceID));
+        $this->RegisterTimer('RoborockQueue', 0, sprintf('RoborockIO_QueueWorker(%d);', $this->InstanceID));
 
         //we will wait until the kernel is ready
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
@@ -179,8 +179,27 @@ class RoborockIO extends IPSModuleStrict
      */
     private function HandleQueue(): void
     {
+        if (!$this->isQueueProcessingPossible()) {
+            return;
+        }
+
         // get current queue
-        $queue = json_decode($this->GetBuffer('queue'), false, 512, JSON_THROW_ON_ERROR);
+        $queueBuffer = $this->GetBuffer('queue');
+        if (!is_string($queueBuffer)) {
+            return;
+        }
+
+        try {
+            $queue = json_decode($queueBuffer, false, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $exception) {
+            $this->_debug(__FUNCTION__, 'Invalid queue JSON, resetting queue: ' . $exception->getMessage());
+            $this->SetBuffer('queue', '[]');
+            return;
+        }
+
+        if (!is_array($queue)) {
+            return;
+        }
 
         if ($queue) {
             // reset queue
@@ -188,6 +207,13 @@ class RoborockIO extends IPSModuleStrict
 
             // loop queue
             foreach ($queue as $item) {
+                if (!$this->isQueueProcessingPossible()) {
+                    return;
+                }
+                if (!is_object($item) || !isset($item->InstanceID, $item->method)) {
+                    continue;
+                }
+
                 // short timeout
                 IPS_Sleep(100);
 
@@ -219,6 +245,23 @@ class RoborockIO extends IPSModuleStrict
                 );
             }
         }
+    }
+
+    private function isQueueProcessingPossible(): bool
+    {
+        if (IPS_GetKernelRunlevel() !== KR_READY) {
+            return false;
+        }
+
+        if ($this->GetStatus() !== IS_ACTIVE){
+            return false;
+        }
+
+        if (!$this->HasActiveParent()){
+                return false;
+        }
+
+        return true;
     }
 
     /**

@@ -5,6 +5,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/roborock_vacuum.php';
 require_once __DIR__ . '/RRMapFileParser.php';
 require_once __DIR__ . '/RRMapDraw.php';
+require_once __DIR__ . '/../libs/VariablePresentations.php';
+
+use libs\VariablePresentations;
 
 enum StateCode: int
 {
@@ -422,106 +425,65 @@ class Roborock extends IPSModuleStrict
             return;
         }
 
-        $classname = get_class($this->device);
-        if ($classname !== 'roborock_vacuum') {
-            $profileSuffix = '.' . $this->device->GetModelType($classname);
-        } else {
-            $profileSuffix = '';
-        }
+        // remove old profiles from previous versions once we switched to presentations
+        $this->UnregisterProfile(sprintf('%s.%s', self::PROFILE_ROOMSELECTION, $this->InstanceID));
+        $this->UnregisterProfile(self::PROFILE_CONSUMABLE);
+        $this->UnregisterProfile(self::PROFILE_COMMAND);
+        $this->UnregisterProfile(self::PROFILE_BATTERY);
+        $this->UnregisterProfile(self::PROFILE_CLEANAREA);
+        $this->UnregisterProfile(self::PROFILE_START_CLEANING);
+        $this->UnregisterProfile(self::PROFILE_CLEANING_CYCLES);
+        $this->UnregisterProfile(self::PROFILE_DURATION);
+        $this->UnregisterProfile(self::PROFILE_ERRORCODE);
+        $this->UnregisterProfile(self::PROFILE_FANPOWER);
+        $this->UnregisterProfile(self::PROFILE_FINDME);
+        $this->UnregisterProfile(self::PROFILE_MAPS);
+        $this->UnregisterProfile(self::PROFILE_STATE);
+        $this->UnregisterProfile(self::PROFILE_TOTALCLEANS);
+        $this->UnregisterProfile(self::PROFILE_VOLUME);
+        $this->UnregisterProfile(self::PROFILE_WATERQUANTITY);
 
-        //  register profiles
-        $this->RegisterProfileAssociation(
-            self::PROFILE_COMMAND,
-            'Execute',
-            '',
-            '',
-            0,
-            4,
-            0,
-            0,
-            VARIABLETYPE_INTEGER,
-            [
-                [0, $this->Translate('Start'), 'HollowLargeArrowRight', -1, 1],
-                [1, $this->Translate('Pause'), 'Close', -1],
-                [2, $this->Translate('Stop'), 'Close', -1],
-                [3, $this->Translate('Spot'), 'Climate', -1],
-                [4, $this->Translate('Charge'), 'Battery', -1],
-                [5, $this->Translate('Locate'), 'Motion', -1]
-            ]
-        );
+        $commandPresentation = VariablePresentations::enumeration([
+            ['Value' => 0, 'Caption' => $this->Translate('Start'), 'IconValue' => 'HollowLargeArrowRight'],
+            ['Value' => 1, 'Caption' => $this->Translate('Pause'), 'IconValue' => 'Close'],
+            ['Value' => 2, 'Caption' => $this->Translate('Stop'), 'IconValue' => 'Close'],
+            ['Value' => 3, 'Caption' => $this->Translate('Spot'), 'IconValue' => 'Climate'],
+            ['Value' => 4, 'Caption' => $this->Translate('Charge'), 'IconValue' => 'Battery'],
+            ['Value' => 5, 'Caption' => $this->Translate('Locate'), 'IconValue' => 'Motion']
+        ]);
 
-        $ass = [];
+        $errorOptions = [];
         foreach (ErrorCode::cases() as $error) {
-            $ass[] = [$error->value, $error->getDescription(), '', -1];
+            $errorOptions[] = ['Value' => $error->value, 'Caption' => $error->getDescription()];
         }
-        $this->RegisterProfileAssociation(
-            self::PROFILE_ERRORCODE,
-            'Information',
-            '',
-            '',
-            0,
-            0,
-            0,
-            0,
-            VARIABLETYPE_INTEGER,
-            $ass
-        );
+        $errorPresentation = VariablePresentations::enumeration($errorOptions);
 
-        $ass = [];
+        $stateOptions = [];
         foreach (StateCode::cases() as $state) {
-            $ass[] = [$state->value, $state->getDescription(), '', -1];
+            $stateOptions[] = ['Value' => $state->value, 'Caption' => $state->getDescription()];
         }
-        $this->RegisterProfileAssociation(
-            self::PROFILE_STATE,
-            'Information',
-            '',
-            '',
-            0,
-            0,
-            0,
-            0,
-            VARIABLETYPE_INTEGER,
-            $ass
-        );
+        $statePresentation = VariablePresentations::enumeration($stateOptions);
 
-        $this->RegisterProfileAssociation(
-            self::PROFILE_FINDME,
-            'Robot',
-            '',
-            '',
-            0,
-            0,
-            0,
-            0,
-            VARIABLETYPE_INTEGER,
-            [
-                [0, $this->Translate('find robot'), '', 0x3ADF00]
-            ]
-        );
-
+        $findMePresentation = VariablePresentations::enumeration([
+            ['Value' => 0, 'Caption' => $this->Translate('find robot'), 'Color' => 0x3ADF00]
+        ]);
+        $fanPowerPresentation = [];
         if ($this->ReadPropertyBoolean(self::PROPERTY_FAN_POWER)) {
-            $ass = [];
+            $fanPowerOptions = [];
             foreach ($this->device::FANPOWER as $name => $value) {
-                $ass[] = [$value, $this->Translate($name), '', -1];
+                $fanPowerOptions[] = ['Value' => $value, 'Caption' => $this->Translate($name)];
             }
-            $this->RegisterProfileAssociation(self::PROFILE_FANPOWER . $profileSuffix, 'Speedo', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, $ass);
+            $fanPowerPresentation = VariablePresentations::enumeration($fanPowerOptions);
         }
 
+        $waterQuantityPresentation = [];
         if ($this->ReadPropertyBoolean(self::PROPERTY_WATER_QUANTITY)) {
-            $ass = [];
+            $waterQuantityOptions = [];
             foreach ($this->device::WATERQUANTITY as $name => $value) {
-                $ass[] = [$value, $this->Translate($name), '', -1];
+                $waterQuantityOptions[] = ['Value' => $value, 'Caption' => $this->Translate($name)];
             }
-            $this->RegisterProfileAssociation(self::PROFILE_WATERQUANTITY . $profileSuffix, 'Drops', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, $ass);
+            $waterQuantityPresentation = VariablePresentations::enumeration($waterQuantityOptions);
         }
-
-        $this->RegisterProfile(self::PROFILE_CLEANAREA, 'Shuffle', '', ' m²', 0, 0, 0, 1, VARIABLETYPE_FLOAT);
-        $this->RegisterProfile(self::PROFILE_TOTALCLEANS, 'Gauge', '', '', 0, 0, 0, 2, VARIABLETYPE_INTEGER);
-        $this->RegisterProfile(self::PROFILE_VOLUME, 'Speaker', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
-        $this->RegisterProfile(self::PROFILE_BATTERY, 'Battery', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
-        $this->RegisterProfile(self::PROFILE_CONSUMABLE, 'Gear', '', ' %', 0, 100, 1, 0, VARIABLETYPE_INTEGER);
-        $this->RegisterProfile(self::PROFILE_DURATION, '', '', ' s', 0, 0, 0, 0, VARIABLETYPE_INTEGER);
-        $this->RegisterProfile(self::PROFILE_MAPS, '', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER);
 
         // Remote Control
         if ($this->ReadPropertyBoolean(self::PROPERTY_REMOTE)) {
@@ -534,21 +496,21 @@ class Roborock extends IPSModuleStrict
         }
 
         // command
-        $this->RegisterVariableInteger(self::IDENT_COMMAND, $this->Translate('Command'), self::PROFILE_COMMAND, $this->_getPosition());
+        $this->RegisterVariableInteger(self::IDENT_COMMAND, $this->Translate('Command'), $commandPresentation, $this->_getPosition());
         $this->EnableAction(self::IDENT_COMMAND);
 
         // current state
-        $this->RegisterVariableInteger(self::IDENT_STATE, $this->Translate('State'), self::PROFILE_STATE, $this->_getPosition());
+        $this->RegisterVariableInteger(self::IDENT_STATE, $this->Translate('State'), $statePresentation, $this->_getPosition());
 
         // current battery level
-        $this->RegisterVariableInteger('battery', $this->Translate('Battery'), self::PROFILE_BATTERY, $this->_getPosition());
+        $this->RegisterVariableInteger('battery', $this->Translate('Battery'), VariablePresentations::value(0, 100, 1, ' %', 0), $this->_getPosition());
 
         // fan power
         if ($this->ReadPropertyBoolean(self::PROPERTY_FAN_POWER)) {
             $this->RegisterVariableInteger(
                 self::IDENT_FAN_POWER,
                 $this->Translate('Fan Power'),
-                self::PROFILE_FANPOWER . $profileSuffix,
+                $fanPowerPresentation,
                 $this->_getPosition()
             );
             $this->EnableAction(self::IDENT_FAN_POWER);
@@ -561,7 +523,7 @@ class Roborock extends IPSModuleStrict
             $this->RegisterVariableInteger(
                 self::IDENT_WATER_QUANTITY,
                 $this->Translate('Water Quantity'),
-                self::PROFILE_WATERQUANTITY . $profileSuffix,
+                $waterQuantityPresentation,
                 $this->_getPosition()
             );
             $this->RegisterVariableBoolean(self::IDENT_WATER_BOX_STATUS, $this->Translate('Water Box installed'), '~Switch', $this->_getPosition());
@@ -580,10 +542,10 @@ class Roborock extends IPSModuleStrict
 
         // map_status
         if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS) || $this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
-            $this->RegisterVariableInteger(self::IDENT_MAP_STATUS, $this->Translate('Active Map'), self::PROFILE_MAPS, $this->_getPosition());
+            $this->RegisterVariableInteger(self::IDENT_MAP_STATUS, $this->Translate('Active Map'), $this->GetMapStatusPresentation(), $this->_getPosition());
             $this->EnableAction(self::IDENT_MAP_STATUS);
-            //when MAP_STATUS is created, we can update the RoomSelectionProfile
-            $this->WriteRoomSelectionProfile();
+            // when MAP_STATUS is created, we can update the RoomSelectionPresentation
+            $this->WriteRoomSelectionPresentation();
         } else {
             $this->UnregisterVariable(self::IDENT_MAP_STATUS);
         }
@@ -595,7 +557,7 @@ class Roborock extends IPSModuleStrict
 
         // volume
         if ($this->ReadPropertyBoolean(self::PROPERTY_VOLUME)) {
-            $this->RegisterVariableInteger(self::IDENT_VOLUME, $this->Translate('Volume'), self::PROFILE_VOLUME, $this->_getPosition());
+            $this->RegisterVariableInteger(self::IDENT_VOLUME, $this->Translate('Volume'), VariablePresentations::slider(0, 100, 1, ' %', 0), $this->_getPosition());
             $this->EnableAction(self::IDENT_VOLUME);
         } else {
             $this->UnregisterVariable(self::IDENT_VOLUME);
@@ -603,7 +565,7 @@ class Roborock extends IPSModuleStrict
 
         // error code
         if ($this->ReadPropertyBoolean('error_code')) {
-            $this->RegisterVariableInteger('error_code', $this->Translate('Error Code'), self::PROFILE_ERRORCODE, $this->_getPosition());
+            $this->RegisterVariableInteger('error_code', $this->Translate('Error Code'), $errorPresentation, $this->_getPosition());
         } else {
             $this->UnregisterVariable('error_code');
         }
@@ -621,7 +583,7 @@ class Roborock extends IPSModuleStrict
                 $this->RegisterVariableInteger(
                     $ident,
                     $this->Translate(consumable::GetName($ident)),
-                    self::PROFILE_CONSUMABLE,
+                    VariablePresentations::value(0, 100, 1, ' %', 0),
                     $this->_getPosition()
                 );
             }
@@ -647,8 +609,8 @@ class Roborock extends IPSModuleStrict
 
         // clean area
         if ($this->ReadPropertyBoolean('clean_area')) {
-            $this->RegisterVariableFloat('clean_area', $this->Translate('Clean Area'), self::PROFILE_CLEANAREA, $this->_getPosition());
-            $this->RegisterVariableFloat('total_clean_area', $this->Translate('Total Clean Area'), self::PROFILE_CLEANAREA, $this->_getPosition());
+            $this->RegisterVariableFloat('clean_area', $this->Translate('Clean Area'), VariablePresentations::value(0, 0, 0, ' m²', 1), $this->_getPosition());
+            $this->RegisterVariableFloat('total_clean_area', $this->Translate('Total Clean Area'), VariablePresentations::value(0, 0, 0, ' m²', 1), $this->_getPosition());
         } else {
             $this->UnregisterVariable('clean_area');
             $this->UnregisterVariable('total_clean_area');
@@ -656,8 +618,8 @@ class Roborock extends IPSModuleStrict
 
         // clean_time
         if ($this->ReadPropertyBoolean(self::PROPERTY_CLEAN_TIME)) {
-            $this->RegisterVariableInteger('clean_time', $this->Translate('Clean Time'), self::PROFILE_DURATION, $this->_getPosition());
-            $this->RegisterVariableInteger('total_clean_time', $this->Translate('Total Clean Time'), self::PROFILE_DURATION, $this->_getPosition());
+            $this->RegisterVariableInteger('clean_time', $this->Translate('Clean Time'), VariablePresentations::value(0, 0, 0, ' s', 0), $this->_getPosition());
+            $this->RegisterVariableInteger('total_clean_time', $this->Translate('Total Clean Time'), VariablePresentations::value(0, 0, 0, ' s', 0), $this->_getPosition());
             $this->RegisterVariableString('cleaning_records', $this->Translate('Cleaning Records'), '~HTMLBox', $this->_getPosition());
         } else {
             $this->UnregisterVariable('clean_time');
@@ -667,7 +629,7 @@ class Roborock extends IPSModuleStrict
 
         // total cleans
         if ($this->ReadPropertyBoolean('total_cleans')) {
-            $this->RegisterVariableInteger('total_cleans', $this->Translate('Total Cleans'), self::PROFILE_TOTALCLEANS, $this->_getPosition());
+            $this->RegisterVariableInteger('total_cleans', $this->Translate('Total Cleans'), VariablePresentations::value(), $this->_getPosition());
         } else {
             $this->UnregisterVariable('total_cleans');
         }
@@ -720,7 +682,7 @@ class Roborock extends IPSModuleStrict
             $this->RegisterVariableInteger(
                 self::IDENT_ROOMSELECTION,
                 $this->Translate('Roomselection'),
-                sprintf('%s.%s', self::PROFILE_ROOMSELECTION, $this->InstanceID),
+                $this->GetRoomSelectionPresentation(),
                 $this->_getPosition()
             );
             $this->EnableAction(self::IDENT_ROOMSELECTION);
@@ -729,16 +691,15 @@ class Roborock extends IPSModuleStrict
 
             $this->RegisterVariableString(self::IDENT_ROOMS_SELECTED, $this->Translate('Selected Rooms'), '', $this->_getPosition());
 
-            $ass = [];
+            $cleaningCycleOptions = [];
             for ($i = 1; $i <= 3; $i++) {
-                $ass[] = [$i, sprintf('%sx', $i), '', -1];
+                $cleaningCycleOptions[] = ['Value' => $i, 'Caption' => sprintf('%sx', $i)];
             }
-            $this->RegisterProfileAssociation(self::PROFILE_CLEANING_CYCLES, '', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, $ass);
 
             $this->RegisterVariableInteger(
                 self::IDENT_CLEANING_CYCLES,
                 $this->Translate('Cleaning Cycles'),
-                self::PROFILE_CLEANING_CYCLES,
+                VariablePresentations::enumeration($cleaningCycleOptions),
                 $this->_getPosition()
             );
             if ((int)$this->GetValue(self::IDENT_CLEANING_CYCLES) === 0) {
@@ -746,11 +707,10 @@ class Roborock extends IPSModuleStrict
             }
             $this->EnableAction(self::IDENT_CLEANING_CYCLES);
 
-            $this->RegisterProfileAssociation(self::PROFILE_START_CLEANING, '', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, [[1, 'Start', '', -1]]);
             $this->RegisterVariableInteger(
                 self::IDENT_START_CLEANING,
                 $this->Translate('Start Cleaning'),
-                self::PROFILE_START_CLEANING,
+                VariablePresentations::enumeration([['Value' => 1, 'Caption' => $this->Translate('Start')]]),
                 $this->_getPosition()
             );
             $this->EnableAction(self::IDENT_START_CLEANING);
@@ -796,6 +756,17 @@ class Roborock extends IPSModuleStrict
                 break;
 
             case IM_CHANGESTATUS:
+                // Parent status changes can occur while interfaces are not yet available.
+                // Reconfigure only when parent is active and kernel is ready.
+                if (IPS_GetKernelRunlevel() !== KR_READY) {
+                    break;
+                }
+                if ($SenderID !== $this->GetParent()) {
+                    break;
+                }
+                if (($Data[0] ?? 0) !== IS_ACTIVE) {
+                    break;
+                }
                 $this->ApplyChanges();
                 break;
         }
@@ -2262,7 +2233,7 @@ class Roborock extends IPSModuleStrict
                     $RoomValues[self::FF_COL_IGNORE_ROOM];
                 $this->WriteAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode($savedMapsList, JSON_THROW_ON_ERROR));
 
-                $this->WriteRoomSelectionProfile();
+                $this->WriteRoomSelectionPresentation();
                 $this->UpdateRoomsSelected();
 
                 break;
@@ -2291,51 +2262,110 @@ class Roborock extends IPSModuleStrict
 
     private function UpdateRoomsSelected(): void
     {
+        if (@$this->GetIDForIdent(self::IDENT_ROOMS_SELECTED) === false || @$this->GetIDForIdent(self::IDENT_ROOMSELECTION) === false) {
+            return;
+        }
+
         $roomSelection = $this->SafeJsonDecode(
             $this->ReadAttributeString(self::ATTRIBUTE_ROOM_SELECTION),
             __FUNCTION__ . ' room_selection'
         ) ?? [];
 
-        $objectID = IPS_GetObjectIDByIdent(self::IDENT_ROOMSELECTION, $this->InstanceID);
-
+        $roomOptions = $this->GetRoomSelectionOptions();
+        $captionByValue = [];
+        foreach ($roomOptions as $option) {
+            $captionByValue[(int)$option['Value']] = (string)$option['Caption'];
+        }
         $roomNames = [];
-
         if (count($roomSelection) === 0) { // all
-            $roomNames[] = GetValueFormattedEx($objectID, 0);
+            $roomNames[] = $captionByValue[0] ?? sprintf('- %s -', $this->Translate('None'));
         } else {
             foreach ($roomSelection as $roomId => $room) {
-                $roomNames[] = GetValueFormattedEx($objectID, $roomId);
+                $roomNames[] = $captionByValue[(int)$roomId] ?? ((string)$roomId);
             }
         }
         $this->SetValue(self::IDENT_ROOMS_SELECTED, implode(', ', $roomNames));
     }
 
-    private function WriteRoomSelectionProfile(): void
+    private function WriteRoomSelectionPresentation(): void
+    {
+        if (@$this->GetIDForIdent(self::IDENT_ROOMSELECTION) === false) {
+            return;
+        }
+        $this->RegisterVariableInteger(
+            self::IDENT_ROOMSELECTION,
+            $this->Translate('Roomselection'),
+            $this->GetRoomSelectionPresentation(),
+            IPS_GetObject($this->GetIDForIdent(self::IDENT_ROOMSELECTION))['ObjectPosition']
+        );
+    }
+
+    private function GetMapStatusPresentation(): array
+    {
+        return VariablePresentations::enumeration($this->GetMapStatusOptions());
+    }
+
+    private function GetMapStatusOptions(): array
+    {
+        $mapsList = $this->SafeJsonDecode(
+            $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST),
+            __FUNCTION__ . ' maps_list'
+        ) ?? [];
+
+        $options = [];
+        foreach ($mapsList as $mapFlag => $map) {
+            $options[] = [
+                'Value'   => (int)$mapFlag,
+                'Caption' => (string)($map['MapName'] ?? ($this->Translate('Map') . ((int)$mapFlag + 1)))
+            ];
+        }
+
+        if (count($options) === 0) {
+            $options[] = ['Value' => 0, 'Caption' => sprintf('- %s -', $this->Translate('None'))];
+        }
+
+        return $options;
+    }
+
+    private function GetRoomSelectionPresentation(): array
+    {
+        return VariablePresentations::enumeration($this->GetRoomSelectionOptions());
+    }
+
+    private function GetRoomSelectionOptions(): array
     {
         $roomNames = $this->SafeJsonDecode(
             $this->ReadAttributeString(self::ATTRIBUTE_ROOM_NAMES),
             __FUNCTION__ . ' room_names'
         ) ?? [];
-        $mapsList  = $this->SafeJsonDecode(
+        $mapsList = $this->SafeJsonDecode(
             $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST),
             __FUNCTION__ . ' maps_list'
         ) ?? [];
 
-        $ass = [[0, sprintf('- %s -', $this->Translate('None')), '', -1]];
+        $options = [['Value' => 0, 'Caption' => sprintf('- %s -', $this->Translate('None'))]];
+        if (count($mapsList) === 0) {
+            return $options;
+        }
 
-        if (count($mapsList) > 0) {
-            $mapStatus = $this->GetValue(self::IDENT_MAP_STATUS);
+        $mapStatus = 0;
+        if (@$this->GetIDForIdent(self::IDENT_MAP_STATUS) !== false) {
+            $mapStatus = (int)$this->GetValue(self::IDENT_MAP_STATUS);
+        }
+        if (!isset($mapsList[$mapStatus]['rooms']) || !is_array($mapsList[$mapStatus]['rooms'])) {
+            return $options;
+        }
 
-            foreach ($mapsList[$mapStatus]['rooms'] as $roomID => $room) {
-                if (!isset($room['IgnoreRoom']) || !$room['IgnoreRoom']) {
-                    $ass[] = [$roomID, $roomNames[$room['referenceID']] ?? $this->Translate('Room') . ' ' . $room['roomID'], '', -1];
-                }
+        foreach ($mapsList[$mapStatus]['rooms'] as $roomID => $room) {
+            if (!isset($room['IgnoreRoom']) || !$room['IgnoreRoom']) {
+                $options[] = [
+                    'Value'   => (int)$roomID,
+                    'Caption' => (string)($roomNames[$room['referenceID']] ?? ($this->Translate('Room') . ' ' . $room['roomID']))
+                ];
             }
         }
 
-        $profileName = sprintf('%s.%s', self::PROFILE_ROOMSELECTION, $this->InstanceID);
-        $this->_debug(__FUNCTION__, sprintf('profile: %s, ass: %s', $profileName, json_encode($ass, JSON_THROW_ON_ERROR)));
-        $this->RegisterProfileAssociation($profileName, '', '', '', 0, 0, 0, 0, VARIABLETYPE_INTEGER, $ass);
+        return $options;
     }
 
     /**
@@ -3912,6 +3942,10 @@ EOF;
                         JSON_THROW_ON_ERROR
                     )
                 );
+                // After successful 2FA, refresh cloud session and token via the regular login flow.
+                $this->GetTokenFromXiaomi();
+                $this->ValidateConfiguration();
+                $this->SetUpdateInterval();
                 $this->SendDebug('Cloud Login', 'Device verification successful', 0);
                 return $this->Translate('MESSAGE:Verification successful!');
             }
@@ -4287,7 +4321,7 @@ EOF;
         $this->_debug(__FUNCTION__, sprintf('MapsList (new): %s', json_encode($MapsList, JSON_THROW_ON_ERROR)));
         $this->WriteAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode($MapsList, JSON_THROW_ON_ERROR));
 
-        $this->WriteRoomSelectionProfile();
+        $this->WriteRoomSelectionPresentation();
         $this->UpdateRoomsSelected();
     }
 
@@ -4308,7 +4342,7 @@ EOF;
 
             if ($this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
                 $this->RequestData('get_room_mapping', ['immediate' => true]);
-                $this->WriteRoomSelectionProfile();
+                $this->WriteRoomSelectionPresentation();
                 $this->UpdateRoomsSelected();
             }
 
@@ -4468,7 +4502,7 @@ EOF;
             $ret['water_box_carriage_status'] = $water_box_carriage_status;
         }
 
-        if (isset($result['map_status'])) {
+        if (isset($result['map_status']) && @$this->GetIDForIdent(self::IDENT_MAP_STATUS)) {
             $prev_map_status = $this->GetValue(self::IDENT_MAP_STATUS);
             $map_status = (int)$result['map_status'] >> 2;
             $this->_SetValue(self::IDENT_MAP_STATUS, $map_status);
@@ -4636,7 +4670,6 @@ EOF;
             return;
         }
 
-        $ass       = [];
         $maps_list = [];
 
         $result = $data['result'][0];
@@ -4647,32 +4680,23 @@ EOF;
                     'mapFlag' => $index,
                     'MapName' => $mapInfo['name']
                 ];
-                $ass[]             = [$index, $mapInfo['name'], '', -1];
             } else {
                 $maps_list[$index] = [
                     'mapFlag' => $index,
                     'MapName' => $this->Translate('Map') . ($index + 1)
                 ];
-                $ass[]             = [$index, $this->Translate('Map') . ($index + 1), '', -1];
             }
         }
-
-        if (count($ass)) {
-            $this->RegisterProfileAssociation(
-                self::PROFILE_MAPS,
-                '',
-                '',
-                '',
-                0,
-                count($ass),
-                0,
-                0,
-                VARIABLETYPE_INTEGER,
-                $ass
+        $this->UpdateAttributeMapsListWithMaps($maps_list);
+        if (@$this->GetIDForIdent(self::IDENT_MAP_STATUS) !== false) {
+            $this->RegisterVariableInteger(
+                self::IDENT_MAP_STATUS,
+                $this->Translate('Active Map'),
+                $this->GetMapStatusPresentation(),
+                IPS_GetObject($this->GetIDForIdent(self::IDENT_MAP_STATUS))['ObjectPosition']
             );
         }
-
-        $this->UpdateAttributeMapsListWithMaps($maps_list);
+        $this->WriteRoomSelectionPresentation();
     }
 
     private function UpdateAttributeMapsListWithMaps(array $maps): void
@@ -5112,3 +5136,4 @@ class RoborockApiCheckIdentity
         return self::$TypeToPath[$Type];
     }
 }
+
