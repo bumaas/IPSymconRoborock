@@ -73,7 +73,7 @@ class RoborockIO extends IPSModuleStrict
         $this->SetBuffer('queue', '[]');
 
         // register timer
-        $this->RegisterTimer('RoborockQueue', 0, sprintf('RoborockIO_QueueWorker(%d);', $this->InstanceID));
+        $this->RegisterTimer('RoborockQueue', 0, sprintf('IPS_RequestAction(%d, \'HandleQueue\', 0);', $this->InstanceID));
 
         //we will wait until the kernel is ready
         $this->RegisterMessage(0, IPS_KERNELMESSAGE);
