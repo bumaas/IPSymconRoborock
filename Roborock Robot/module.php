@@ -361,9 +361,6 @@ class Roborock extends IPSModuleStrict
         $this->RegisterTimer(self::TIMER_UPDATE, 0, 'Roborock_Update(' . $this->InstanceID . ');');
         $this->RegisterTimer(self::TIMER_UPDATE_MAP, 0, 'Roborock_GetMap(' . $this->InstanceID . ');');
 
-        // register kernel messages
-        $this->RegisterMessage(0, IPS_KERNELMESSAGE);
-
         // register attributes
         $this->RegisterAttributeString(self::ATTRIBUTE_TOKEN, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_LOGIN_LOCATION_DATA, json_encode([], JSON_THROW_ON_ERROR));
@@ -1873,7 +1870,7 @@ class Roborock extends IPSModuleStrict
         $zones      = $this->GetZones();
         $zoneid     = $roomnumber - 1;
         $zonenumber = $this->GetNumberZones() - 1;
-        if ($zonenumber < $roomnumber) {
+        if ($zoneid <= $zonenumber) {
             $zone = $zones[$zoneid];
             $this->_debug('ZoneClean', 'room: ' . $zone['roomname']);
             $lower_left_corner_x  = $zone['lx'];
@@ -3036,7 +3033,7 @@ class Roborock extends IPSModuleStrict
         $zones      = $this->GetZones();
         $zoneid     = $roomnumber - 1;
         $zonenumber = $this->GetNumberZones() - 1;
-        if ($zonenumber < $roomnumber) {
+        if ($zoneid <= $zonenumber) {
             $zone = $zones[$zoneid];
             $this->_debug('Zone Coordinates', 'room: ' . $zone['roomname']);
             $lower_left_corner_x  = $zone['lx'];
@@ -3526,7 +3523,7 @@ EOF;
         }
 
         // build table body
-        if (isset($data['table']['head'])) {
+        if (isset($data['table']['body'])) {
             foreach ($data['table']['body'] as $tr) {
                 $html .= '<tr>';
                 foreach ($tr as $td) {
@@ -4981,7 +4978,7 @@ EOF;
     private function app_rc_start_callback(array $data): bool
     {
         // update state to 'Remote Control'
-        $this->_SetValue('state', StateCode::REMOTE_CONTROL);
+        $this->_SetValue('state', StateCode::REMOTE_CONTROL->value);
         return true;
     }
 
@@ -4996,7 +4993,7 @@ EOF;
     private function app_rc_end_callback(array $data): bool
     {
         // update state to 'Waiting'
-        $this->_SetValue('state', StateCode::WAITING);
+        $this->_SetValue('state', StateCode::WAITING->value);
         return true;
     }
 
