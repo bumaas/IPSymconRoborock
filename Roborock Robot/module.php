@@ -164,6 +164,11 @@ class Roborock extends IPSModuleStrict
     private const STATUS_INST_TOKEN_IS_INVALID        = 205;
     private const STATUS_INST_NO_ROBOROCK_FOUND       = 206;
 
+    private const HTTP_OK               = 200;
+    private const HTTP_UPGRADE_REQUIRED = 426; // Xiaomi-Cloud: abgelaufener ServiceToken
+
+    private const MI_ERROR_TOKEN_EXPIRED = 'SERVICETOKEN_EXPIRED';
+
     private const ATTRIBUTE_TOKEN                   = 'token';
     private const ATTRIBUTE_LOGIN_LOCATION_DATA     = 'loginLocationData';
     private const ATTRIBUTE_LOGIN_ACCOUNT_DATA      = 'loginAccountData';
@@ -1380,7 +1385,7 @@ class Roborock extends IPSModuleStrict
         $this->_debug(__FUNCTION__, sprintf('curl_getinfo: %s', $responsecode));
 
         curl_close($ch);
-        if ($responsecode !== 200) {
+        if ($responsecode !== self::HTTP_OK) {
             $this->_debug(
                 __FUNCTION__,
                 sprintf('%s: responsecode: %s, curl_getinfo: %s', __FUNCTION__,
@@ -3728,7 +3733,7 @@ EOF;
         $header_size  = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
         $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-        if (($responsecode !== 200)) {
+        if (($responsecode !== self::HTTP_OK)) {
             trigger_error(
                 sprintf('%s: responsecode: %s , URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $IdentityUrl, $effectiveURL)
             );
@@ -3768,7 +3773,7 @@ EOF;
         $result       = curl_exec($ch);
         $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-        if (($responsecode !== 200)) {
+        if (($responsecode !== self::HTTP_OK)) {
             trigger_error(
                 sprintf('%s: responsecode: %s , URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $IdentityUrl, $effectiveURL)
             );
@@ -3820,7 +3825,7 @@ EOF;
         $result       = curl_exec($ch);
         $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-        if (($responsecode !== 200)) {
+        if (($responsecode !== self::HTTP_OK)) {
             trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $VerifyUrl, $effectiveURL));
             return 'Error in request to send verification code';
         }
@@ -3875,7 +3880,7 @@ EOF;
         $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
         $this->SendDebug(__FUNCTION__, $result, 0);
-        if (($responsecode !== 200)) {
+        if (($responsecode !== self::HTTP_OK)) {
             trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $VerifyUrl, $effectiveURL));
             return 'Error on submit verification code';
         }
@@ -3897,7 +3902,7 @@ EOF;
         $result       = curl_exec($ch);
         $responsecode = curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-        if (($responsecode !== 200)) {
+        if (($responsecode !== self::HTTP_OK)) {
             trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $LoginUrl, $effectiveURL));
             return 'Error on finalizing verification';
         }
@@ -3986,7 +3991,7 @@ EOF;
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
 
         curl_close($ch);
-        if (($responsecode !== 200)) {
+        if (($responsecode !== self::HTTP_OK)) {
             trigger_error(sprintf('%s: responsecode: %s , URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $url, $effectiveURL));
             return false;
         }
@@ -4026,7 +4031,7 @@ EOF;
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
 
         curl_close($ch);
-        if (($responsecode !== 200)) {
+        if (($responsecode !== self::HTTP_OK)) {
             trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $url, $effectiveURL));
             return false;
         }
@@ -4060,7 +4065,7 @@ EOF;
         $effectiveURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
 
         curl_close($ch);
-        if (($responsecode !== 200)) {
+        if (($responsecode !== self::HTTP_OK)) {
             trigger_error(sprintf('%s: responsecode: %s, URL: %s, effective URL: %s', __FUNCTION__, (int)$responsecode, $url, $effectiveURL));
             return false;
         }
@@ -4089,7 +4094,7 @@ EOF;
         return false;
     }
 
-    private function getApiIO(string $path, array $values): array
+    private function getApiIO(string $path, array $values, bool $allowRelogin = true): array
     {
         $loginLocationData = $this->SafeJsonDecode(
             $this->ReadAttributeString(self::ATTRIBUTE_LOGIN_LOCATION_DATA),
@@ -4148,7 +4153,28 @@ EOF;
         $error        = curl_error($ch);
 
         curl_close($ch);
-        if (($responsecode !== 200)) {
+        if (($responsecode !== self::HTTP_OK)) {
+            // Abgelaufener Cloud-ServiceToken: Xiaomi antwortet mit HTTP 426 bzw. message "SERVICETOKEN_EXPIRED".
+            // In diesem Fall einmalig automatisch neu anmelden und die Anfrage wiederholen, statt nur eine Notice zu erzeugen.
+            $tokenExpired = ($responsecode === self::HTTP_UPGRADE_REQUIRED)
+                || (is_string($result) && str_contains($result, self::MI_ERROR_TOKEN_EXPIRED));
+            if ($tokenExpired && $allowRelogin) {
+                $this->_debug(__FUNCTION__, sprintf('ServiceToken expired (responsecode: %s), trying automatic re-login', (int)$responsecode));
+                $reloginResult = $this->GetTokenFromXiaomi();
+                if ($reloginResult === true) {
+                    $this->_debug(__FUNCTION__, 'Re-login successful, retrying request');
+                    return $this->getApiIO($path, $values, false);
+                }
+                if ($reloginResult === 16) {
+                    $this->LogMessage(
+                        $this->Translate('ServiceToken expired and re-login requires additional verification. Please verify the account again in the module configuration.'),
+                        KL_WARNING
+                    );
+                    return [];
+                }
+                trigger_error(sprintf('%s: ServiceToken expired and automatic re-login failed', __FUNCTION__));
+                return [];
+            }
             trigger_error(
                 sprintf(
                     '%s: http responsecode: %s, URL: %s, effective URL: %s, result: %s, error: %s',
@@ -4167,7 +4193,8 @@ EOF;
 
     private function getDeviceStatus(): array
     {
-        $device_list = $this->getApiIO('/home/device_list', ['getVirtualModel' => false, 'getHuamiDevices' => 0]);
+        // allowRelogin = false: getDeviceStatus() wird selbst innerhalb von GetTokenFromXiaomi() aufgerufen -> Rekursion vermeiden.
+        $device_list = $this->getApiIO('/home/device_list', ['getVirtualModel' => false, 'getHuamiDevices' => 0], false);
         $this->_debug(__FUNCTION__, sprintf('device_list: %s', json_encode($device_list, JSON_THROW_ON_ERROR)));
 
         return $device_list;
