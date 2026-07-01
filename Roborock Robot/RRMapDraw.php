@@ -22,6 +22,7 @@ class RRMapDraw
     private const COLOR_PATH         = [147, 194, 238];
     private const COLOR_ZONES        = [0xAD, 0xD8, 0xFF, 0x8F];
     private const COLOR_NO_GO_ZONES  = [255, 33, 55, 110];
+    private const COLOR_DOOR_SILL_ZONES = [255, 208, 0, 110]; //gelb, wie in der App
     private const COLOR_CHARGER_HALO = [0x66, 0xfe, 0xda, 0x7f];
     private const COLOR_ROBO         = [75, 235, 149];
 
@@ -109,6 +110,7 @@ class RRMapDraw
         $this->drawPath($newImage, $scale);
         $this->drawZones($newImage, $scale);
         $this->drawObstacles($newImage, $scale);
+        $this->drawStuckPoints($newImage, $scale);
         // todo: drawGoTo(g2d, scale);
 
         // crop the image to the used perimeter
@@ -240,8 +242,10 @@ class RRMapDraw
     {
         imagesetthickness($gdImage, $scale * 0.5);
 
-        foreach ($this->rmfp->getAreas() as $arealist) {
-            //echo sprintf('%s, %s', __FUNCTION__, $blocktype) . PHP_EOL;
+        foreach ($this->rmfp->getAreas() as $blocktype => $arealist) {
+            $areaColor = ($blocktype === RRMapFileParser::DOOR_SILL_FORBIDDEN_AREA)
+                ? self::COLOR_DOOR_SILL_ZONES
+                : self::COLOR_NO_GO_ZONES;
             foreach ($arealist as $area) {
                 //echo sprintf('%s, %s, %s, %s, %s', __FUNCTION__, $area[0], $area[1], $area[4], $area[5]) . PHP_EOL;
                 $x1 = $this->toXCoord($area[0]) * $scale;
@@ -256,10 +260,10 @@ class RRMapDraw
                     $y3,
                     imagecolorallocatealpha(
                         $gdImage,
-                        self::COLOR_NO_GO_ZONES[0],
-                        self::COLOR_NO_GO_ZONES[1],
-                        self::COLOR_NO_GO_ZONES[2],
-                        (int)(self::COLOR_NO_GO_ZONES[3] / 2)
+                        $areaColor[0],
+                        $areaColor[1],
+                        $areaColor[2],
+                        (int)($areaColor[3] / 2)
                     )
                 );
                 ImageRectangle(
@@ -268,7 +272,7 @@ class RRMapDraw
                     $y1,
                     $x3,
                     $y3,
-                    imagecolorallocate($gdImage, self::COLOR_NO_GO_ZONES[0], self::COLOR_NO_GO_ZONES[1], self::COLOR_NO_GO_ZONES[2])
+                    imagecolorallocate($gdImage, $areaColor[0], $areaColor[1], $areaColor[2])
                 );
             }
         }
@@ -422,6 +426,20 @@ class RRMapDraw
                     $this->drawCenteredImg($gdImage, $scale / 3, $imgFile, $obstacleX, $obstacleY);
                 }
             }
+        }
+    }
+
+    private function drawStuckPoints(&$gdImage, float $scale): void
+    {
+        $radius = 3 * $scale;
+        imagesetthickness($gdImage, (int)($scale));
+
+        $color = imagecolorallocate($gdImage, 255, 140, 0); //orange
+
+        foreach ($this->rmfp->getStuckPoints() as $point) {
+            $x = $this->toXCoord($point[0]) * $scale;
+            $y = $this->toYCoord($point[1]) * $scale;
+            imagefilledellipse($gdImage, $x, $y, $radius, $radius, $color);
         }
     }
 

@@ -35,9 +35,12 @@ class RRMapFileParser
     public const FURNITURE               = 25;
     public const DOCK_TYPE               = 26;
     public const ENEMIES                 = 27;
-    public const UNKNOWN_30              = 30; //since S8, SimonS
-    public const UNKNOWN_32              = 32; //since S8, cbeham
-    public const UNKNOWN_33              = 33; //since S8, SimonS
+    public const DOOR_SILL_FORBIDDEN_AREA = 28; //dsfbz, door sill no-go, since S8 Ultra
+    public const STUCK_POINTS             = 29; //stuckpts, since S8 Ultra
+    public const CLIFF_FORBIDDEN_AREA     = 30; //clffbz, cliff no-go, since S8 Ultra
+    public const SMART_DS                 = 31; //smartds, smart door sill no-go, since S8 Ultra
+    public const UNKNOWN_32              = 32; //flDirec (segment material directions), since S8 Ultra
+    public const DATE                     = 33; //map timestamp (UInt32LE unix time), since S8 Ultra
     public const DIGEST                  = 1024;
     public const HEADER                  = 0x7272;
 
@@ -62,6 +65,10 @@ class RRMapFileParser
     private array  $carpetMap    = [];
 
     private array  $mopPath      = [];
+
+    private array  $stuckPoints  = [];
+
+    private int    $mapDate      = 0;
 
     private string $blocks       = '';
 
@@ -212,6 +219,9 @@ class RRMapFileParser
                 case self::NO_GO_AREAS:
                 case self::MOB_FORBIDDEN_AREA:
                 case self::CARPET_FORBIDDEN_AREA:
+                case self::DOOR_SILL_FORBIDDEN_AREA:
+                case self::CLIFF_FORBIDDEN_AREA:
+                case self::SMART_DS:
                     $area      = [];
                     $areaPairs = $this->getUInt16($header, 0x08);
                     for ($areaPair = 0; $areaPair < $areaPairs; $areaPair++) {
@@ -289,6 +299,20 @@ class RRMapFileParser
                     $this->obstacles[$blocktype] = $ignoredObstacle;
                     break;
 
+                case self::STUCK_POINTS:
+                    $stuckPairs = $this->getUInt16($header, 0x08);
+                    for ($stuckPair = 0; $stuckPair < $stuckPairs; $stuckPair++) {
+                        $x0                  = $this->getUInt16($data, $stuckPair * 6 + 0);
+                        $y0                  = $this->getUInt16($data, $stuckPair * 6 + 2);
+                        $type                = $this->getUInt16($data, $stuckPair * 6 + 4);
+                        $this->stuckPoints[] = [$x0, $y0, $type];
+                    }
+                    break;
+
+                case self::DATE:
+                    $this->mapDate = $this->getUInt32LE($data, 0x00);
+                    break;
+
                 case self::CARPET_MAP:
                     for ($carpetNode = 0; $carpetNode < $blockDataLength; $carpetNode++) {
                         $this->carpetMap[$carpetNode] = ord($data[$carpetNode]);
@@ -312,10 +336,8 @@ class RRMapFileParser
                 case self::FURNITURE:
                 case self::DOCK_TYPE:
                 case self::ENEMIES:
-                case self::UNKNOWN_30:
                 case self::UNKNOWN_32:
-                case self::UNKNOWN_33:
-                    // new blocktype not yet decoded
+                    // known blocktype, not yet decoded
                     break;
 
                 case self::DIGEST:
@@ -439,6 +461,16 @@ class RRMapFileParser
     public function getMopPath(): array
     {
         return $this->mopPath;
+    }
+
+    public function getStuckPoints(): array
+    {
+        return $this->stuckPoints;
+    }
+
+    public function getMapDate(): int
+    {
+        return $this->mapDate;
     }
 
     public function isValid(): bool
