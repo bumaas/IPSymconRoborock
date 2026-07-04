@@ -153,6 +153,7 @@ class roborock_vacuum
         'roborock.vacuum.a62' => 'Roborock S7 Pro Ultra',
         'roborock.vacuum.a65' => 'Roborock S7 Max Ultra',
         'roborock.vacuum.a70' => 'Roborock S8 Pro Ultra',
+        'roborock.vacuum.a72' => 'Roborock Q5 Pro',
     ];
 
     public const FANPOWER      = Fanpower::V2;
@@ -372,4 +373,14 @@ class roborock_vacuum_a27 extends roborock_vacuum //S7 MaxV
 
 class roborock_vacuum_a65 extends roborock_vacuum_a27 //S7 Max Ultra
 {
+}
+
+class roborock_vacuum_a72 extends roborock_vacuum_a15 //Q5 Pro / Q5 Pro+
+{
+    // Consumables, Fanpower (101-104) und die genutzten Features (GET_CONSUMABLES,
+    // MULTI_FLOOR_SUPPORT) sind identisch zum S7 (a15) und werden geerbt.
+    // Der A72 kennt jedoch kein get/set_water_box_custom_mode (Firmware liefert
+    // 'unknown_method'); die Wischwassermenge wird geräteseitig über mop_mode
+    // gesteuert. Daher hier keine Wassermengen-Auswahl anbieten.
+    public const WATERQUANTITY = [];
 }
