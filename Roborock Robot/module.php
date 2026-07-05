@@ -1149,6 +1149,8 @@ class Roborock extends IPSModuleStrict
     {
         $this->_SetValue(self::IDENT_COMMAND, 0);
         $this->RequestData('app_start');
+        $this->Get_State(); // Status sofort aktualisieren (statt erst beim naechsten Update-Timer)
+        $this->StartMapUpdates(); // Karte sofort holen und Map-Timer starten
     }
 
     /**
@@ -1161,6 +1163,7 @@ class Roborock extends IPSModuleStrict
     {
         $this->_SetValue(self::IDENT_COMMAND, 2);
         $this->RequestData('app_stop');
+        $this->Get_State(); // Status sofort aktualisieren
     }
 
     /**
@@ -1173,6 +1176,7 @@ class Roborock extends IPSModuleStrict
     {
         $this->_SetValue(self::IDENT_COMMAND, 3);
         $this->RequestData('app_spot');
+        $this->Get_State(); // Status sofort aktualisieren
     }
 
     /**
@@ -1185,6 +1189,7 @@ class Roborock extends IPSModuleStrict
     {
         $this->_SetValue(self::IDENT_COMMAND, 1);
         $this->RequestData('app_pause');
+        $this->Get_State(); // Status sofort aktualisieren
     }
 
     /**
@@ -1197,6 +1202,7 @@ class Roborock extends IPSModuleStrict
     {
         $this->_SetValue(self::IDENT_COMMAND, 4);
         $this->RequestData('app_charge');
+        $this->Get_State(); // Status sofort aktualisieren
     }
 
     /**
@@ -1223,6 +1229,8 @@ class Roborock extends IPSModuleStrict
         } else {
             $this->Start_Segment_Clean_Ex(json_encode([['segments' => $segments, 'repeat' => $cleaningCycles]], JSON_THROW_ON_ERROR));
         }
+        $this->Get_State(); // Status sofort aktualisieren
+        $this->StartMapUpdates(); // Karte sofort holen und Map-Timer starten
     }
     // Consumables time remaining in %
 
@@ -1492,6 +1500,16 @@ class Roborock extends IPSModuleStrict
         IPS_SetMediaContent(IPS_GetObjectIDByIdent(self::IDENT_MAP_PICTURE, $this->InstanceID), base64_encode($picture));
 
         return true;
+    }
+
+    /**
+     * Karte sofort holen und den 10s-Map-Timer starten (z. B. direkt nach Reinigungsstart),
+     * damit die Karte nicht erst beim naechsten regulaeren Update-Zyklus aktualisiert wird.
+     */
+    private function StartMapUpdates(): void
+    {
+        $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 10000);
+        $this->GetMap();
     }
 
     private function CreateMapPictureVariable(string $ident, string $name, string $FilePath = ''): void
