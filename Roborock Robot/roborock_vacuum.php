@@ -146,6 +146,7 @@ class roborock_vacuum
         'roborock.vacuum.s5'  => 'Roborock S5',
         'roborock.vacuum.s5e' => 'Roborock S5 Max',
         'roborock.vacuum.s6'  => 'Roborock S6',
+        'roborock.vacuum.a08' => 'Roborock S6 Pure',
         'roborock.vacuum.a10' => 'Roborock S6 MaxV',
         'roborock.vacuum.a15' => 'Roborock S7',
         'roborock.vacuum.a27' => 'Roborock S7 MaxV',
@@ -270,6 +271,14 @@ class roborock_vacuum_s6 extends roborock_vacuum //S6
         Features::MULTI_FLOOR_SUPPORT,
     ];
 
+}
+
+class roborock_vacuum_a08 extends roborock_vacuum_s6 //S6 Pure
+{
+    // CONSUMABLES (5 Keys) und FANPOWER (V2) sind identisch zum S6 und werden geerbt.
+    // Der A08 (S6 Pure) hat keine Wischfunktion; get/set_water_box_custom_mode liefert
+    // 'unknown_method' (water_box_status=0) -> keine Wassermengen-Auswahl anbieten.
+    public const WATERQUANTITY = [];
 }
 class roborock_vacuum_a10 extends roborock_vacuum_s6 //S6 MaxV
 {
