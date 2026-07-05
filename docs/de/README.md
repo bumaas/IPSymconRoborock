@@ -75,7 +75,7 @@ Optional können die Statusvariablen ausgewählt werden sowie Pushnachrichten de
 
 Hinweis: Wenn Xiaomi eine Zwei-Faktor-Authentifizierung verlangt, erscheint ein Verifizierungs-Pop-up. Dort den Code per E-Mail/SMS anfordern und eingeben, dann wird der Login fortgesetzt.
 
-Im Expertenbereich kann das Aktualisierungsintervall (Standard ist 60 s) modifiziert werden. Es sollte nicht zu niedrig gesetzt werden, da die Kommunikation mit dem Gerät recht langsam ist. Zudem kann ein abweichender Server angegeben werden, von dem das Token bezogen werden soll. Für China kann 'cn' angegeben werden, oder er kann leer gelassen werden. Standard ist 'de'.
+Im Expertenbereich kann das Aktualisierungsintervall (Standard ist 60 s, Minimum 10 s) modifiziert werden. Es sollte nicht zu niedrig gesetzt werden, da die Kommunikation mit dem Gerät recht langsam ist; bei Anbindung über die Cloud dauert ein kompletter Aktualisierungszyklus schnell mehrere Sekunden pro Abruf, daher wird dort ein Intervall von mindestens 60 s empfohlen. Zudem kann ein abweichender Server angegeben werden, von dem das Token bezogen werden soll. Für China kann 'cn' angegeben werden, oder er kann leer gelassen werden. Standard ist 'de'.
 
 Im Aktionsbereich des Formulars können die Statusvariablen getestet werden ("Testbereich"). 
 

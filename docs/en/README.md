@@ -230,7 +230,7 @@ In IP-Symcon, select Add_Instance_ (_CTRL + 1_) under the category under which y
 The configuration form opens. Please specify here:
   - Check the IP address of the vacuum cleaner in the app or the router
   - token of the vacuum cleaner (see above)
-  - Update interval in seconds
+  - Update interval in seconds (default 60 s, minimum 10 s). Do not set it too low, since communication with the device is rather slow; for cloud connections an interval of at least 60 s is recommended.
   - Webfront to send push messages
   - Selection of the desired functions or displays in the webfront
 
