@@ -295,6 +295,7 @@ class Roborock extends IPSModuleStrict
     private const SINGLE_MAP = ['0' => ['mapFlag' => 0, 'MapName' => 'MyMap']];
 
     private const DEFAULT_VALUE_UPDATE_INTERVAL = 60;
+    private const MIN_VALUE_UPDATE_INTERVAL     = 10; // 0 = deaktiviert; kleinere positive Werte werden angehoben
     private const MAX_NUMBER_OF_CLEAN_RECORDS   = 5;
 
     // helper properties
@@ -841,7 +842,18 @@ class Roborock extends IPSModuleStrict
     private function SetUpdateInterval(): void
     {
         if ($this->GetStatus() === IS_ACTIVE) {
-            $interval = $this->ReadPropertyInteger(self::PROPERTY_UPDATE_INTERVAL) * 1000;
+            $interval = $this->ReadPropertyInteger(self::PROPERTY_UPDATE_INTERVAL);
+            // Mindest-Intervall erzwingen (0 = deaktiviert bleibt erlaubt). Zu kurze Werte
+            // stauen bei langsamer (Cloud-)Verbindung die Warteschlange, da ein kompletter
+            // Update-Zyklus deutlich laenger dauern kann als das Intervall.
+            if ($interval > 0 && $interval < self::MIN_VALUE_UPDATE_INTERVAL) {
+                $this->_debug(
+                    __FUNCTION__,
+                    sprintf('Update-Intervall %ds zu kurz - auf %ds angehoben.', $interval, self::MIN_VALUE_UPDATE_INTERVAL)
+                );
+                $interval = self::MIN_VALUE_UPDATE_INTERVAL;
+            }
+            $interval *= 1000;
         } else {
             $interval = 0;
         }
@@ -871,6 +883,26 @@ class Roborock extends IPSModuleStrict
     {
         $this->_debug(__FUNCTION__ . ': start');
 
+        // Re-Entrancy-Schutz: verhindert, dass sich Update-Zyklen ueberlappen (z. B. bei
+        // langsamer Cloud-Verbindung, wo ein Zyklus laenger als das Intervall dauert) und
+        // dadurch die serielle Nachrichten-Warteschlange stauen.
+        $semaphore = 'Roborock_Update_' . $this->InstanceID;
+        if (!IPS_SemaphoreEnter($semaphore, 0)) {
+            $this->_debug(__FUNCTION__, 'vorheriger Update-Zyklus laeuft noch - Tick uebersprungen');
+            return;
+        }
+
+        try {
+            $this->UpdateInternal();
+        } finally {
+            IPS_SemaphoreLeave($semaphore);
+        }
+
+        $this->_debug(__FUNCTION__ . ': finish');
+    }
+
+    private function UpdateInternal(): void
+    {
         if ($this->ValidateConfiguration()) {
             // Update state
             $this->Get_State();
@@ -952,7 +984,6 @@ class Roborock extends IPSModuleStrict
                 }
             }
         }
-        $this->_debug(__FUNCTION__ . ': finish');
     }
 
     /**
@@ -3017,7 +3048,7 @@ class Roborock extends IPSModuleStrict
                         'type'    => 'NumberSpinner',
                         'caption' => 'Update Interval Roborock',
                         'suffix'  => 'Seconds',
-                        'minimum' => 0
+                        'minimum' => self::MIN_VALUE_UPDATE_INTERVAL
                     ],
                     [
                         'name'    => self::PROPERTY_SERVER,
