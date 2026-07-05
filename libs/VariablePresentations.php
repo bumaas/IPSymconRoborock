@@ -111,6 +111,50 @@ class VariablePresentations
         ];
     }
 
+    /**
+     * Read-only Aufzählung: bildet Integer-Werte über die Wertanzeige (INTERVALS) auf Texte ab.
+     * Anders als enumeration() (VARIABLE_PRESENTATION_ENUMERATION) benötigt die Wertanzeige
+     * keine Variablenaktion und ist damit für read-only Statusvariablen geeignet.
+     * Erwartet dieselbe Options-Struktur wie enumeration(): Value, Caption, IconValue, Color.
+     */
+    public static function valueEnumeration(array $options): array
+    {
+        $intervals = [];
+        foreach ($options as $option) {
+            if (!is_array($option)) {
+                continue;
+            }
+
+            $value = (int)($option['Value'] ?? 0);
+            $icon  = (string)($option['IconValue'] ?? '');
+            $color = (int)($option['Color'] ?? -1);
+
+            $intervals[] = [
+                'IntervalMinValue' => $value,
+                'IntervalMaxValue' => $value,
+                'ConstantActive'   => true,
+                'ConstantValue'    => (string)($option['Caption'] ?? ''),
+                'ConversionFactor' => 1,
+                'PrefixActive'     => false,
+                'PrefixValue'      => '',
+                'SuffixActive'     => false,
+                'SuffixValue'      => '',
+                'DigitsActive'     => false,
+                'DigitsValue'      => 0,
+                'IconActive'       => $icon !== '',
+                'IconValue'        => $icon,
+                'ColorActive'      => $color !== -1,
+                'Color'            => $color
+            ];
+        }
+
+        return [
+            'PRESENTATION'     => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'INTERVALS_ACTIVE' => true,
+            'INTERVALS'        => json_encode($intervals, JSON_THROW_ON_ERROR)
+        ];
+    }
+
     public static function timeOnly(): array
     {
         return [

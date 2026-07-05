@@ -456,15 +456,15 @@ class Roborock extends IPSModuleStrict
 
         $errorOptions = [];
         foreach (ErrorCode::cases() as $error) {
-            $errorOptions[] = ['Value' => $error->value, 'Caption' => $error->getDescription()];
+            $errorOptions[] = ['Value' => $error->value, 'Caption' => $this->Translate($error->getDescription())];
         }
-        $errorPresentation = VariablePresentations::enumeration($errorOptions);
+        $errorPresentation = VariablePresentations::valueEnumeration($errorOptions);
 
         $stateOptions = [];
         foreach (StateCode::cases() as $state) {
-            $stateOptions[] = ['Value' => $state->value, 'Caption' => $state->getDescription()];
+            $stateOptions[] = ['Value' => $state->value, 'Caption' => $this->Translate($state->getDescription())];
         }
-        $statePresentation = VariablePresentations::enumeration($stateOptions);
+        $statePresentation = VariablePresentations::valueEnumeration($stateOptions);
 
         $findMePresentation = VariablePresentations::enumeration([
             ['Value' => 0, 'Caption' => $this->Translate('find robot'), 'Color' => 0x3ADF00]
@@ -1431,7 +1431,7 @@ class Roborock extends IPSModuleStrict
             //trigger_error('get_map_v1 wurde aufgerufen. Die Anzahl der Zugriffe ist vermutlich pro Tag (?) beschränkt', E_USER_WARNING);
             $count = 0;
             do {
-                $mapName = $this->RequestData('get_map_v1');
+                $mapName = $this->RequestData('get_map_v1', ['immediate' => true]);
                 $this->_debug(__FUNCTION__, sprintf('mapName: %s', json_encode($mapName, JSON_THROW_ON_ERROR)));
                 $count++;
             } while ((!$mapName || ((string)$mapName === 'retry')) && $count < 3);
