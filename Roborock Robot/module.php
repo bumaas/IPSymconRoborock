@@ -175,6 +175,7 @@ class Roborock extends IPSModuleStrict
     private const ATTRIBUTE_LAST_NOTIFICATION_STATE = 'last_notification_state';
     private const ATTRIBUTE_LAST_NOTIFICATION_ERROR = 'last_notification_error';
     private const ATTRIBUTE_CLEANING_RECORDS        = 'cleaning_records';
+    private const ATTRIBUTE_PENDING_CLEAN_SUMMARY   = 'pending_clean_summary';
     private const ATTRIBUTE_MODEL                   = 'model';
     private const ATTRIBUTE_MAPFILE_URL             = 'mapfile_url';
     private const ATTRIBUTE_MAPS_LIST               = 'maps_list'; //hier sind alle Werte der Maps_List abgelegt
@@ -374,6 +375,7 @@ class Roborock extends IPSModuleStrict
         $this->RegisterAttributeString(self::ATTRIBUTE_LAST_NOTIFICATION_STATE, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_LAST_NOTIFICATION_ERROR, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, '[]');
+        $this->RegisterAttributeBoolean(self::ATTRIBUTE_PENDING_CLEAN_SUMMARY, false);
         $this->RegisterAttributeString(self::ATTRIBUTE_MODEL, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_MAPFILE_URL, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode([], JSON_THROW_ON_ERROR));
@@ -977,11 +979,21 @@ class Roborock extends IPSModuleStrict
             ], true)) {
                 $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 10000);
             } elseif ($this->GetTimerInterval(self::TIMER_UPDATE_MAP) !== 0) {
+                // Reinigung gerade beendet: finale Karte holen, dann Map-Timer stoppen
+                $this->GetMap();
                 $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 0);
                 // update clean summary
                 if ($this->ReadPropertyBoolean(self::PROPERTY_CLEAN_TIME)) {
                     $this->GetCleanSummary();
+                    // Datensatz wird geraeteseitig oft erst kurz nach Reinigungsende finalisiert
+                    // -> im naechsten Zyklus erneut nachladen.
+                    $this->WriteAttributeBoolean(self::ATTRIBUTE_PENDING_CLEAN_SUMMARY, true);
                 }
+            } elseif ($this->ReadPropertyBoolean(self::PROPERTY_CLEAN_TIME)
+                      && $this->ReadAttributeBoolean(self::ATTRIBUTE_PENDING_CLEAN_SUMMARY)) {
+                // ein Zyklus nach Reinigungsende: spaet finalisierten Datensatz nachladen
+                $this->GetCleanSummary();
+                $this->WriteAttributeBoolean(self::ATTRIBUTE_PENDING_CLEAN_SUMMARY, false);
             }
         }
     }
