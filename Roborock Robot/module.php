@@ -4389,6 +4389,14 @@ EOF;
         $this->_debug(__FUNCTION__, sprintf('MapsList (old): %s', $this->ReadAttributeString(self::ATTRIBUTE_MAPS_LIST)));
         $this->_debug(__FUNCTION__, sprintf('rooms: %s', json_encode($rooms, JSON_THROW_ON_ERROR)));
 
+        //unbekannte Karte (z. B. mapFlag 63 = keine Karte aktiv) ohne gemeldete Räume — nichts zu aktualisieren
+        if ($rooms === [] && !isset($MapsList[$mapFlag])) {
+            return;
+        }
+        if (!is_array($MapsList[$mapFlag]['rooms'] ?? null)) {
+            $MapsList[$mapFlag]['rooms'] = [];
+        }
+
         foreach ($rooms as $id => $room) {
             if (!isset($MapsList[$mapFlag]['rooms'][$id])) {
                 $MapsList[$mapFlag]['rooms'][$id]               = $room;
