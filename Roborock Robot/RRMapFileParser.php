@@ -80,15 +80,15 @@ class RRMapFileParser
 
     private int    $mapSequence;
 
-    private int    $imgHeight;
+    private int    $imgHeight    = 0;
 
-    private int    $imgWidth;
+    private int    $imgWidth     = 0;
 
-    private int    $imageSize;
+    private int    $imageSize    = 0;
 
-    private int    $top;
+    private int    $top          = 0;
 
-    private int    $left;
+    private int    $left         = 0;
 
     private int    $chargerX     = 0;
 

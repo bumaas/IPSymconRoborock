@@ -95,8 +95,12 @@ class RRMapDraw
 
     public function getImage(float $scale = 1): string
     {
-        $width    = floor($scale * $this->rmfp->getImgWidth());
-        $height   = floor($scale * $this->rmfp->getImgHeight());
+        $width    = (int)floor($scale * $this->rmfp->getImgWidth());
+        $height   = (int)floor($scale * $this->rmfp->getImgHeight());
+        if ($width < 1 || $height < 1) {
+            // Karte ohne Bilddaten (z. B. während des Kartenaufbaus) — nichts zu zeichnen
+            return '';
+        }
         $newImage = @imagecreatetruecolor($width, $height);
         if (!$newImage) {
             return '';
