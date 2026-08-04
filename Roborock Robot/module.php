@@ -223,6 +223,36 @@ class Roborock extends IPSModuleStrict
     private const PROFILE_CLEANING_CYCLES = 'Roborock.CleaningCycles';
     private const PROFILE_START_CLEANING  = 'Roborock.StartCleaning';
 
+    //Legacy-Profile aus Vorgängerversionen; werden seit der Umstellung auf Presentations nur noch aufgeräumt
+    private const LEGACY_PROFILES = [
+        self::PROFILE_CONSUMABLE,
+        self::PROFILE_COMMAND,
+        self::PROFILE_BATTERY,
+        self::PROFILE_CLEANAREA,
+        self::PROFILE_START_CLEANING,
+        self::PROFILE_CLEANING_CYCLES,
+        self::PROFILE_DURATION,
+        self::PROFILE_ERRORCODE,
+        self::PROFILE_FANPOWER,
+        self::PROFILE_FINDME,
+        self::PROFILE_MAPS,
+        self::PROFILE_STATE,
+        self::PROFILE_TOTALCLEANS,
+        self::PROFILE_VOLUME,
+        self::PROFILE_WATERQUANTITY
+    ];
+
+    //Ident => Übersetzungsschlüssel der 'extended_info'-Variablen
+    private const EXTENDED_INFO_VARIABLES = [
+        'hw_ver'          => 'hardware version',
+        'fw_ver'          => 'firmware version',
+        'ssid'            => 'ssid',
+        'rssi'            => 'rssi',
+        'local_ip'        => 'local ip',
+        self::IDENT_MODEL => 'model',
+        'mac'             => 'mac'
+    ];
+
     private const IDENT_SERIAL_NUMBER             = 'serial_number';
     private const IDENT_TIMEZONE                  = 'timezone';
     private const IDENT_VOLUME                    = 'volume';
@@ -396,22 +426,7 @@ class Roborock extends IPSModuleStrict
 
     public function Destroy(): void
     {
-        $this->UnregisterProfile(sprintf('%s.%s', self::PROFILE_ROOMSELECTION, $this->InstanceID));
-        $this->UnregisterProfile(self::PROFILE_CONSUMABLE);
-        $this->UnregisterProfile(self::PROFILE_COMMAND);
-        $this->UnregisterProfile(self::PROFILE_BATTERY);
-        $this->UnregisterProfile(self::PROFILE_CLEANAREA);
-        $this->UnregisterProfile(self::PROFILE_START_CLEANING);
-        $this->UnregisterProfile(self::PROFILE_CLEANING_CYCLES);
-        $this->UnregisterProfile(self::PROFILE_DURATION);
-        $this->UnregisterProfile(self::PROFILE_ERRORCODE);
-        $this->UnregisterProfile(self::PROFILE_FANPOWER);
-        $this->UnregisterProfile(self::PROFILE_FINDME);
-        $this->UnregisterProfile(self::PROFILE_MAPS);
-        $this->UnregisterProfile(self::PROFILE_STATE);
-        $this->UnregisterProfile(self::PROFILE_TOTALCLEANS);
-        $this->UnregisterProfile(self::PROFILE_VOLUME);
-        $this->UnregisterProfile(self::PROFILE_WATERQUANTITY);
+        $this->UnregisterLegacyProfiles();
 
         parent::Destroy();
     }
@@ -431,65 +446,56 @@ class Roborock extends IPSModuleStrict
         }
 
         // remove old profiles from previous versions once we switched to presentations
+        $this->UnregisterLegacyProfiles();
+
+        $this->RegisterControlVariables();
+        $this->RegisterMapVariables();
+        $this->RegisterStatusVariables();
+        $this->RegisterCleaningOrderVariables();
+
+        // receive data only for this instance
+        $this->SetReceiveDataFilter('.*"InstanceID":' . $this->InstanceID . '.*');
+
+        // set summary
+        $this->SetSummary(
+            sprintf(
+                '%s (%s)',
+                $this->ReadPropertyString(self::PROPERTY_IP),
+                trim(str_replace('Roborock', '', $this->device->GetName(get_class($this->device))))
+            )
+        );
+
+        // validate configuration
+        $this->ValidateConfiguration();
+
+        // set interval
+        $this->SetUpdateInterval();
+    }
+
+    private function UnregisterLegacyProfiles(): void
+    {
         $this->UnregisterProfile(sprintf('%s.%s', self::PROFILE_ROOMSELECTION, $this->InstanceID));
-        $this->UnregisterProfile(self::PROFILE_CONSUMABLE);
-        $this->UnregisterProfile(self::PROFILE_COMMAND);
-        $this->UnregisterProfile(self::PROFILE_BATTERY);
-        $this->UnregisterProfile(self::PROFILE_CLEANAREA);
-        $this->UnregisterProfile(self::PROFILE_START_CLEANING);
-        $this->UnregisterProfile(self::PROFILE_CLEANING_CYCLES);
-        $this->UnregisterProfile(self::PROFILE_DURATION);
-        $this->UnregisterProfile(self::PROFILE_ERRORCODE);
-        $this->UnregisterProfile(self::PROFILE_FANPOWER);
-        $this->UnregisterProfile(self::PROFILE_FINDME);
-        $this->UnregisterProfile(self::PROFILE_MAPS);
-        $this->UnregisterProfile(self::PROFILE_STATE);
-        $this->UnregisterProfile(self::PROFILE_TOTALCLEANS);
-        $this->UnregisterProfile(self::PROFILE_VOLUME);
-        $this->UnregisterProfile(self::PROFILE_WATERQUANTITY);
-
-        $commandPresentation = VariablePresentations::enumeration([
-            ['Value' => 0, 'Caption' => $this->Translate('Start'), 'IconValue' => 'HollowLargeArrowRight'],
-            ['Value' => 1, 'Caption' => $this->Translate('Pause'), 'IconValue' => 'Close'],
-            ['Value' => 2, 'Caption' => $this->Translate('Stop'), 'IconValue' => 'Close'],
-            ['Value' => 3, 'Caption' => $this->Translate('Spot'), 'IconValue' => 'Climate'],
-            ['Value' => 4, 'Caption' => $this->Translate('Charge'), 'IconValue' => 'Battery'],
-            ['Value' => 5, 'Caption' => $this->Translate('Locate'), 'IconValue' => 'Motion']
-        ]);
-
-        $errorOptions = [];
-        foreach (ErrorCode::cases() as $error) {
-            $errorOptions[] = ['Value' => $error->value, 'Caption' => $this->Translate($error->getDescription())];
+        foreach (self::LEGACY_PROFILES as $profile) {
+            $this->UnregisterProfile($profile);
         }
-        $errorPresentation = VariablePresentations::valueEnumeration($errorOptions);
+    }
 
-        $stateOptions = [];
-        foreach (StateCode::cases() as $state) {
-            $stateOptions[] = ['Value' => $state->value, 'Caption' => $this->Translate($state->getDescription())];
-        }
-        $statePresentation = VariablePresentations::valueEnumeration($stateOptions);
-
-        $findMePresentation = VariablePresentations::enumeration([
-            ['Value' => 0, 'Caption' => $this->Translate('find robot'), 'Color' => 0x3ADF00]
-        ]);
-        $fanPowerPresentation = [];
-        if ($this->ReadPropertyBoolean(self::PROPERTY_FAN_POWER)) {
-            $fanPowerOptions = [];
-            foreach ($this->device::FANPOWER as $name => $value) {
-                $fanPowerOptions[] = ['Value' => $value, 'Caption' => $this->Translate($name)];
-            }
-            $fanPowerPresentation = VariablePresentations::enumeration($fanPowerOptions);
+    /**
+     * Baut eine Enumeration-Presentation aus einer Geräte-Konstante (Name => Wert),
+     * z. B. FANPOWER oder WATERQUANTITY.
+     */
+    private function GetDeviceEnumerationPresentation(array $valuesByName): array
+    {
+        $options = [];
+        foreach ($valuesByName as $name => $value) {
+            $options[] = ['Value' => $value, 'Caption' => $this->Translate($name)];
         }
 
-        $waterQuantityPresentation = [];
-        if ($this->ReadPropertyBoolean(self::PROPERTY_WATER_QUANTITY)) {
-            $waterQuantityOptions = [];
-            foreach ($this->device::WATERQUANTITY as $name => $value) {
-                $waterQuantityOptions[] = ['Value' => $value, 'Caption' => $this->Translate($name)];
-            }
-            $waterQuantityPresentation = VariablePresentations::enumeration($waterQuantityOptions);
-        }
+        return VariablePresentations::enumeration($options);
+    }
 
+    private function RegisterControlVariables(): void
+    {
         // Remote Control
         if ($this->ReadPropertyBoolean(self::PROPERTY_REMOTE)) {
             if ($this->RegisterVariableString(self::IDENT_REMOTE_CONTROL, $this->Translate('Remote Control'), VariablePresentations::webContent(), $this->_getPosition())) {
@@ -501,11 +507,23 @@ class Roborock extends IPSModuleStrict
         }
 
         // command
+        $commandPresentation = VariablePresentations::enumeration([
+            ['Value' => 0, 'Caption' => $this->Translate('Start'), 'IconValue' => 'HollowLargeArrowRight'],
+            ['Value' => 1, 'Caption' => $this->Translate('Pause'), 'IconValue' => 'Close'],
+            ['Value' => 2, 'Caption' => $this->Translate('Stop'), 'IconValue' => 'Close'],
+            ['Value' => 3, 'Caption' => $this->Translate('Spot'), 'IconValue' => 'Climate'],
+            ['Value' => 4, 'Caption' => $this->Translate('Charge'), 'IconValue' => 'Battery'],
+            ['Value' => 5, 'Caption' => $this->Translate('Locate'), 'IconValue' => 'Motion']
+        ]);
         $this->RegisterVariableInteger(self::IDENT_COMMAND, $this->Translate('Command'), $commandPresentation, $this->_getPosition());
         $this->EnableAction(self::IDENT_COMMAND);
 
         // current state
-        $this->RegisterVariableInteger(self::IDENT_STATE, $this->Translate('State'), $statePresentation, $this->_getPosition());
+        $stateOptions = [];
+        foreach (StateCode::cases() as $state) {
+            $stateOptions[] = ['Value' => $state->value, 'Caption' => $this->Translate($state->getDescription())];
+        }
+        $this->RegisterVariableInteger(self::IDENT_STATE, $this->Translate('State'), VariablePresentations::valueEnumeration($stateOptions), $this->_getPosition());
 
         // current battery level
         $this->RegisterVariableInteger('battery', $this->Translate('Battery'), VariablePresentations::value(0, 100, 1, ' %', 0), $this->_getPosition());
@@ -515,7 +533,7 @@ class Roborock extends IPSModuleStrict
             $this->RegisterVariableInteger(
                 self::IDENT_FAN_POWER,
                 $this->Translate('Fan Power'),
-                $fanPowerPresentation,
+                $this->GetDeviceEnumerationPresentation($this->device::FANPOWER),
                 $this->_getPosition()
             );
             $this->EnableAction(self::IDENT_FAN_POWER);
@@ -528,7 +546,7 @@ class Roborock extends IPSModuleStrict
             $this->RegisterVariableInteger(
                 self::IDENT_WATER_QUANTITY,
                 $this->Translate('Water Quantity'),
-                $waterQuantityPresentation,
+                $this->GetDeviceEnumerationPresentation($this->device::WATERQUANTITY),
                 $this->_getPosition()
             );
             $this->RegisterVariableBoolean(self::IDENT_WATER_BOX_STATUS, $this->Translate('Water Box installed'), VariablePresentations::switch(), $this->_getPosition());
@@ -544,7 +562,10 @@ class Roborock extends IPSModuleStrict
             $this->UnregisterVariable(self::IDENT_WATER_BOX_STATUS);
             $this->UnregisterVariable(self::IDENT_WATER_BOX_CARRIAGE_STATUS);
         }
+    }
 
+    private function RegisterMapVariables(): void
+    {
         // map_status
         if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_STATUS) || $this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
             $this->RegisterVariableInteger(self::IDENT_MAP_STATUS, $this->Translate('Active Map'), $this->GetMapStatusPresentation(), $this->_getPosition());
@@ -559,7 +580,10 @@ class Roborock extends IPSModuleStrict
         if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE)) {
             $this->CreateMapPictureVariable(self::IDENT_MAP_PICTURE, 'Map', sprintf('Map_%s.png', $this->InstanceID));
         }
+    }
 
+    private function RegisterStatusVariables(): void
+    {
         // volume
         if ($this->ReadPropertyBoolean(self::PROPERTY_VOLUME)) {
             $this->RegisterVariableInteger(self::IDENT_VOLUME, $this->Translate('Volume'), VariablePresentations::slider(0, 100, 1, ' %', 0), $this->_getPosition());
@@ -570,7 +594,11 @@ class Roborock extends IPSModuleStrict
 
         // error code
         if ($this->ReadPropertyBoolean('error_code')) {
-            $this->RegisterVariableInteger('error_code', $this->Translate('Error Code'), $errorPresentation, $this->_getPosition());
+            $errorOptions = [];
+            foreach (ErrorCode::cases() as $error) {
+                $errorOptions[] = ['Value' => $error->value, 'Caption' => $this->Translate($error->getDescription())];
+            }
+            $this->RegisterVariableInteger('error_code', $this->Translate('Error Code'), VariablePresentations::valueEnumeration($errorOptions), $this->_getPosition());
         } else {
             $this->UnregisterVariable('error_code');
         }
@@ -659,21 +687,13 @@ class Roborock extends IPSModuleStrict
 
         // extended info
         if ($this->ReadPropertyBoolean('extended_info')) {
-            $this->RegisterVariableString('hw_ver', $this->Translate('hardware version'), '', $this->_getPosition());
-            $this->RegisterVariableString('fw_ver', $this->Translate('firmware version'), '', $this->_getPosition());
-            $this->RegisterVariableString('ssid', $this->Translate('ssid'), '', $this->_getPosition());
-            $this->RegisterVariableString('rssi', $this->Translate('rssi'), '', $this->_getPosition());
-            $this->RegisterVariableString('local_ip', $this->Translate('local ip'), '', $this->_getPosition());
-            $this->RegisterVariableString(self::IDENT_MODEL, $this->Translate('model'), '', $this->_getPosition());
-            $this->RegisterVariableString('mac', $this->Translate('mac'), '', $this->_getPosition());
+            foreach (self::EXTENDED_INFO_VARIABLES as $ident => $caption) {
+                $this->RegisterVariableString($ident, $this->Translate($caption), '', $this->_getPosition());
+            }
         } else {
-            $this->UnregisterVariable('hw_ver');
-            $this->UnregisterVariable('fw_ver');
-            $this->UnregisterVariable('ssid');
-            $this->UnregisterVariable('rssi');
-            $this->UnregisterVariable('local_ip');
-            $this->UnregisterVariable(self::IDENT_MODEL);
-            $this->UnregisterVariable('mac');
+            foreach (array_keys(self::EXTENDED_INFO_VARIABLES) as $ident) {
+                $this->UnregisterVariable($ident);
+            }
         }
 
         // Timezone
@@ -682,7 +702,10 @@ class Roborock extends IPSModuleStrict
         } else {
             $this->UnregisterVariable(self::IDENT_TIMEZONE);
         }
+    }
 
+    private function RegisterCleaningOrderVariables(): void
+    {
         if ($this->ReadPropertyBoolean(self::PROPERTY_CLEANING_ORDER)) {
             $this->RegisterVariableInteger(
                 self::IDENT_ROOMSELECTION,
@@ -720,24 +743,6 @@ class Roborock extends IPSModuleStrict
             );
             $this->EnableAction(self::IDENT_START_CLEANING);
         }
-
-        // receive data only for this instance
-        $this->SetReceiveDataFilter('.*"InstanceID":' . $this->InstanceID . '.*');
-
-        // set summary
-        $this->SetSummary(
-            sprintf(
-                '%s (%s)',
-                $this->ReadPropertyString(self::PROPERTY_IP),
-                trim(str_replace('Roborock', '', $this->device->GetName(get_class($this->device))))
-            )
-        );
-
-        // validate configuration
-        $this->ValidateConfiguration();
-
-        // set interval
-        $this->SetUpdateInterval();
     }
 
     /**
