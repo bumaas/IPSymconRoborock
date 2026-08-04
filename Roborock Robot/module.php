@@ -492,7 +492,7 @@ class Roborock extends IPSModuleStrict
 
         // Remote Control
         if ($this->ReadPropertyBoolean(self::PROPERTY_REMOTE)) {
-            if ($this->RegisterVariableString(self::IDENT_REMOTE_CONTROL, $this->Translate('Remote Control'), '~HTMLBox', $this->_getPosition())) {
+            if ($this->RegisterVariableString(self::IDENT_REMOTE_CONTROL, $this->Translate('Remote Control'), VariablePresentations::webContent(), $this->_getPosition())) {
                 IPS_SetIcon($this->GetIDForIdent(self::IDENT_REMOTE_CONTROL), 'Move');
                 $this->SetJoystickHtml();
             }
@@ -531,11 +531,11 @@ class Roborock extends IPSModuleStrict
                 $waterQuantityPresentation,
                 $this->_getPosition()
             );
-            $this->RegisterVariableBoolean(self::IDENT_WATER_BOX_STATUS, $this->Translate('Water Box installed'), '~Switch', $this->_getPosition());
+            $this->RegisterVariableBoolean(self::IDENT_WATER_BOX_STATUS, $this->Translate('Water Box installed'), VariablePresentations::switch(), $this->_getPosition());
             $this->RegisterVariableBoolean(
                 self::IDENT_WATER_BOX_CARRIAGE_STATUS,
                 $this->Translate('Water Box Carriage Status'),
-                '~Switch',
+                VariablePresentations::switch(),
                 $this->_getPosition()
             );
             $this->EnableAction(self::IDENT_WATER_QUANTITY);
@@ -577,7 +577,7 @@ class Roborock extends IPSModuleStrict
 
         // consumables
         if ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES)) {
-            $this->RegisterVariableString(self::IDENT_CONSUMABLES, $this->Translate('Consumables'), '~HTMLBox', $this->_getPosition());
+            $this->RegisterVariableString(self::IDENT_CONSUMABLES, $this->Translate('Consumables'), VariablePresentations::webContent(), $this->_getPosition());
         } else {
             $this->UnregisterVariable(self::IDENT_CONSUMABLES);
         }
@@ -600,11 +600,11 @@ class Roborock extends IPSModuleStrict
 
         // dnd mode
         if ($this->ReadPropertyBoolean('dnd_mode')) {
-            $this->RegisterVariableBoolean('dnd_mode', $this->Translate('DND Mode'), '~Switch', $this->_getPosition());
+            $this->RegisterVariableBoolean('dnd_mode', $this->Translate('DND Mode'), VariablePresentations::switch(), $this->_getPosition());
             $this->EnableAction('dnd_mode');
-            $this->RegisterVariableInteger('dnd_starttime', $this->Translate('DND Starttime'), '~UnixTimestampTime', $this->_getPosition());
+            $this->RegisterVariableInteger('dnd_starttime', $this->Translate('DND Starttime'), VariablePresentations::timeOnly(), $this->_getPosition());
             $this->EnableAction('dnd_starttime');
-            $this->RegisterVariableInteger('dnd_endtime', $this->Translate('DND Endtime'), '~UnixTimestampTime', $this->_getPosition());
+            $this->RegisterVariableInteger('dnd_endtime', $this->Translate('DND Endtime'), VariablePresentations::timeOnly(), $this->_getPosition());
             $this->EnableAction('dnd_endtime');
         } else {
             $this->UnregisterVariable('dnd_mode');
@@ -625,7 +625,7 @@ class Roborock extends IPSModuleStrict
         if ($this->ReadPropertyBoolean(self::PROPERTY_CLEAN_TIME)) {
             $this->RegisterVariableInteger('clean_time', $this->Translate('Clean Time'), VariablePresentations::value(0, 0, 0, ' s', 0), $this->_getPosition());
             $this->RegisterVariableInteger('total_clean_time', $this->Translate('Total Clean Time'), VariablePresentations::value(0, 0, 0, ' s', 0), $this->_getPosition());
-            $this->RegisterVariableString('cleaning_records', $this->Translate('Cleaning Records'), '~HTMLBox', $this->_getPosition());
+            $this->RegisterVariableString('cleaning_records', $this->Translate('Cleaning Records'), VariablePresentations::webContent(), $this->_getPosition());
         } else {
             $this->UnregisterVariable('clean_time');
             $this->UnregisterVariable('total_clean_time');
@@ -650,7 +650,7 @@ class Roborock extends IPSModuleStrict
 
         // timer details
         if ($this->ReadPropertyBoolean('timer_details')) {
-            if ($this->RegisterVariableString('timer_details', $this->Translate('Timer Details'), '~HTMLBox', $this->_getPosition())) {
+            if ($this->RegisterVariableString('timer_details', $this->Translate('Timer Details'), VariablePresentations::webContent(), $this->_getPosition())) {
                 IPS_SetIcon($this->GetIDForIdent('timer_details'), 'Clock');
             }
         } else {
@@ -2429,88 +2429,6 @@ class Roborock extends IPSModuleStrict
         }
 
         return $options;
-    }
-
-    /**
-     * register profiles.
-     *
-     * @param $Name
-     * @param $Icon
-     * @param $Prefix
-     * @param $Suffix
-     * @param $MinValue
-     * @param $MaxValue
-     * @param $StepSize
-     * @param $Digits
-     * @param $Vartype
-     */
-    protected function RegisterProfile($Name, $Icon, $Prefix, $Suffix, $MinValue, $MaxValue, $StepSize, $Digits, $Vartype): void
-    {
-        if (!IPS_VariableProfileExists($Name)) {
-            IPS_CreateVariableProfile($Name, $Vartype);
-        } else {
-            $profile = IPS_GetVariableProfile($Name);
-            if ($profile['ProfileType'] !== $Vartype) {
-                $this->_debug('profile', 'Variable profile type does not match for profile ' . $Name);
-            }
-        }
-
-        IPS_SetVariableProfileIcon($Name, $Icon);
-        if (!IPS_SetVariableProfileText($Name, $Prefix, $Suffix)) {
-            $this->_debug('profile', sprintf('Name: %s, Prefix: %s, Suffix: %s', $Name, $Prefix, $Suffix));
-        }
-        IPS_SetVariableProfileDigits($Name, $Digits); //  Nachkommastellen
-        IPS_SetVariableProfileValues(
-            $Name,
-            $MinValue,
-            $MaxValue,
-            $StepSize
-        ); // string $ProfilName, float $Minimalwert, float $Maximalwert, float $Schrittweite
-    }
-
-    /**
-     * register profile association.
-     *
-     * @param       $Name
-     * @param       $Icon
-     * @param       $Prefix
-     * @param       $Suffix
-     * @param       $MinValue
-     * @param       $MaxValue
-     * @param       $Stepsize
-     * @param       $Digits
-     * @param       $Vartype
-     * @param array $Associations
-     */
-    protected function RegisterProfileAssociation(
-        $Name,
-        $Icon,
-        $Prefix,
-        $Suffix,
-        $MinValue,
-        $MaxValue,
-        $Stepsize,
-        $Digits,
-        $Vartype,
-        array $Associations
-    ): void {
-        if (count($Associations) === 0) {
-            $MinValue = 0;
-            $MaxValue = 0;
-        }
-        $this->RegisterProfile($Name, $Icon, $Prefix, $Suffix, $MinValue, $MaxValue, $Stepsize, $Digits, $Vartype);
-
-        //zunächst werden alte Assoziationen gelöscht
-        foreach (IPS_GetVariableProfile($Name)['Associations'] as $Association) {
-            IPS_SetVariableProfileAssociation($Name, $Association['Value'], '', '', -1);
-        }
-
-        //dann werden die aktuellen eingetragen
-        foreach ($Associations as $Association) {
-            $icon  = $Association[2] ?? '';
-            $color = $Association[3] ?? -1;
-            IPS_SetVariableProfileAssociation($Name, $Association[0], $Association[1], $icon, $color);
-        }
     }
 
     /**

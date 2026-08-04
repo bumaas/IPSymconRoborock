@@ -13,6 +13,13 @@ class VariablePresentations
         ];
     }
 
+    public static function webContent(): array
+    {
+        return [
+            'PRESENTATION' => VARIABLE_PRESENTATION_WEB_CONTENT
+        ];
+    }
+
     public static function color(int $encoding = 0): array
     {
         return [
