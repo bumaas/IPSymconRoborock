@@ -852,7 +852,7 @@ class Roborock extends IPSModuleStrict
             $interval = $this->ReadPropertyInteger(self::PROPERTY_UPDATE_INTERVAL);
             // Mindest-Intervall erzwingen (0 = deaktiviert bleibt erlaubt). Zu kurze Werte
             // stauen bei langsamer (Cloud-)Verbindung die Warteschlange, da ein kompletter
-            // Update-Zyklus deutlich laenger dauern kann als das Intervall.
+            // Update-Zyklus deutlich länger dauern kann als das Intervall.
             if ($interval > 0 && $interval < self::MIN_VALUE_UPDATE_INTERVAL) {
                 $this->_debug(
                     __FUNCTION__,
@@ -890,12 +890,12 @@ class Roborock extends IPSModuleStrict
     {
         $this->_debug(__FUNCTION__ . ': start');
 
-        // Re-Entrancy-Schutz: verhindert, dass sich Update-Zyklen ueberlappen (z. B. bei
-        // langsamer Cloud-Verbindung, wo ein Zyklus laenger als das Intervall dauert) und
+        // Re-Entrancy-Schutz: verhindert, dass sich Update-Zyklen überlappen (z. B. bei
+        // langsamer Cloud-Verbindung, wo ein Zyklus länger als das Intervall dauert) und
         // dadurch die serielle Nachrichten-Warteschlange stauen.
         $semaphore = 'Roborock_Update_' . $this->InstanceID;
         if (!IPS_SemaphoreEnter($semaphore, 0)) {
-            $this->_debug(__FUNCTION__, 'vorheriger Update-Zyklus laeuft noch - Tick uebersprungen');
+            $this->_debug(__FUNCTION__, 'vorheriger Update-Zyklus läuft noch - Tick übersprungen');
             return;
         }
 
@@ -990,13 +990,13 @@ class Roborock extends IPSModuleStrict
                 // update clean summary
                 if ($this->ReadPropertyBoolean(self::PROPERTY_CLEAN_TIME)) {
                     $this->GetCleanSummary();
-                    // Datensatz wird geraeteseitig oft erst kurz nach Reinigungsende finalisiert
-                    // -> im naechsten Zyklus erneut nachladen.
+                    // Datensatz wird geräteseitig oft erst kurz nach Reinigungsende finalisiert
+                    // -> im nächsten Zyklus erneut nachladen.
                     $this->WriteAttributeBoolean(self::ATTRIBUTE_PENDING_CLEAN_SUMMARY, true);
                 }
             } elseif ($this->ReadPropertyBoolean(self::PROPERTY_CLEAN_TIME)
                       && $this->ReadAttributeBoolean(self::ATTRIBUTE_PENDING_CLEAN_SUMMARY)) {
-                // ein Zyklus nach Reinigungsende: spaet finalisierten Datensatz nachladen
+                // ein Zyklus nach Reinigungsende: spät finalisierten Datensatz nachladen
                 $this->GetCleanSummary();
                 $this->WriteAttributeBoolean(self::ATTRIBUTE_PENDING_CLEAN_SUMMARY, false);
             }
@@ -1197,7 +1197,7 @@ class Roborock extends IPSModuleStrict
     {
         $this->_SetValue(self::IDENT_COMMAND, 0);
         $this->RequestData('app_start');
-        $this->Get_State(); // Status sofort aktualisieren (statt erst beim naechsten Update-Timer)
+        $this->Get_State(); // Status sofort aktualisieren (statt erst beim nächsten Update-Timer)
         $this->StartMapUpdates(); // Karte sofort holen und Map-Timer starten
     }
 
@@ -1552,7 +1552,7 @@ class Roborock extends IPSModuleStrict
 
     /**
      * Karte sofort holen und den 10s-Map-Timer starten (z. B. direkt nach Reinigungsstart),
-     * damit die Karte nicht erst beim naechsten regulaeren Update-Zyklus aktualisiert wird.
+     * damit die Karte nicht erst beim nächsten regulären Update-Zyklus aktualisiert wird.
      */
     private function StartMapUpdates(): void
     {
