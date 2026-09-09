@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 class Consumable extends stdClass
 {
     //these properties are used as ident

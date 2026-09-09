@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 // see also https://github.com/marcelrv/XiaomiRobotVacuumProtocol/tree/master/RRMapFile
 // Viewer: https://community.openhab.org/t/xiaomi-vacuum-map-viewer-to-find-coordinates-for-zone-cleaning/103500
 

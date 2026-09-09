@@ -12,6 +12,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+          extensions: gd # tests/check-map-rendering.php zeichnet eine Karte
       - name: Code-Stil (gemeinsames Regelwerk, Submodul .style)
         run: |
           wget -q https://cs.symfony.com/download/php-cs-fixer-v3.phar
@@ -27,3 +28,5 @@ jobs:
             xargs -0 -n1 php -r 'json_decode(file_get_contents($argv[1]), false, 512, JSON_THROW_ON_ERROR); echo $argv[1], " ok\n";' --
       - name: Übersetzungen
         run: php tests/check_locale.php
+      - name: Kartenzeichnung (Bildpunkte unverändert)
+        run: php tests/check-map-rendering.php

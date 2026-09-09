@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 function createPicture($data)
 {
     $newImage        = null;
@@ -75,7 +77,7 @@ function createPicture($data)
             $im1            = rotate_transparent_img($im1, 0);
             $r              = $picsize;
             $im1            = imagescale($im1, $r, $r, IMG_BILINEAR_FIXED);
-            imagecopy($newImage, $im1, $picchargerposx - ($r / 2), $picchargerposy - ($r / 2), 0, 0, $r, $r);
+            imagecopy($newImage, $im1, (int)($picchargerposx - ($r / 2)), (int)($picchargerposy - ($r / 2)), 0, 0, $r, $r);
             /*echo "Charger POS\r\n";
             echo "-----------\r\n";
             echo "Charger POS X     :".($chargerposx). "\r\n";
@@ -324,7 +326,7 @@ function createPicture($data)
             $im = rotate_transparent_img($im, $robotangle - 90);
             $r  = $picsize * 2;
             $im = imagescale($im, $r, $r, IMG_BILINEAR_FIXED);
-            imagecopy($newImage, $im, $picrobotxpos - ($r / 2), $picrobotypos - ($r / 2), 0, 0, $r, $r);
+            imagecopy($newImage, $im, (int)($picrobotxpos - ($r / 2)), (int)($picrobotypos - ($r / 2)), 0, 0, $r, $r);
             /*echo "Robot Position\r\n";
             echo "--------------\r\n";
 

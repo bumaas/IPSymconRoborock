@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 require_once __DIR__ . '/RRMapFileParser.php';
 
 class RRMapDraw
@@ -141,7 +143,7 @@ class RRMapDraw
 
     private function drawMap(&$gdImage, float $scale): void
     {
-        imagesetthickness($gdImage, $scale * 1.1);
+        imagesetthickness($gdImage, (int)($scale * 1.1));
 
         $rmfpImage        = $this->rmfp->getImage();
         $unknownObstacles = [];
@@ -201,7 +203,10 @@ class RRMapDraw
                 $xPos = $scale * ($this->rmfp->getImgWidth() - $x);
                 $yP   = $scale * $y;
                 $t    = $scale / 2 - 0.5;
-                imagefilledrectangle($gdImage, round($xPos - $t), round($yP - $t), round($xPos + $t), round($yP + $t), $color);
+                // Bei einem unbekannten Hindernistyp bleibt $color null (der Fall wird unten
+                // protokolliert). Ohne strict_types machte PHP daraus still 0 = schwarz; mit
+                // strict_types wäre es ein TypeError und die Karte bliebe ganz leer.
+                imagefilledrectangle($gdImage, (int)round($xPos - $t), (int)round($yP - $t), (int)round($xPos + $t), (int)round($yP + $t), $color ?? 0);
             }
         }
 
@@ -224,10 +229,10 @@ class RRMapDraw
             $y1 = $this->toYCoord($point[3]) * $scale;
             imagefilledrectangle(
                 $gdImage,
-                $x,
-                $y,
-                $x1,
-                $y1,
+                (int)$x,
+                (int)$y,
+                (int)$x1,
+                (int)$y1,
                 imagecolorallocatealpha(
                     $gdImage,
                     self::COLOR_ZONES[0],
@@ -241,7 +246,7 @@ class RRMapDraw
 
     private function drawNoGo(&$gdImage, float $scale): void
     {
-        imagesetthickness($gdImage, $scale * 0.5);
+        imagesetthickness($gdImage, (int)($scale * 0.5));
 
         foreach ($this->rmfp->getAreas() as $blocktype => $arealist) {
             $areaColor = ($blocktype === RRMapFileParser::DOOR_SILL_FORBIDDEN_AREA)
@@ -255,10 +260,10 @@ class RRMapDraw
                 $y3 = $this->toYCoord($area[5]) * $scale;
                 imagefilledrectangle(
                     $gdImage,
-                    $x1,
-                    $y1,
-                    $x3,
-                    $y3,
+                    (int)$x1,
+                    (int)$y1,
+                    (int)$x3,
+                    (int)$y3,
                     imagecolorallocatealpha(
                         $gdImage,
                         $areaColor[0],
@@ -269,10 +274,10 @@ class RRMapDraw
                 );
                 ImageRectangle(
                     $gdImage,
-                    $x1,
-                    $y1,
-                    $x3,
-                    $y3,
+                    (int)$x1,
+                    (int)$y1,
+                    (int)$x3,
+                    (int)$y3,
                     imagecolorallocate($gdImage, $areaColor[0], $areaColor[1], $areaColor[2])
                 );
             }
@@ -281,14 +286,14 @@ class RRMapDraw
 
     private function drawWalls(&$gdImage, float $scale): void
     {
-        imagesetthickness($gdImage, $scale * 3);
+        imagesetthickness($gdImage, (int)($scale * 3));
         $color = imagecolorallocate($gdImage, self::RED[0], self::RED[1], self::RED[2]);
         foreach ($this->rmfp->getWalls() as $point) {
             $x  = $this->toXCoord($point[0]) * $scale;
             $y  = $this->toYCoord($point[1]) * $scale;
             $x1 = $this->toXCoord($point[2]) * $scale;
             $y1 = $this->toYCoord($point[3]) * $scale;
-            imageline($gdImage, $x, $y, $x1, $y1, $color);
+            imageline($gdImage, (int)$x, (int)$y, (int)$x1, (int)$y1, $color);
         }
     }
 
@@ -300,7 +305,7 @@ class RRMapDraw
         if (count($this->rmfp->getCarpetMap()) === 0) {
             return;
         }
-        imagesetthickness($gdImage, $scale * 1.1);
+        imagesetthickness($gdImage, (int)($scale * 1.1));
 
         for ($y = 0; $y < $this->rmfp->getImgHeight() - 1; $y++) {
             for ($x = 0; $x < $this->rmfp->getImgWidth() + 1; $x++) {
@@ -309,9 +314,9 @@ class RRMapDraw
                     $xPos = $scale * ($this->rmfp->getImgWidth() - $x);
                     $yP     = $scale * $y;
                     $t      = $scale / 2 - 0.5;
-                    $colors = imagecolorsforindex($gdImage, imagecolorat($gdImage, $xPos, $yP));
+                    $colors = imagecolorsforindex($gdImage, imagecolorat($gdImage, (int)$xPos, (int)$yP));
                     $color  = imagecolorallocate($gdImage, max($colors['red'] - 15, 0), max($colors['green'] - 15, 0) , max($colors['blue'] - 15, 0));
-                    imagefilledrectangle($gdImage, round($xPos - $t), round($yP - $t), round($xPos + $t), round($yP + $t), $color);
+                    imagefilledrectangle($gdImage, (int)round($xPos - $t), (int)round($yP - $t), (int)round($xPos + $t), (int)round($yP + $t), $color ?? 0);
                     break;
                 }
             }
@@ -326,7 +331,7 @@ class RRMapDraw
         if (count($this->rmfp->getMopPath()) === 0) {
             return;
         }
-        imagesetthickness($gdImage, $scale * 1.1);
+        imagesetthickness($gdImage, (int)($scale * 1.1));
 
         /*
         for ($y = 0; $y < $this->rmfp->getImgHeight() - 1; $y++) {
@@ -342,7 +347,7 @@ class RRMapDraw
      */
     private function drawPath(&$gdImage, float $scale): void
     {
-        imagesetthickness($gdImage, $scale * 0.5);
+        imagesetthickness($gdImage, (int)($scale * 0.5));
 
         foreach ($this->rmfp->getPaths() as $pathType => $paths) {
             //Integer pathType = path . getKey();
@@ -370,7 +375,7 @@ class RRMapDraw
                 $x = $this->toXCoord($point[0]) * $scale;
                 $y = $this->toYCoord($point[1]) * $scale;
                 if ($prvX > 1) {
-                    imageline($gdImage, $prvX, $prvY, $x, $y, $color);
+                    imageline($gdImage, (int)$prvX, (int)$prvY, (int)$x, (int)$y, $color);
                 }
                 $prvX = $x;
                 $prvY = $y;
@@ -380,7 +385,7 @@ class RRMapDraw
 
     private function drawRobo(&$gdImage, float $scale): void
     {
-        imagesetthickness($gdImage, 3 * $scale);
+        imagesetthickness($gdImage, (int)(3 * $scale));
 
         $radius   = 8 * $scale;
         $color    = imagecolorallocatealpha(
@@ -392,14 +397,14 @@ class RRMapDraw
         );
         $chargerX = $this->toXCoord($this->rmfp->getChargerX()) * $scale;
         $chargerY = $this->toYCoord($this->rmfp->getChargerY()) * $scale;
-        imagefilledellipse($gdImage, $chargerX, $chargerY, $radius, $radius, $color);
+        imagefilledellipse($gdImage, (int)$chargerX, (int)$chargerY, (int)$radius, (int)$radius, $color);
         $this->drawCenteredImg($gdImage, $scale / 8, dirname(__DIR__) . '/imgs/charger.png', $chargerX, $chargerY);
 
         $radius = 10 * $scale;
         $color  = imagecolorallocate($gdImage, self::COLOR_ROBO[0], self::COLOR_ROBO[1], self::COLOR_ROBO[2]);
         $roboX  = $this->toXCoord($this->rmfp->getRoboX()) * $scale;
         $roboY  = $this->toYCoord($this->rmfp->getRoboY()) * $scale;
-        imagefilledellipse($gdImage, $roboX, $roboY, $radius, $radius, $color);
+        imagefilledellipse($gdImage, (int)$roboX, (int)$roboY, (int)$radius, (int)$radius, $color);
         if ($scale >= 1.5) {
             $this->drawCenteredImg($gdImage, $scale / 15, dirname(__DIR__) . '/imgs/robo.png', $roboX, $roboY);
         }
@@ -408,7 +413,7 @@ class RRMapDraw
     private function drawObstacles(&$gdImage, float $scale): void
     {
         $radius = 2 * $scale;
-        imagesetthickness($gdImage, 3 * $scale);
+        imagesetthickness($gdImage, (int)(3 * $scale));
 
         $color = imagecolorallocate($gdImage, 255, 0, 255); //magenta
 
@@ -416,7 +421,7 @@ class RRMapDraw
             foreach ($obstacle as $entry) {
                 $obstacleX = $this->toXCoord($entry[0]) * $scale;
                 $obstacleY = $this->toYCoord($entry[1]) * $scale;
-                imagefilledellipse($gdImage, $obstacleX, $obstacleY, $radius, $radius, $color);
+                imagefilledellipse($gdImage, (int)$obstacleX, (int)$obstacleY, (int)$radius, (int)$radius, $color);
                 if ($scale > 1.0) {
                     $imgFile = dirname(__DIR__) . '/imgs/obstacle-' . $entry[2] . '.png';
                     if (!file_exists($imgFile)) {
@@ -438,19 +443,19 @@ class RRMapDraw
         foreach ($this->rmfp->getStuckPoints() as $point) {
             $x = $this->toXCoord($point[0]) * $scale;
             $y = $this->toYCoord($point[1]) * $scale;
-            imagefilledellipse($gdImage, $x, $y, $radius, $radius, $color);
+            imagefilledellipse($gdImage, (int)$x, (int)$y, (int)$radius, (int)$radius, $color);
         }
     }
 
     private function drawCenteredImg(&$gdImage, float $scale, string $imgFile, float $x, float $y): void
     {
         if ($addImage = @imagecreatefrompng($imgFile)) {
-            $addImage = imagescale($addImage, imagesx($addImage) * $scale, -1);
+            $addImage = imagescale($addImage, (int)(imagesx($addImage) * $scale), -1);
             $addImage = $this->rotateAndMakeImageTransparent($addImage, 180);
             $xpos     = round($x - (imagesx($addImage) / 2));
             $ypos     = round($y - (imagesy($addImage) / 2));
             //echo sprintf('%s: x: %s, y: %s, xpos: %s, ypos: %s', __FUNCTION__, $x, $y, $xpos, $ypos) . PHP_EOL;
-            imagecopy($gdImage, $addImage, $xpos, $ypos, 0, 0, imagesx($addImage), imagesy($addImage));
+            imagecopy($gdImage, $addImage, (int)$xpos, (int)$ypos, 0, 0, imagesx($addImage), imagesy($addImage));
         } else {
             call_user_func($this->logger, __CLASS__ . '::' . __FUNCTION__, sprintf('Error loading image: %s', $imgFile));
         }
