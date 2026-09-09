@@ -6,7 +6,6 @@ use JetBrains\PhpStorm\NoReturn;
 
 include __DIR__ . '/../libs/picture.php';
 
-
 /**
  * Class RoborockIO
  * Xiaomi Mi Vacuum Cleaner I/O Device.
@@ -103,7 +102,7 @@ class RoborockIO extends IPSModuleStrict
     public function MessageSink($TimeStamp, $SenderID, $Message, $Data): void
     {
         if (($Message === IPS_KERNELMESSAGE) && ($Data[0] === KR_READY)) {
-                    $this->ApplyChanges();
+            $this->ApplyChanges();
         }
     }
 
@@ -165,7 +164,7 @@ class RoborockIO extends IPSModuleStrict
     public function RequestAction(string $Ident, mixed $Value): void
     {
         if ($Ident === 'HandleQueue') {
-                $this->HandleQueue();
+            $this->HandleQueue();
         } else {
             trigger_error('Unexpected Ident: ' . $Ident, E_USER_ERROR);
         }
@@ -237,11 +236,11 @@ class RoborockIO extends IPSModuleStrict
                 // send it to children
                 $this->SendDataToChildren(
                     json_encode([
-                                    'DataID'     => '{36FF43CE-F065-DD20-F1A8-A7C99C25D7A2}',
-                                    'InstanceID' => (int)$item->InstanceID,
-                                    'Buffer'     => $buffer
-                                ],
-                                JSON_THROW_ON_ERROR)
+                        'DataID'     => '{36FF43CE-F065-DD20-F1A8-A7C99C25D7A2}',
+                        'InstanceID' => (int)$item->InstanceID,
+                        'Buffer'     => $buffer
+                    ],
+                        JSON_THROW_ON_ERROR)
                 );
             }
         }
@@ -258,7 +257,7 @@ class RoborockIO extends IPSModuleStrict
         }
 
         if (!$this->HasActiveParent()){
-                return false;
+            return false;
         }
 
         return true;
@@ -396,11 +395,11 @@ class RoborockIO extends IPSModuleStrict
         // send buffer to children
         $this->SendDataToChildren(
             json_encode([
-                            'DataID'     => '{36FF43CE-F065-DD20-F1A8-A7C99C25D7A2}',
-                            'InstanceID' => $instance_id,
-                            'Buffer'     => $buffer
-                        ],
-                        JSON_THROW_ON_ERROR)
+                'DataID'     => '{36FF43CE-F065-DD20-F1A8-A7C99C25D7A2}',
+                'InstanceID' => $instance_id,
+                'Buffer'     => $buffer
+            ],
+                JSON_THROW_ON_ERROR)
         );
 
         // sleep on specific commands
@@ -757,7 +756,7 @@ class RoborockIO extends IPSModuleStrict
             );
             return false;
         }
-        return (trim($ret));
+        return trim($ret);
     }
 
     /**
@@ -816,16 +815,16 @@ class RoborockIO extends IPSModuleStrict
 
                 $this->SendData(
                     (int)$instance_id, [
-                                         'method' => 'app_rc_move',
-                                         'params' => [
-                                             [
-                                                 'omega'    => $rotation,
-                                                 'velocity' => $speed,
-                                                 'seqnum'   => 1,
-                                                 'duration' => 1000
-                                             ]
-                                         ]
-                                     ]
+                        'method' => 'app_rc_move',
+                        'params' => [
+                            [
+                                'omega'    => $rotation,
+                                'velocity' => $speed,
+                                'seqnum'   => 1,
+                                'duration' => 1000
+                            ]
+                        ]
+                    ]
                 );
             }
         } else {
@@ -914,16 +913,16 @@ class RoborockIO extends IPSModuleStrict
                 if ($x && $y) {
                     $this->SendDataToChildren(
                         json_encode([
-                                        'DataID'     => '{36FF43CE-F065-DD20-F1A8-A7C99C25D7A2}',
-                                        'InstanceID' => (int)$instance_id,
-                                        'Buffer'     => [
-                                            'token'  => false,
-                                            'method' => 'coordinates',
-                                            'x'      => $x,
-                                            'y'      => $y
-                                        ]
-                                    ],
-                                    JSON_THROW_ON_ERROR)
+                            'DataID'     => '{36FF43CE-F065-DD20-F1A8-A7C99C25D7A2}',
+                            'InstanceID' => (int)$instance_id,
+                            'Buffer'     => [
+                                'token'  => false,
+                                'method' => 'coordinates',
+                                'x'      => $x,
+                                'y'      => $y
+                            ]
+                        ],
+                            JSON_THROW_ON_ERROR)
                     );
                 }
             }

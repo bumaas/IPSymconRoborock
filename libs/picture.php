@@ -29,13 +29,13 @@ function createPicture($data)
     $MapSequence    = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
     $filedatapos    = $headerlength;
 
-    echo "Filelen        :". strlen($data). "\r\n";
-    echo "Headerlength   :".$headerlength."\r\n";
-    echo "Locationfooter :".$locationfooter."\r\n";
-    echo "Major          :".$Major."\r\n";
-    echo "Minor          :".$Minor."\r\n";
-    echo "MapIndex       :".$MapIndex."\r\n";
-    echo "MapSequence    :".$MapSequence."\r\n";
+    echo 'Filelen        :'. strlen($data). "\r\n";
+    echo 'Headerlength   :'.$headerlength."\r\n";
+    echo 'Locationfooter :'.$locationfooter."\r\n";
+    echo 'Major          :'.$Major."\r\n";
+    echo 'Minor          :'.$Minor."\r\n";
+    echo 'MapIndex       :'.$MapIndex."\r\n";
+    echo 'MapSequence    :'.$MapSequence."\r\n";
     echo "\r\n";
 
     while ($filedatapos < strlen($data)) {
@@ -43,12 +43,12 @@ function createPicture($data)
         $blocktype         = ord($data[$i++]) | (ord($data[$i++]) << 8);
         $blockheaderlength = ord($data[$i++]) | (ord($data[$i++]) << 8);
         $blockdatlength    = ord($data[$i++]) | (ord($data[$i++]) << 8) | (ord($data[$i++]) << 16) | (ord($data[$i++]) << 24);
-        echo "Filedatapos       :" . $filedatapos . "\r\n";
+        echo 'Filedatapos       :' . $filedatapos . "\r\n";
 
         $filedatapos = $filedatapos + $blockheaderlength + $blockdatlength;
-        echo "Blocktype         :" . $blocktype . "\r\n";
-        echo "Blockheaderlength :" . $blockheaderlength . "\r\n";
-        echo "Blockdatlength    :" . $blockdatlength . "\r\n";
+        echo 'Blocktype         :' . $blocktype . "\r\n";
+        echo 'Blockheaderlength :' . $blockheaderlength . "\r\n";
+        echo 'Blockdatlength    :' . $blockdatlength . "\r\n";
 
         //Charger POS
         if ($blocktype == 1) {
@@ -82,7 +82,7 @@ function createPicture($data)
             echo "Charger POS Y     :".($chargerposy). "\r\n";
             echo "Charger POS X PIC :".$picchargerposx. "\r\n";
             echo "Charger POS Y PIC :".$picchargerposy. "\r\n";
-            */
+             */
         }
 
         //PICTURE
@@ -113,7 +113,6 @@ function createPicture($data)
                         $color = imagecolorallocate($newImage, 128, 128, 128);
                     }
 
-
                     imagesetpixel($newImage, $x, $y, $color);
                 }
             }
@@ -130,7 +129,7 @@ function createPicture($data)
             echo "Leftpos           :".$pic_leftpos. "\r\n";
             echo "Imageheight       :".$pic_imageheight. "\r\n";
             echo "Imagewidth        :".$pic_imagewidth. "\r\n";
-            */
+             */
         }
 
         //Vakuumpfad
@@ -158,9 +157,9 @@ function createPicture($data)
 
             echo "Vakuumpfad\r\n";
             echo "----------\r\n";
-            echo "PointLengths      :" . $pointlengths . "\r\n";
-            echo "PointSize         :" . $pointsize . "\r\n";
-            echo "Winkel            :" . $angle . "\r\n";
+            echo 'PointLengths      :' . $pointlengths . "\r\n";
+            echo 'PointSize         :' . $pointsize . "\r\n";
+            echo 'Winkel            :' . $angle . "\r\n";
         }
 
         //predicted goto path
@@ -190,7 +189,7 @@ function createPicture($data)
             echo "PointLengths      :".$pointlengths. "\r\n";
             echo "PointSize         :".$pointsize. "\r\n";
             echo "Winkel            :".$angle. "\r\n";
-            */
+             */
         }
 
         //Clean zonw
@@ -202,7 +201,6 @@ function createPicture($data)
                 $x2 = ord($data[$i++]) | (ord($data[$i++]) << 8);
                 $y2 = ord($data[$i++]) | (ord($data[$i++]) << 8);
 
-
                 $x1pic = (int)(($x1 - ($pic_leftpos * $divsize)) / $divsize);
                 $y1pic = (int)($pic_imageheight - (($y1 - ($pic_toppos * $divsize)) / $divsize));
                 $x2pic = (int)(($x2 - ($pic_leftpos * $divsize)) / $divsize);
@@ -213,7 +211,7 @@ function createPicture($data)
             }
             echo "Zonen\r\n";
             echo "----------\r\n";
-            echo "Conter      :" . $counter . "\r\n";
+            echo 'Conter      :' . $counter . "\r\n";
         }
         //Target Position
         if ($blocktype == 7) {
@@ -230,7 +228,6 @@ function createPicture($data)
             $coordinates[4] = $pictargetxpos;                      // Point 3 x
             $coordinates[5] = $pictargetypos - ($picsize / 2);           // Point 3 y
 
-
             ImageFilledPolygon($newImage, $coordinates, 3, ImageColorAllocate($newImage, 255, 255, 0));
             /*echo "Target Position\r\n";
             echo "----- ---------\r\n";
@@ -239,7 +236,7 @@ function createPicture($data)
             echo "Target Y POS       :".$targetypos. "\r\n";
             echo "Target X POS PIC   :".$pictargetxpos. "\r\n";
             echo "Target Y POS PIC   :".$pictargetypos. "\r\n";
-            */
+             */
         }
 
         //Robot Position
@@ -336,7 +333,7 @@ function createPicture($data)
             echo "Robot X POS PIC   :".$picrobotxpos. "\r\n";
             echo "Robot Y POS PIC   :".$picrobotypos. "\r\n";
             echo "Robot ANGLE       :".$robotangle. "\r\n";
-            */
+             */
         }
         //Sperrzone Position
         if ($blocktype == 9) {
@@ -371,7 +368,7 @@ function createPicture($data)
             /*echo "Nogo-Zonen\r\n";
             echo "----------\r\n";
             echo "Conter      :".$counter. "\r\n";
-            */
+             */
         }
         // check the file of sha1 sum
         if ($blocktype == 1024) {

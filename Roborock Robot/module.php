@@ -158,7 +158,6 @@ enum ErrorCode: int
  */
 class Roborock extends IPSModuleStrict
 {
-
     private const STATUS_INST_REGISTRATION_INCOMPLETE = 201;
     private const STATUS_INST_IP_ADDRESS_IS_INVALID   = 203;
     private const STATUS_INST_TOKEN_IS_INVALID        = 205;
@@ -274,7 +273,6 @@ class Roborock extends IPSModuleStrict
     private const IDENT_START_CLEANING            = 'start_cleaning';
     private const IDENT_UPDATEROOMNAME            = 'UpdateRoomName';
 
-
     // Form Fields
     private const FF_MAPANDROOMLIST        = 'MapAndRoomList';
     private const FF_COL_MAPFLAG           = 'mapFlag';
@@ -285,10 +283,8 @@ class Roborock extends IPSModuleStrict
     private const FF_COL_ROOMNAME          = 'RoomName';
     private const FF_COL_IGNORE_ROOM       = 'IgnoreRoom';
 
-
     private const TIMER_UPDATE     = 'RoborockTimerUpdate';
     private const TIMER_UPDATE_MAP = 'RoborockTimerUpdate_Map';
-
 
     private const PUSH_NOTIFICATIONS = [
         [
@@ -430,7 +426,6 @@ class Roborock extends IPSModuleStrict
 
         parent::Destroy();
     }
-
 
     /**
      * apply changes from the configuration form.
@@ -716,7 +711,6 @@ class Roborock extends IPSModuleStrict
             $this->EnableAction(self::IDENT_ROOMSELECTION);
             $this->_SetValue(self::IDENT_ROOMSELECTION, -1);
 
-
             $this->RegisterVariableString(self::IDENT_ROOMS_SELECTED, $this->Translate('Selected Rooms'), '', $this->_getPosition());
 
             $cleaningCycleOptions = [];
@@ -871,7 +865,6 @@ class Roborock extends IPSModuleStrict
         }
     }
 
-
     public function SetDeviceToken(string $token): void
     {
         $this->WriteAttributeString(self::ATTRIBUTE_TOKEN, $token);
@@ -928,7 +921,6 @@ class Roborock extends IPSModuleStrict
                 $this->Get_Consumables();
             }
 
-
             // update dnd mode
             if ($this->ReadPropertyBoolean('dnd_mode')) {
                 $this->Get_DND_Mode();
@@ -968,7 +960,7 @@ class Roborock extends IPSModuleStrict
             if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE)) {
                 $this->GetMap();
             }
-            */
+             */
 
             if (in_array($this->GetValue(self::IDENT_STATE), [
                 StateCode::REMOTE_CONTROL->value,
@@ -1033,7 +1025,7 @@ class Roborock extends IPSModuleStrict
         if ($io = @$this->SendDataToParent($data)) {
             // return data
             try {
-            return json_decode($io, true, 512, JSON_THROW_ON_ERROR);
+                return json_decode($io, true, 512, JSON_THROW_ON_ERROR);
             } catch (JsonException $ex) {
                 $this->_debug(__FUNCTION__, 'Invalid JSON from parent: ' . $ex->getMessage());
                 return false;
@@ -1445,8 +1437,8 @@ class Roborock extends IPSModuleStrict
             $this->_debug(
                 __FUNCTION__,
                 sprintf('%s: responsecode: %s, curl_getinfo: %s', __FUNCTION__,
-                        json_encode($responsecode, JSON_THROW_ON_ERROR),
-                        json_encode(curl_getinfo($ch), JSON_THROW_ON_ERROR)
+                    json_encode($responsecode, JSON_THROW_ON_ERROR),
+                    json_encode(curl_getinfo($ch), JSON_THROW_ON_ERROR)
                 )
             );
             return '';
@@ -1470,7 +1462,7 @@ class Roborock extends IPSModuleStrict
         if (!$this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE)) {
             return false;
         }
-        */
+         */
         //$url = $this->ReadAttributeString(self::ATTRIBUTE_MAPFILE_URL);
         $url = '';
 
@@ -1510,7 +1502,6 @@ class Roborock extends IPSModuleStrict
             $this->_debug(__FUNCTION__ . 'URL', $url);
             $this->WriteAttributeString(self::ATTRIBUTE_MAPFILE_URL, $url);
         }
-
 
         $data = $this->getMapdata($url);
         //var_dump($data);
@@ -1854,7 +1845,6 @@ class Roborock extends IPSModuleStrict
         return false;
     }
 
-
     /**
      * start remote control.
      *
@@ -2039,7 +2029,6 @@ class Roborock extends IPSModuleStrict
         }
     }
 
-
     /**
      * enable / disable dnd mode.
      *
@@ -2109,7 +2098,6 @@ class Roborock extends IPSModuleStrict
         $start_minutes = (int)$time[1];
         $this->SetDNDTimer($start_hour, $start_minutes, $end_hour, $end_minutes);
     }
-
 
     /**
      * get sound volume.
@@ -2458,7 +2446,6 @@ class Roborock extends IPSModuleStrict
         return true;
     }
 
-
     /**
      * Send push notifications.
      *
@@ -2591,11 +2578,10 @@ class Roborock extends IPSModuleStrict
     public function GetConfigurationForm(): string
     {
         $form = json_encode([
-                                'elements' => $this->FormElements(),
-                                'actions'  => $this->FormActions(),
-                                'status'   => $this->FormStatus()
-                            ], JSON_THROW_ON_ERROR);
-
+            'elements' => $this->FormElements(),
+            'actions'  => $this->FormActions(),
+            'status'   => $this->FormStatus()
+        ], JSON_THROW_ON_ERROR);
 
         $this->_debug('Form', $form);
         // return current form
@@ -3071,7 +3057,6 @@ class Roborock extends IPSModuleStrict
         return $result;
     }
 
-
     /**
      * return form actions by token.
      *
@@ -3178,8 +3163,8 @@ class Roborock extends IPSModuleStrict
                 ],
                 'visible' => ($this->ReadPropertyString(self::PROPERTY_XIAOMI_USER) !== '')
                              && ($this->ReadPropertyString(
-                            self::PROPERTY_XIAOMI_PASSWORD
-                        ) !== ''),
+                                 self::PROPERTY_XIAOMI_PASSWORD
+                             ) !== ''),
             ],
             [
                 'type'    => 'RowLayout',
@@ -3456,7 +3441,6 @@ class Roborock extends IPSModuleStrict
         $this->SendDebug($notification, $message, 0);
     }
 
-
     /**
      * return the incremented position.
      *
@@ -3557,7 +3541,6 @@ EOF;
         return $repetition;
     }
 
-
     // Xiaomi App Login Test
     public function GetTokenFromXiaomi(): bool|int
     {
@@ -3585,7 +3568,7 @@ EOF;
         $this->SendDebug(
             __FUNCTION__,
             'loginData: ' . json_encode(['qs' => $loginData['qs'], 'callback' => $loginData['callback'], '_sign' => $loginData['_sign']],
-                                        JSON_THROW_ON_ERROR),
+                JSON_THROW_ON_ERROR),
             0
         );
 
@@ -3677,7 +3660,7 @@ EOF;
             $this->SendDebug(
                 __FUNCTION__,
                 "deviceData[$key]: " . json_encode(['did' => $device['did'], 'name' => $device['name'], 'token' => $device['token']],
-                                                   JSON_THROW_ON_ERROR),
+                    JSON_THROW_ON_ERROR),
                 0
             );
             if ($device['localip'] === $host) {
@@ -3737,11 +3720,11 @@ EOF;
         }
         $this->SetBuffer(self::BUFFER_VERIFICATION_FLAG, $Json['flag']);
         $VerifyUrl = RoborockApiVerifyIdentity::getUrl((int)$Json['flag']) . http_build_query(
-                [
-                    '_flag' => (int)$Json['flag'],
-                    '_json' => 'true'
-                ]
-            );
+            [
+                '_flag' => (int)$Json['flag'],
+                '_json' => 'true'
+            ]
+        );
         $headers   = [
             'Content-Type: application/x-www-form-urlencoded',
             'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $this->ReadAttributeString(self::ATTRIBUTE_AGENTID)
@@ -3784,10 +3767,10 @@ EOF;
     {
         $this->SendDebug(__FUNCTION__, '', 0);
         $VerifyUrl = RoborockApiCheckIdentity::getUrl((int)$this->GetBuffer(self::BUFFER_VERIFICATION_FLAG)) . http_build_query([
-                                                                                                                                    '_dc' => (time(
-                                                                                                                                                   )
-                                                                                                                                                   * 1000)
-                                                                                                                                ]);
+            '_dc' => (time(
+            )
+                           * 1000)
+        ]);
         $headers   = [
             'Content-Type: application/x-www-form-urlencoded',
             'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $this->ReadAttributeString(self::ATTRIBUTE_AGENTID)
@@ -3843,10 +3826,10 @@ EOF;
             . $this->ReadAttributeString(self::ATTRIBUTE_CLIENTID)
         ];
         $VerifyUrl = RoborockApiVerifyIdentity::getUrl((int)$this->GetBuffer(self::BUFFER_VERIFICATION_FLAG)) . http_build_query([
-                                                                                                                                     '_dc' => (time(
-                                                                                                                                                    )
-                                                                                                                                                    * 1000)
-                                                                                                                                 ]);
+            '_dc' => (time(
+            )
+                           * 1000)
+        ]);
         $form      = [
             '_flag'  => (int)$this->GetBuffer(self::BUFFER_VERIFICATION_FLAG),
             '_json'  => 'true',
@@ -3899,10 +3882,10 @@ EOF;
         $this->WriteAttributeString(
             self::ATTRIBUTE_LOGIN_LOCATION_DATA,
             json_encode([
-                            'userId'       => $userId,
-                            'serviceToken' => $serviceToken
-                        ],
-                        JSON_THROW_ON_ERROR)
+                'userId'       => $userId,
+                'serviceToken' => $serviceToken
+            ],
+                JSON_THROW_ON_ERROR)
         );
 
         $Lines    = explode("\r\n", $result);
@@ -4057,7 +4040,6 @@ EOF;
         $header = substr($result, 0, $header_size);
         $result = substr($result, $header_size);
 
-
         if ($result === 'ok') {
             $userId = explode('userId=', $header)[1];
             $userId = explode(';', $userId)[0];
@@ -4207,18 +4189,17 @@ EOF;
         hash_update($ctx, base64_decode($ssecurity) . base64_decode($nonce));
         $signature = base64_encode(hash_final($ctx, true));
 
-
         $paramsArray   = [];
         $paramsArray[] = $path;
         $paramsArray[] = $signature;
         $paramsArray[] = $nonce;
 
-        $data = "";
+        $data = '';
         foreach ($params as $key => $value) {
-            if ($key === "key") {
-                $data = $value . "=";
+            if ($key === 'key') {
+                $data = $value . '=';
             }
-            if ($key === "value") {
+            if ($key === 'value') {
                 $data .= $value;
             }
         }
@@ -4528,7 +4509,6 @@ EOF;
             }
         }
 
-
         // send push notifications
         $this->SendPushNotification('state', $state);
         $this->SendPushNotification('error', $error_code);
@@ -4579,14 +4559,14 @@ EOF;
             // consumables
             if ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES)) {
                 $html = $this->_convertDataToTable([
-                                                       'table' => [
-                                                           'head' => [
-                                                               $this->Translate('Consumable'),
-                                                               $this->Translate('Residual (%)')
-                                                           ],
-                                                           'body' => $consumables
-                                                       ]
-                                                   ]);
+                    'table' => [
+                        'head' => [
+                            $this->Translate('Consumable'),
+                            $this->Translate('Residual (%)')
+                        ],
+                        'body' => $consumables
+                    ]
+                ]);
 
                 $this->_SetValue(self::IDENT_CONSUMABLES, $html);
             }
@@ -4671,7 +4651,6 @@ EOF;
             'clean_records'       => $clean_records
         ];
     }
-
 
     /**
      * Callback: Get Multi Maps List
@@ -4773,7 +4752,6 @@ EOF;
 
             $completed = $record['complete'] ?? $record[5] ?? 0;
 
-
             $data = [
                 'starttime'        => $start_time,
                 'endtime'          => $end_time,
@@ -4858,11 +4836,11 @@ EOF;
                 ];
 
                 $html = $this->_convertDataToTable([
-                                                       'table' => [
-                                                           'head' => $head,
-                                                           'body' => $body_data
-                                                       ]
-                                                   ]);
+                    'table' => [
+                        'head' => $head,
+                        'body' => $body_data
+                    ]
+                ]);
 
                 // save HTML table
                 $this->_SetValue('cleaning_records', $html);
@@ -4918,7 +4896,6 @@ EOF;
             'end_unixtime'   => null
         ];
     }
-
 
     /**
      * Callback: Fan Power.

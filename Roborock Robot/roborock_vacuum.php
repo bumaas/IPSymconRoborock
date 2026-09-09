@@ -137,7 +137,6 @@ class roborock_vacuum
         Consumable::SENSOR    => 'sensors'
     ];
 
-
     public const DEVICELIST = [
         // see https://robotinfo.dev/
         'roborock.vacuum'     => 'Roborock Generic Vacuum Cleaner',
@@ -206,7 +205,7 @@ class rockrobo_vacuum_v1 extends roborock_vacuum //V1
         Features::SUPPORT_102,
         Features::SUPPORT_104,
         Features::SUPPORT_105,
-        ];
+    ];
 }
 
 class roborock_vacuum_s5 extends roborock_vacuum

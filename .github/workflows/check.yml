@@ -7,9 +7,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true # .style (Regelwerk), ggf. weitere
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+      - name: Code-Stil (gemeinsames Regelwerk, Submodul .style)
+        run: |
+          wget -q https://cs.symfony.com/download/php-cs-fixer-v3.phar
+          PHP_CS_FIXER_IGNORE_ENV=1 php php-cs-fixer-v3.phar fix --config=.style/.php-cs-fixer.php --dry-run --diff --using-cache=no --allow-risky=yes
+
       - name: PHP-Syntax
         run: |
           find . -name '*.php' -not -path './.git/*' -print0 |

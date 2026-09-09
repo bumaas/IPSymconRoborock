@@ -4,7 +4,6 @@ require_once __DIR__ . '/RRMapFileParser.php';
 
 class RRMapDraw
 {
-
     private const MM = 50.0;
 
     private const CYAN        = [214, 0, 214];
@@ -68,7 +67,6 @@ class RRMapDraw
 
     private const CROPBORDER = 10;
 
-
     private RRMapFileParser $rmfp;
     /**
      * @var callable
@@ -91,7 +89,6 @@ class RRMapDraw
         $this->logger = $logger ?? static function (string $message, string $data): void {
         };
     }
-
 
     public function getImage(float $scale = 1): string
     {
@@ -128,11 +125,11 @@ class RRMapDraw
 
         $newImage = imagecrop(
             $newImage, [
-                         'x'      => ($this->rmfp->getImgWidth() - $lastX) * $scale,
-                         'y'      => ($this->rmfp->getImgHeight() - $lastY) * $scale,
-                         'width'  => $nwidth,
-                         'height' => $nheight
-                     ]
+                'x'      => ($this->rmfp->getImgWidth() - $lastX) * $scale,
+                'y'      => ($this->rmfp->getImgHeight() - $lastY) * $scale,
+                'width'  => $nwidth,
+                'height' => $nheight
+            ]
         );
 
         $newImage = $this->rotateAndMakeImageTransparent($newImage, 180);
@@ -321,7 +318,6 @@ class RRMapDraw
         }
     }
 
-
     /**
      * draws the mop path
      */
@@ -338,9 +334,8 @@ class RRMapDraw
                 // no idea yet
             }
         }
-        */
+         */
     }
-
 
     /**
      * draws the vacuum path
@@ -514,7 +509,6 @@ class RRMapDraw
         $this->firstY = $this->rmfp->getImgHeight() - $lastY;
         $this->lastY  = $this->rmfp->getImgHeight() - $firstY;
     }
-
 
     private function toXCoord(float $x): float
     {

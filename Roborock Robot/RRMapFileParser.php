@@ -1,10 +1,10 @@
 <?php
+
 // see also https://github.com/marcelrv/XiaomiRobotVacuumProtocol/tree/master/RRMapFile
 // Viewer: https://community.openhab.org/t/xiaomi-vacuum-map-viewer-to-find-coordinates-for-zone-cleaning/103500
 
 // parsen: https://github.com/openhab/openhab-addons/blob/4dd6d3a8a2134cec920f07cb0b73c5f224f8bc70/bundles/org.openhab.binding.miio/src/main/java/org/openhab/binding/miio/internal/robot/RRMapFileParser.java
 // zeichnen: https://github.com/openhab/openhab-addons/blob/4dd6d3a8a2134cec920f07cb0b73c5f224f8bc70/bundles/org.openhab.binding.miio/src/main/java/org/openhab/binding/miio/internal/robot/RRMapDraw.java
-
 
 class RRMapFileParser
 {
@@ -110,7 +110,6 @@ class RRMapFileParser
      * @var callable
      */
     private $Logger_Log;
-
 
     public function __construct($raw, callable $Logger_Dbg, ?callable $Logger_Log = null)
     {
@@ -250,7 +249,6 @@ class RRMapFileParser
                         $this->walls[] = [$x0, $y0, $x1, $y1];
                     }
                     break;
-
 
                 case self::BLOCKS:
                     $blocksPairs  = $this->getUInt16($header, 0x08);
