@@ -28,5 +28,7 @@ jobs:
             xargs -0 -n1 php -r 'json_decode(file_get_contents($argv[1]), false, 512, JSON_THROW_ON_ERROR); echo $argv[1], " ok\n";' --
       - name: Übersetzungen
         run: php tests/check_locale.php
+      - name: Darstellungsparameter
+        run: php tests/check_presentations.php
       - name: Kartenzeichnung (Bildpunkte unverändert)
         run: php tests/check-map-rendering.php

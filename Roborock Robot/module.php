@@ -521,7 +521,7 @@ class Roborock extends IPSModuleStrict
         $this->RegisterVariableInteger(self::IDENT_STATE, $this->Translate('State'), VariablePresentations::valueEnumeration($stateOptions), $this->_getPosition());
 
         // current battery level
-        $this->RegisterVariableInteger('battery', $this->Translate('Battery'), VariablePresentations::value(0, 100, 1, ' %', 0), $this->_getPosition());
+        $this->RegisterVariableInteger('battery', $this->Translate('Battery'), VariablePresentations::value(0, 100, ' %', 0), $this->_getPosition());
 
         // fan power
         if ($this->ReadPropertyBoolean(self::PROPERTY_FAN_POWER)) {
@@ -611,7 +611,7 @@ class Roborock extends IPSModuleStrict
                 $this->RegisterVariableInteger(
                     $ident,
                     $this->Translate(consumable::GetName($ident)),
-                    VariablePresentations::value(0, 100, 1, ' %', 0),
+                    VariablePresentations::value(0, 100, ' %', 0),
                     $this->_getPosition()
                 );
             }
@@ -637,8 +637,8 @@ class Roborock extends IPSModuleStrict
 
         // clean area
         if ($this->ReadPropertyBoolean('clean_area')) {
-            $this->RegisterVariableFloat('clean_area', $this->Translate('Clean Area'), VariablePresentations::value(0, 0, 0, ' m²', 1), $this->_getPosition());
-            $this->RegisterVariableFloat('total_clean_area', $this->Translate('Total Clean Area'), VariablePresentations::value(0, 0, 0, ' m²', 1), $this->_getPosition());
+            $this->RegisterVariableFloat('clean_area', $this->Translate('Clean Area'), VariablePresentations::value(0, 0, ' m²', 1), $this->_getPosition());
+            $this->RegisterVariableFloat('total_clean_area', $this->Translate('Total Clean Area'), VariablePresentations::value(0, 0, ' m²', 1), $this->_getPosition());
         } else {
             $this->UnregisterVariable('clean_area');
             $this->UnregisterVariable('total_clean_area');
@@ -646,8 +646,8 @@ class Roborock extends IPSModuleStrict
 
         // clean_time
         if ($this->ReadPropertyBoolean(self::PROPERTY_CLEAN_TIME)) {
-            $this->RegisterVariableInteger('clean_time', $this->Translate('Clean Time'), VariablePresentations::value(0, 0, 0, ' s', 0), $this->_getPosition());
-            $this->RegisterVariableInteger('total_clean_time', $this->Translate('Total Clean Time'), VariablePresentations::value(0, 0, 0, ' s', 0), $this->_getPosition());
+            $this->RegisterVariableInteger('clean_time', $this->Translate('Clean Time'), VariablePresentations::value(0, 0, ' s', 0), $this->_getPosition());
+            $this->RegisterVariableInteger('total_clean_time', $this->Translate('Total Clean Time'), VariablePresentations::value(0, 0, ' s', 0), $this->_getPosition());
             $this->RegisterVariableString('cleaning_records', $this->Translate('Cleaning Records'), VariablePresentations::webContent(), $this->_getPosition());
         } else {
             $this->UnregisterVariable('clean_time');

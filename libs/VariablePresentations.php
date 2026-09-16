@@ -66,15 +66,14 @@ class VariablePresentations
     public static function value(
         int|float $min = 0,
         int|float $max = 0,
-        int|float $stepSize = 0,
         string $suffix = '',
         int $digits = 0
     ): array {
+        // Die Wertanzeige kennt keine Schrittweite (STEP_SIZE gibt es nur beim Slider).
         $presentation = [
             'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
             'MIN'          => $min,
             'MAX'          => $max,
-            'STEP_SIZE'    => $stepSize,
             'DIGITS'       => $digits
         ];
 
