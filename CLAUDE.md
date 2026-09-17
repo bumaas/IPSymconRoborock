@@ -1,6 +1,6 @@
 # Roborock — Projekt-Hinweise
 
-IP-Symcon-Modulbibliothek zur Steuerung von Roborock-/Xiaomi-Saugrobotern
+Symcon-Modulbibliothek zur Steuerung von Roborock-/Xiaomi-Saugrobotern
 (`IPSModuleStrict`, zwei Module).
 
 ## Struktur
@@ -39,6 +39,15 @@ php tests/check_locale.php
 (läuft auch in der CI; viele de-Schlüssel werden nur dynamisch genutzt — z. B.
 Wochentage, Statusnamen — und erscheinen deshalb als „verwaist", das ist kein Fehler).
 
+## Darstellungen prüfen
+
+```
+php tests/check_presentations.php
+```
+
+Prüft, dass jede Darstellung im Quelltext nur Parameter setzt, die es in dieser Darstellung
+gibt (Symcon 9.1 validiert das selbst); läuft auch in der CI.
+
 ## Kartenzeichnung: Bildpunkte sind festgehalten
 
 ```
@@ -51,15 +60,10 @@ entstanden, um `declare(strict_types=1)` abzusichern: Der Kartenpfad rechnet dur
 `float` — `getImage(float $scale)` reicht den Maßstab bis in jede Zeichenmethode — und
 übergibt die Ergebnisse an GD-Funktionen, die `int` erwarten.
 
-**Ein (int)-Cast gehört genau dorthin, wo PHP ihn ohne `strict_types` implizit gemacht
-hätte: an den GD-Aufruf, nicht schon an die Berechnung der Koordinate.** Ein Versuch,
-bereits die Zuweisung zu casten, verschob das Bild bei den Maßstäben 1,5 und 2,0 um einen
-Bildpunkt, weil `drawObstacles` mit `round($x - imagesx(...) / 2)` weiterrechnet.
-
-Gehasht werden die Bildpunkte, nicht die PNG-Datei — deren Kodierung hängt an der zlib- und
-libgd-Fassung und wäre auf dem Bauserver eine andere. Ändert sich der Zeichencode
-absichtlich, die Karte ansehen und die Sollwerte mit `MAP_HASH_ERMITTELN=1` neu ermitteln.
-Lokal braucht der Lauf GD: `php -d extension=gd tests/check-map-rendering.php`.
+Casts an den GD-Aufruf, nicht an die Berechnung — `drawObstacles` rechnet mit
+`round($x - imagesx(...) / 2)` weiter (Grundsätze: globale Checkliste Punkt 7). Ändert sich
+der Zeichencode absichtlich, die Karte ansehen und die Sollwerte mit `MAP_HASH_ERMITTELN=1`
+neu ermitteln. Lokal braucht der Lauf GD: `php -d extension=gd tests/check-map-rendering.php`.
 
 ## Besonderheiten
 
