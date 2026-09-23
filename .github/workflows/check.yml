@@ -32,3 +32,6 @@ jobs:
         run: php tests/check_presentations.php
       - name: Kartenzeichnung (Bildpunkte unverändert)
         run: php tests/check-map-rendering.php
+
+      - name: Modultests
+        run: for t in tests/check-readme.php; do echo "== $t"; php "$t" || exit 1; done

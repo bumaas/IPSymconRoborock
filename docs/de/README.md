@@ -1,7 +1,7 @@
 # Roborock Staubsauger Roboter
 [![Version](https://img.shields.io/badge/Symcon-PHPModul-red.svg)](https://www.symcon.de/service/dokumentation/entwicklerbereich/sdk-tools/sdk-php/)
 
-Modul für IP-Symcon ab Version 6.3
+Modul für Symcon ab Version 6.3
 
 ## Dokumentation
 
@@ -16,7 +16,7 @@ Modul für IP-Symcon ab Version 6.3
 
 ## 1. Funktionsumfang
 
-Mit dem Modul ist es möglich, einen [Roborock](https://www.roborock.com/ "Roborock") Staubsauger-Roboter (Xiaomi) von IP-Symcon aus zu steuern. 
+Mit dem Modul ist es möglich, einen [Roborock](https://www.roborock.com/ "Roborock") Staubsauger-Roboter (Xiaomi) von Symcon aus zu steuern. 
 
 ### Funktionen:  
 
@@ -51,7 +51,7 @@ Mit dem Modul ist es möglich, einen [Roborock](https://www.roborock.com/ "Robor
 
 ## 2. Voraussetzungen
 
-- IP-Symcon 6.3
+- Symcon 6.3
 - Roborock Staubsauger-Roboter (Xiaomi)
 - Das Gerät muss in der **Xiaomi Home App** (nicht Roborock App(!)) angelernt sein.
 
@@ -63,7 +63,7 @@ Das Modul wird über den Modul Store geladen (Modulname: Roborock). Alternativ k
 
 ### b. Einrichtung in IPS
 
-In IP-Symcon nun _Instanz hinzufügen_ auswählen unter der Kategorie, unter der man die Instanz hinzufügen will, und _Roborock_ auswählen.
+In Symcon nun _Instanz hinzufügen_ auswählen unter der Kategorie, unter der man die Instanz hinzufügen will, und _Roborock_ auswählen.
 
 ![AddInstance](img/Roborock_add_instance.png "Add Instance")
 

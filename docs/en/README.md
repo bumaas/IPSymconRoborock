@@ -19,7 +19,7 @@ Module for IP Symcon version 5.1 or higher
 
 ## 1. Features
 
-With the module it is possible to control a [Roborock](https://www.roborock.com/ "Roborock") robot vacuum cleaner (Xiaomi) from IP-Symcon.
+With the module it is possible to control a [Roborock](https://www.roborock.com/ "Roborock") robot vacuum cleaner (Xiaomi) from Symcon.
 
 ### Features:
 
@@ -54,7 +54,7 @@ With the module it is possible to control a [Roborock](https://www.roborock.com/
 	  
 ## 2. Requirements
 
-  - IP-Symcon 5.1
+  - Symcon 5.1
   - MI App (Xiaomi)
   - Roborock vacuum cleaner robot (Xiaomi)
 
@@ -88,7 +88,7 @@ _Open_ the object tree.
 
 ![Objektbaum](img/object_tree.png?raw=true "object tree")	
 
-Open the instance _'Modules'_ below core instances in the object tree of IP-Symcon (>= Ver 5.x) with a double-click and press the _Plus_ button.
+Open the instance _'Modules'_ below core instances in the object tree of Symcon (>= Ver 5.x) with a double-click and press the _Plus_ button.
 
 ![Modules](img/modules.png?raw=true "modules")	
 
@@ -112,7 +112,7 @@ Only the _master_ branch is kept current.
 
 ![Master](img/master.png?raw=true "master") 
 
-If an older version of IP-Symcon smaller than version 5.1 (min 4.3) is used, click on the gear on the right side of the list.
+If an older version of Symcon smaller than version 5.1 (min 4.3) is used, click on the gear on the right side of the list.
 It opens another window,
 
 ![SelectBranch](img/select_branch_en.png?raw=true "select branch") 
@@ -129,7 +129,7 @@ For this purpose, the Roborock in the [MiHome](https://itunes.apple.com/de/app/m
 After the Roborock has been set up and assigned to a room, you click on it and come to the further menu selection via the icon
 
 Under _General settings_ and the sub-item _Network info_ you can find the IP address of the Roborock under the field _IP address_.
-This will be noted in order to be able to enter it later in IP-Symcon.
+This will be noted in order to be able to enter it later in Symcon.
 
 #### Get the Token with "Xiaomi Cloud Tokens Extractor"
 
@@ -223,7 +223,7 @@ Then read the token
 
 ### c. Configuration in IPS
 
-In IP-Symcon, select Add_Instance_ (_CTRL + 1_) under the category under which you want to add the instance and select _Roborock_.
+In Symcon, select Add_Instance_ (_CTRL + 1_) under the category under which you want to add the instance and select _Roborock_.
 
 ![AddInstance](img/Roborock_add_instance_en.png?raw=true "Add Instance")
 
@@ -248,13 +248,13 @@ For **rooted** devices you can use the following workaround. Here, however, only
  ```
  
 Now you have to enter two parameters: The instance id of your Robockrock module and the url to the webhook, which was already created during module installation.
-Afterwards, all required programs will be installed (around 25 MB) and the script configures a cronjob, which checks for new map files frequently and upload them via webhook to IP-Symcon, stored as media file.
+Afterwards, all required programs will be installed (around 25 MB) and the script configures a cronjob, which checks for new map files frequently and upload them via webhook to Symcon, stored as media file.
 
 Note, that any map data will only created, when your robot is running!
 
 | Parameter | Explanation
 | :-------: | :-----------------------------------------: |
-| ID | Instance ID from the robot in IP-Symcon |
+| ID | Instance ID from the robot in Symcon |
 | Webhook URL | URL of the Webhook, etc. http://10.0.0.1:3777/hook/Roborock <br /> The Webhook _Roborock_ will be created automatically. |
 
 Webfront:
