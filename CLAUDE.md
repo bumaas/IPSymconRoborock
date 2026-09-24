@@ -19,11 +19,9 @@ Symcon-Modulbibliothek zur Steuerung von Roborock-/Xiaomi-Saugrobotern
 
 ## Branches
 
-Gearbeitet und released wird auf **`master`**; darauf zeigen auch die Store-Releases.
-Den früher hier genannten Branch `test_v21` gibt es nicht mehr — er ist in `master`
-aufgegangen (geprüft 09.09.2026: weder lokal noch auf origin vorhanden, die Builds 86–88
-liegen sämtlich in der master-Historie). Die übrigen Zweige sind Altstände: `Beta` (2020),
-`Old_Version` (2019), `master_v11` (2022).
+Gearbeitet und released wird auf **`master`**, dem einzigen Branch; darauf zeigen auch
+die Store-Releases. Die früheren Zweige `test_v21`, `Beta`, `Old_Version` und `master_v11`
+gibt es nicht mehr (Stand 24.09.2026) — ihre Commits liegen sämtlich in der master-Historie.
 
 ## Übersetzungen
 
