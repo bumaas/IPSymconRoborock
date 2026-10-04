@@ -848,7 +848,10 @@ class Roborock extends IPSModuleStrict
      */
     private function SetUpdateInterval(): void
     {
-        if ($this->GetStatus() === IS_ACTIVE) {
+        // 206 (Roboter antwortet nicht) ist vorübergehend: Der Update-Zyklus prüft bei jedem Lauf neu
+        // und holt die Instanz zurück. Ohne Timer bliebe sie nach einem einzigen Aussetzer beim
+        // ApplyChanges (Kernel-Neustart, Modul-Update) dauerhaft auf 206.
+        if (in_array($this->GetStatus(), [IS_ACTIVE, self::STATUS_INST_NO_ROBOROCK_FOUND], true)) {
             $interval = $this->ReadPropertyInteger(self::PROPERTY_UPDATE_INTERVAL);
             // Mindest-Intervall erzwingen (0 = deaktiviert bleibt erlaubt). Zu kurze Werte
             // stauen bei langsamer (Cloud-)Verbindung die Warteschlange, da ein kompletter

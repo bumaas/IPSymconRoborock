@@ -236,6 +236,8 @@ The configuration form opens. Please specify here:
 
 Note: If Xiaomi requires two-factor authentication, a verification popup appears. Request the code via email/SMS and enter it to continue the login.
 
+If the vacuum cleaner does not respond when the configuration is applied or after a restart of Symcon (e.g. because its WiFi is asleep), the instance shows the status _No Roborock found_ (206). The module keeps retrying on every update and switches back to active by itself as soon as the vacuum cleaner responds again.
+
 ### d. Setup of the map upload (ONLY for rooted devices!)
 At the moment you can not read the map view from the outside.
 For **rooted** devices you can use the following workaround. Here, however, only the created map is currently synchronized, without the already sucked surfaces or the position of the vaccum cleaner, it is still being worked on.
