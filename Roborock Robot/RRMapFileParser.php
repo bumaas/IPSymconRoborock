@@ -43,7 +43,8 @@ class RRMapFileParser
     public const SMART_DS                 = 31; //smartds, smart door sill no-go, since S8 Ultra
     public const UNKNOWN_32              = 32; //flDirec (segment material directions), since S8 Ultra
     public const DATE                     = 33; //map timestamp (UInt32LE unix time), since S8 Ultra
-    public const NONCE_DATA               = 34; //list of {type, unixTime}, metadata only (ioBroker.roborock: NONCEDATA)
+    public const NONCE_DATA               = 34; //last change time per block type: {type (1 byte), unixTime (4 bytes)}, nothing to draw (ioBroker.roborock: NONCEDATA)
+    public const MODE_CARPET              = 39; //carpet zones (rectangles like no-go areas), seen on a Qrevo (ioBroker.roborock: MODE_CARPET)
     public const DIGEST                  = 1024;
     public const HEADER                  = 0x7272;
 
@@ -107,6 +108,9 @@ class RRMapFileParser
 
     /** @var array<int, array{headerLength: int, dataLength: int}> */
     private array  $unknownBlockTypes = [];
+
+    /** @var list<list<int>> Teppich-Zonen aus Block 39: je vier Eckpunkte x0,y0 … x3,y3 */
+    private array  $carpetModeZones = [];
 
     /**
      * @var callable
@@ -245,6 +249,19 @@ class RRMapFileParser
                     }
                     break;
 
+                case self::MODE_CARPET:
+                    // Anzahl im Kopf, je Zone 16 Byte wie bei den Sperrzonen; dahinter folgen weitere Bytes
+                    // unbekannter Bedeutung (an der Qrevo-Karte von mike256: 8 Byte bei 2 Zonen) — übergangen
+                    $zoneCount = $this->getUInt16($header, 0x08);
+                    for ($zone = 0; $zone < $zoneCount && ($zone + 1) * 16 <= $blockDataLength; $zone++) {
+                        $corners = [];
+                        for ($i = 0; $i < 8; $i++) {
+                            $corners[] = $this->getUInt16($data, $zone * 16 + $i * 2);
+                        }
+                        $this->carpetModeZones[] = $corners;
+                    }
+                    break;
+
                 case self::VIRTUAL_WALLS:
                     $wallPairs = $this->getUInt16($header, 0x08);
                     for ($wallPair = 0; $wallPair < $wallPairs; $wallPair++) {
@@ -378,6 +395,16 @@ class RRMapFileParser
     public function getUnknownBlockTypes(): array
     {
         return $this->unknownBlockTypes;
+    }
+
+    /**
+     * Teppich-Zonen aus Block 39 (MODE_CARPET), je vier Eckpunkte in Kartenkoordinaten.
+     *
+     * @return list<list<int>>
+     */
+    public function getCarpetModeZones(): array
+    {
+        return $this->carpetModeZones;
     }
 
     public function getImage(): string

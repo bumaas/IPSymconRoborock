@@ -24,6 +24,7 @@ class RRMapDraw
     private const COLOR_ZONES        = [0xAD, 0xD8, 0xFF, 0x8F];
     private const COLOR_NO_GO_ZONES  = [255, 33, 55, 110];
     private const COLOR_DOOR_SILL_ZONES = [255, 208, 0, 110]; //gelb, wie in der App
+    private const COLOR_CARPET_ZONES = [139, 90, 43, 110]; //braun: Teppich-Zonen (Block 39), keine Sperrzone
     private const COLOR_CHARGER_HALO = [0x66, 0xfe, 0xda, 0x7f];
     private const COLOR_ROBO         = [75, 235, 149];
 
@@ -106,6 +107,7 @@ class RRMapDraw
         }
         $this->drawMap($newImage, $scale);
         $this->drawCarpetMap($newImage, $scale);
+        $this->drawCarpetModeZones($newImage, $scale);
         //todo: $this->drawMopPath($newImage, $scale); funktioniert noch nicht
         $this->drawNoGo($newImage, $scale);
         $this->drawWalls($newImage, $scale);
@@ -281,6 +283,40 @@ class RRMapDraw
                     imagecolorallocate($gdImage, $areaColor[0], $areaColor[1], $areaColor[2])
                 );
             }
+        }
+    }
+
+    /**
+     * Teppich-Zonen (Block 39) — braun und nur leicht gefüllt, damit sie nicht wie eine Sperrzone wirken.
+     */
+    private function drawCarpetModeZones(&$gdImage, float $scale): void
+    {
+        $zones = $this->rmfp->getCarpetModeZones();
+        if ($zones === []) {
+            return;
+        }
+        imagesetthickness($gdImage, max(1, (int)($scale * 0.5)));
+        foreach ($zones as $zone) {
+            $x1 = $this->toXCoord($zone[0]) * $scale;
+            $y1 = $this->toYCoord($zone[1]) * $scale;
+            $x3 = $this->toXCoord($zone[4]) * $scale;
+            $y3 = $this->toYCoord($zone[5]) * $scale;
+            imagefilledrectangle(
+                $gdImage,
+                (int)$x1,
+                (int)$y1,
+                (int)$x3,
+                (int)$y3,
+                imagecolorallocatealpha($gdImage, self::COLOR_CARPET_ZONES[0], self::COLOR_CARPET_ZONES[1], self::COLOR_CARPET_ZONES[2], self::COLOR_CARPET_ZONES[3])
+            );
+            imagerectangle(
+                $gdImage,
+                (int)$x1,
+                (int)$y1,
+                (int)$x3,
+                (int)$y3,
+                imagecolorallocate($gdImage, self::COLOR_CARPET_ZONES[0], self::COLOR_CARPET_ZONES[1], self::COLOR_CARPET_ZONES[2])
+            );
         }
     }
 

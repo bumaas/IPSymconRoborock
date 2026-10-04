@@ -246,7 +246,7 @@ Next to the HTML tables "Consumables" and "Cleaning Records" the module creates 
 
 If the status variable _Map Picture_ is selected, the form offers buttons to get and show the map. _Download Map (Picture)_ and _Download Map (Raw Data)_ save the most recently fetched map as PNG or as raw file (`.gz`, exactly as delivered by the Xiaomi cloud). The raw file helps with troubleshooting, e.g. when a new model or firmware delivers map elements the module does not know yet — please attach both files to the bug report.
 
-Map elements unknown to the module are reported once per instance as a warning in the message log, afterwards only in the debug output.
+Carpet zones, as a Qrevo for example keeps them in its map, are drawn in brown. Map elements unknown to the module are reported once per instance as a warning in the message log, afterwards only in the debug output.
 
 ### d. Setup of the map upload (ONLY for rooted devices!)
 At the moment you can not read the map view from the outside.

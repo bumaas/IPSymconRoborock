@@ -66,4 +66,28 @@ if ($hatMeld) {
     pruefe(count($warn2) === 1, 'andere Instanz meldet Typ 99 eigenständig, Warnungen: ' . count($warn2));
 }
 
+echo "\nParser: Blöcke 34 und 39 aus der Karte von mike256 (Qrevo)\n";
+// Fixture: aus der echten Karte von mike256 (per Mail, 04.10.2026) nur der Kartenkopf und die Blöcke 34 und 39
+// übernommen — ohne Bild, also ohne seinen Grundriss; die SHA1-Prüfsumme fehlt deshalb (isValid = false).
+// Block 34 (NONCEDATA) stand so in seinem Log: „blocktype 34 … header length: 12, data length: 70“.
+// Block 39 (MODE_CARPET, Nummerierung nach ioBroker.roborock): Anzahl im Kopf, je Zone vier Eckpunkte wie bei den
+// Sperrzonen; die 8 Byte danach sind unbekannt und werden übergangen.
+$warnungen = [];
+$qrevo     = new RRMapFileParser(
+    gzdecode(file_get_contents(__DIR__ . '/fixtures/karte_mike256_bloecke_34_39.bin.gz')),
+    static function (string $m, string $d): void {},
+    static function (string $m, string $d) use (&$warnungen): void { $warnungen[] = $d; }
+);
+pruefe($qrevo->getUnknownBlockTypes() === [], 'Blöcke 34 und 39 gelten als bekannt: ' . json_encode($qrevo->getUnknownBlockTypes()));
+pruefe($warnungen === [], 'keine Warnung beim Parsen');
+$hatZonen = method_exists($qrevo, 'getCarpetModeZones');
+pruefe($hatZonen, 'Parser liefert die Teppich-Zonen aus Block 39 (getCarpetModeZones)');
+if ($hatZonen) {
+    pruefe($qrevo->getCarpetModeZones() === [
+        [15925, 22025, 16475, 22025, 16475, 22875, 15925, 22875],
+        [26625, 24125, 27825, 24125, 27825, 25075, 26625, 25075],
+    ], 'zwei Zonen mit den Eckpunkten aus der Karte: ' . json_encode($qrevo->getCarpetModeZones()));
+    pruefe(!isset($qrevo->getAreas()[39]), 'Teppich-Zonen stehen nicht bei den Sperrzonen (die werden rot gezeichnet)');
+}
+
 ergebnis();

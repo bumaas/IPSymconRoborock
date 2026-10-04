@@ -95,7 +95,7 @@ Hinweis: beim Einlesen werden immer die Räume der aktuell geladenen Karte einge
 Falls die Statusvariable _Kartenbild_ ausgewählt wurde, werden zusätzliche Funktionen zum Holen der Karte und zum Anzeigen angeboten.
 Mit _Karte herunterladen (Bild)_ und _Karte herunterladen (Rohdaten)_ lässt sich die zuletzt geholte Karte als PNG bzw. als Rohdatei (`.gz`, so wie sie die Xiaomi-Cloud liefert) speichern. Die Rohdatei hilft bei der Fehlersuche, etwa wenn ein neues Modell oder eine neue Firmware Kartenbestandteile liefert, die das Modul noch nicht kennt — bitte dann beide Dateien an den Fehlerbericht hängen.
 
-Neue, dem Modul unbekannte Kartenbestandteile werden je Instanz einmal als Warnung ins Meldungsfenster geschrieben, danach nur noch im Debug.
+Teppich-Zonen, wie sie etwa ein Qrevo in der Karte führt, zeichnet das Modul braun ein. Neue, dem Modul unbekannte Kartenbestandteile werden je Instanz einmal als Warnung ins Meldungsfenster geschrieben, danach nur noch im Debug.
 
 **Reinigungsauftrag definieren**
 
