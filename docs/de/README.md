@@ -433,6 +433,14 @@ _**Holt die Karte**_
 
 Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
 
+_**Selbsttest ohne Wirkung**_ — prüft Konfiguration, Token, Xiaomi-Konto, I/O-Instanz, Erreichbarkeit und Modell des Saugers, Aktualisierung und Karte und liefert das Ergebnis als Text: je Prüfung eine Zeile mit ✔ (in Ordnung), ✘ (Störung, mit dem nächsten Schritt) oder – (Hinweis). Verändert weder Status noch Variablen; an den Sauger geht höchstens eine lesende Anfrage. Der erste Schritt, wenn etwas nicht funktioniert.
+
+ ```php
+ Roborock_RunSelfTest(integer $InstanceID): string;
+ ```   
+
+Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
+
 _**Liefert die Rohdaten der zuletzt geholten Karte**_ (gz-Datei, base64-kodiert; leer, solange seit dem Laden des Moduls keine Karte geholt wurde)
 
  ```php

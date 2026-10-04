@@ -62,6 +62,14 @@ final class RoborockHarness extends Roborock
         return $this->ioAntworten[$methode] ?? $this->ioAntwort;
     }
 
+    /** nachgebildete Roborock IO ist aktiv (wie auf der Anlage) */
+    public bool $parentAktiv = true;
+
+    protected function HasActiveParent(): bool
+    {
+        return $this->parentAktiv;
+    }
+
     /** feste Uhrzeit für den Stub (Timer) */
     protected function getTime(): int
     {

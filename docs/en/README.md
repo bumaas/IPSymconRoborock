@@ -379,6 +379,14 @@ Returns:
          
   Parameter _$InstanceID_ __*ObjectID*__ from the Roborock instance     
 
+_**Self-test without effect**_ — checks configuration, token, Xiaomi account, I/O instance, reachability and model of the vacuum cleaner, updates and map, and returns the result as text: one line per check with ✔ (OK), ✘ (problem, with the next step) or – (note). Changes neither status nor variables; at most one reading request is sent to the vacuum cleaner. The first step when something does not work.
+
+ ```php
+ Roborock_RunSelfTest(integer $InstanceID): string;
+ ```
+
+Parameter _$InstanceID_ __*ObjectID*__ of the Roborock instance
+
 _**Returns the raw data of the most recently fetched map**_ (gz file, base64 encoded; empty as long as no map has been fetched since the module was loaded)
 
  ```php

@@ -336,6 +336,8 @@ class Roborock extends IPSModuleStrict
 
     // RequestAction: Gerätebefehle sofort senden und ihr Ergebnis festhalten (MCP-Regel 8)
     private bool  $sendImmediately = false;
+    // RunSelfTest: Antwort roh zurückgeben, ohne Callback (der schriebe Variablen und Attribute)
+    private bool  $rawResponse = false;
     /** @var list<array{method: string, error: ?string}> error: null = bestätigt, '' = keine Antwort, sonst Ablehnung */
     private array $deviceRequests = [];
 
@@ -1177,7 +1179,7 @@ class Roborock extends IPSModuleStrict
                     $data = array_merge($buffer, $io);
 
                     // return data
-                    return $this->ExecuteCallback($data);
+                    return $this->rawResponse ? $data : $this->ExecuteCallback($data);
                 }
                 $this->deviceRequests[] = ['method' => $method, 'error' => ''];
                 return false;
@@ -1663,6 +1665,147 @@ class Roborock extends IPSModuleStrict
             $reported[] = $type;
         }
         $this->SetBuffer(self::BUFFER_REPORTED_MAP_BLOCK_TYPES, json_encode($reported, JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * Probelauf ohne Wirkung: prüft Konfiguration, Token, Xiaomi-Konto, I/O-Instanz, Erreichbarkeit
+     * und Modell, Aktualisierung und Karte und liefert das Ergebnis als Text — jede Störung mit dem
+     * nächsten Schritt. Setzt keinen Status, keine Variable, kein Attribut und keinen Timer; an den
+     * Sauger geht höchstens eine lesende Anfrage (miIO.info).
+     */
+    public function RunSelfTest(): string
+    {
+        $ip       = $this->ReadPropertyString(self::PROPERTY_IP);
+        $problems = 0;
+        $lines    = [
+            sprintf($this->Translate('Self-test of the vacuum cleaner at %s (without effect on the instance)'), $ip),
+            sprintf($this->Translate('Instance status: %d (%s)'), $this->GetStatus(), $this->StatusText($this->GetStatus()))
+        ];
+        $good = static function (string $text) use (&$lines): void {
+            $lines[] = '✔ ' . $text;
+        };
+        $bad  = static function (string $text) use (&$lines, &$problems): void {
+            $lines[] = '✘ ' . $text;
+            $problems++;
+        };
+        $hint = static function (string $text) use (&$lines): void {
+            $lines[] = '– ' . $text;
+        };
+
+        $ipValid = $ip !== '' && filter_var(gethostbyname($ip), FILTER_VALIDATE_IP);
+        if (!$ipValid) {
+            $bad(sprintf($this->Translate("The IP address '%s' is not valid. Please enter the IP address of the vacuum cleaner in the configuration."), $ip));
+        }
+
+        $user        = $this->ReadPropertyString(self::PROPERTY_XIAOMI_USER);
+        $hasAccount  = $user !== '' && $this->ReadPropertyString(self::PROPERTY_XIAOMI_PASSWORD) !== '';
+        $tokenLength = strlen($this->ReadAttributeString(self::ATTRIBUTE_TOKEN));
+        $tokenValid  = in_array($tokenLength, [32, 96], true); // 96 = verschlüsselt, wird beim nächsten Übernehmen umgewandelt
+        if ($tokenLength === 0) {
+            if ($hasAccount) {
+                $hint($this->Translate('There is no device token yet; it is fetched from the Xiaomi cloud when the configuration is applied.'));
+            } else {
+                $bad($this->Translate('There is no device token and no Xiaomi account data. Please enter the Xiaomi account data in the configuration (the token is fetched from the Xiaomi cloud) or set the token with Roborock_SetDeviceToken.'));
+            }
+        } elseif (!$tokenValid) {
+            $bad(sprintf($this->Translate('The device token is invalid (32 characters expected, %d found). Please set a valid token with Roborock_SetDeviceToken.'), $tokenLength));
+        } else {
+            $good($this->Translate('A device token is set.'));
+        }
+
+        if ($hasAccount) {
+            $good($this->Translate('Xiaomi account data are set.'));
+        } else {
+            $hint($this->Translate('No Xiaomi account data: the vacuum cleaner can be controlled with the token, but the map picture needs the Xiaomi account (cloud).'));
+        }
+
+        $parentActive = $this->HasActiveParent();
+        if (!$parentActive) {
+            $bad($this->Translate('The Roborock IO (parent instance) is not active. Please check the I/O instance.'));
+        }
+
+        if ($ipValid && $tokenValid && $tokenLength === 32 && $parentActive) {
+            $this->rawResponse = true;
+            try {
+                $info = $this->RequestData('miIO.info', ['immediate' => true]);
+            } finally {
+                $this->rawResponse = false;
+            }
+            if (is_array($info) && isset($info['result']['model'])) {
+                $good(
+                    sprintf(
+                        $this->Translate('The vacuum cleaner answers: model %s, firmware %s, WiFi signal %s dBm.'),
+                        $info['result']['model'],
+                        $info['result']['fw_ver'] ?? '?',
+                        $info['result']['ap']['rssi'] ?? '?'
+                    )
+                );
+                if ($this->GetStatus() === self::STATUS_INST_NO_ROBOROCK_FOUND) {
+                    $interval = $this->UpdateIntervalSeconds();
+                    $hint(
+                        $interval > 0
+                            ? sprintf($this->Translate('The instance status changes to active at the next update (within %d s).'), $interval)
+                            : $this->Translate('The instance status changes to active when the configuration is applied.')
+                    );
+                }
+            } else {
+                $bad(sprintf($this->Translate('The vacuum cleaner at %s does not respond. If this persists, check its IP address and WiFi.'), $ip));
+            }
+        }
+
+        $model = $this->ReadAttributeString(self::ATTRIBUTE_MODEL);
+        if ($model !== '' && get_class($this->device) === 'roborock_vacuum') {
+            $hint(sprintf($this->Translate('The model %s is not yet well supported (generic device definition); model-specific options may be missing.'), $model));
+        }
+
+        $interval = $this->UpdateIntervalSeconds();
+        if ($interval > 0) {
+            $good(sprintf($this->Translate('The status is updated every %d s.'), $interval));
+        } else {
+            $hint($this->Translate('Automatic updates are disabled (update interval 0).'));
+        }
+
+        if ($this->ReadPropertyBoolean(self::PROPERTY_MAP_PICTURE)) {
+            $mediaId = @IPS_GetObjectIDByIdent(self::IDENT_MAP_PICTURE, $this->InstanceID);
+            $updated = $mediaId ? (IPS_GetMedia($mediaId)['MediaUpdated'] ?? 0) : 0;
+            if ($updated > 0) {
+                $good(sprintf($this->Translate('Map picture last fetched %s.'), date('d.m.Y H:i:s', $updated)));
+            } else {
+                $hint($this->Translate('No map picture fetched yet (Roborock_GetMap).'));
+            }
+            $unknown = json_decode($this->GetBuffer(self::BUFFER_REPORTED_MAP_BLOCK_TYPES) ?: '[]', true) ?: [];
+            if ($unknown !== []) {
+                $hint(sprintf($this->Translate('The map contains block types the module does not know yet: %s. The map is drawn without them.'), implode(', ', $unknown)));
+            }
+        }
+
+        $variableCount = 0;
+        $lastUpdate    = 0;
+        foreach (IPS_GetChildrenIDs($this->InstanceID) as $childId) {
+            if (IPS_VariableExists($childId)) {
+                $variableCount++;
+                $lastUpdate = max($lastUpdate, IPS_GetVariable($childId)['VariableUpdated']);
+            }
+        }
+        $hint(sprintf($this->Translate('Status variables: %d, last update %s.'), $variableCount, $lastUpdate > 0 ? date('d.m.Y H:i:s', $lastUpdate) : '-'));
+
+        $lines[] = $problems === 0 ? $this->Translate('Result: OK') : sprintf($this->Translate('Result: %d problem(s)'), $problems);
+        return implode("\n", $lines);
+    }
+
+    /** Text zu einem Instanzstatus, wie er im Formular steht */
+    private function StatusText(int $status): string
+    {
+        foreach ($this->FormStatus() as $entry) {
+            if ($entry['code'] === $status) {
+                return $this->Translate($entry['caption']);
+            }
+        }
+        return match ($status) {
+            IS_ACTIVE   => $this->Translate('active'),
+            IS_INACTIVE => $this->Translate('inactive'),
+            default     => '?'
+        };
     }
 
     /**
