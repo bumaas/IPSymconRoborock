@@ -211,11 +211,17 @@ _**Liste von Räumen holen**_
   Roborock_GetCleanSummary($InstanceID): array;
   ```   
   
- _**Liest Status Do Not Disturb Mode aus**_
+ _**Liest Status Do Not Disturb Mode aus**_ (Rückgabe `enabled`, `start`, `end`)
           
  ```php
  Roborock_Get_DND_Mode($InstanceID): array;
  ```   
+
+ _**Liest die am Sauger eingestellte Lautstärke aus**_ (0 bis 100, `false`, wenn der Sauger nicht antwortet)
+
+ ```php
+ Roborock_Get_SoundVolume($InstanceID): int|false;
+ ```
  
 _**Zum Zurücksetzen der Verbrauchsmaterialien**_
 ```php
@@ -333,11 +339,17 @@ Roborock_Reset_Sensors($InstanceID);
        
  Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
   
- _**Liest Status Do Not Disturb Mode aus**_
+ _**Liest Status Do Not Disturb Mode aus**_ (Rückgabe `enabled`, `start`, `end`)
           
  ```php
  Roborock_Get_DND_Mode($InstanceID): array;
  ```   
+
+ _**Liest die am Sauger eingestellte Lautstärke aus**_ (0 bis 100, `false`, wenn der Sauger nicht antwortet)
+
+ ```php
+ Roborock_Get_SoundVolume($InstanceID): int|false;
+ ```
          
  Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz     
 

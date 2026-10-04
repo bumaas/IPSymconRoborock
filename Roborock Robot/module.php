@@ -1236,8 +1236,9 @@ class Roborock extends IPSModuleStrict
                 if ($io) {
                     $this->deviceRequests[] = $this->DeviceRequestResult($method, $io);
 
-                    // merge buffer
+                    // merge buffer — ohne das Token: die Rückgabe landet beim Aufrufer (Skript, KI über MCP)
                     $data = array_merge($buffer, $io);
+                    unset($data['token']);
 
                     // return data
                     return $this->rawResponse ? $data : $this->ExecuteCallback($data);
@@ -1337,17 +1338,17 @@ class Roborock extends IPSModuleStrict
         return $buffer;
     }
 
-    /**
-     * validate token.
-     *
-     * @return bool
-     */
     /** Token in der verschlüsselten Form (96 Zeichen) entschlüsseln; '' bei Fehler */
     private static function DecryptToken(string $token): string
     {
         return (string)openssl_decrypt((string)hex2bin($token), 'aes-128-ecb', str_repeat("\0", 16), OPENSSL_RAW_DATA);
     }
 
+    /**
+     * validate token.
+     *
+     * @return bool
+     */
     private function ValidateToken(): bool
     {
         $token = $this->ReadAttributeString(self::ATTRIBUTE_TOKEN);
@@ -2360,14 +2361,12 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * get sound volume.
-     *
-     * @return void
-     * @throws \JsonException
+     * Lautstärke am Sauger lesen (0–100) und die Variable volume nachziehen; false, wenn er nicht antwortet.
      */
-    private function Get_SoundVolume(): void
+    public function Get_SoundVolume(): int|false
     {
-        $this->RequestData('get_sound_volume');
+        $volume = $this->RequestData('get_sound_volume');
+        return is_int($volume) ? $volume : false;
     }
 
     /**
@@ -3007,17 +3006,17 @@ class Roborock extends IPSModuleStrict
             [
                 'type'    => 'Label',
                 'visible' => false,
-                'caption' => 'For scripts and AI assistants: switch the vacuum cleaner via its status variables with RequestAction(VariableID, value) or IPS_RequestAction(InstanceID, ident, value). The value is checked against the options or the range of the variable\'s presentation; an invalid value is rejected with the allowed values and nothing is sent, a vacuum cleaner that does not respond is reported as an error. Idents (command always, the others only if enabled in the configuration): command (0 = Start, 1 = Pause, 2 = Stop, 3 = Spot, 4 = Charge, 5 = Locate), fan_power, water_quantity, volume (0 to 100), map_status (active map), dnd_mode (true/false), dnd_starttime and dnd_endtime (Unix time, only hour and minute count). Cleaning selected rooms: write the rooms one after another to roomselection (0 clears the selection), set cleaning_cycles (1 to 3), then write 1 to start_cleaning. Roborock_Set_Fan_Power(int $InstanceID, int $fanPowerValue): void and Roborock_Set_Water_Quantity_Control(int $InstanceID, int $waterQuantityValue): array|bool set the same values as fan_power and water_quantity, but without any check - prefer RequestAction.'
+                'caption' => 'For scripts and AI assistants: switch the vacuum cleaner via its status variables with RequestAction(VariableID, value) or IPS_RequestAction(InstanceID, ident, value). The value is checked against the options or the range of the variable\'s presentation; an invalid value is rejected with the allowed values and nothing is sent, a vacuum cleaner that does not respond is reported as an error. Idents (command always, the others only if enabled in the configuration): command (0 = Start, 1 = Pause, 2 = Stop, 3 = Spot, 4 = Charge, 5 = Locate), fan_power (model-specific levels; the options are listed from the weakest to the strongest), water_quantity, volume (0 to 100), map_status (active map), dnd_mode (true/false), dnd_starttime and dnd_endtime (Unix time, only hour and minute count). Cleaning selected rooms: write the rooms one after another to roomselection (0 clears the selection), set cleaning_cycles (1 to 3), then write 1 to start_cleaning. Roborock_Set_Fan_Power(int $InstanceID, int $fanPowerValue): void and Roborock_Set_Water_Quantity_Control(int $InstanceID, int $waterQuantityValue): array|bool set the same values as fan_power and water_quantity, but without any check - prefer RequestAction.'
             ],
             [
                 'type'    => 'Label',
                 'visible' => false,
-                'caption' => 'For scripts and AI assistants - diagnosis and reading: Roborock_RunSelfTest(int $InstanceID): string checks configuration, token, Xiaomi account, I/O instance, reachability and model, updates and map without any effect and returns a text (✔ OK, ✘ problem with the next step, – note); use it first when something does not work. The following read the vacuum cleaner (some seconds each) and also update the matching status variables: Roborock_Get_State(int $InstanceID): array (battery %, clean_area m², clean_time s, error_code, fan_power, map_status, state, water box); Roborock_GetDeviceInfo(int $InstanceID): array (model, firmware_version, hardware_version, ip, mac, rssi dBm, ssid); Roborock_Get_Serial_Number(int $InstanceID): string; Roborock_Get_Consumables(int $InstanceID): array (remaining life in % per part); Roborock_GetCleanSummary(int $InstanceID): array (area_cleaned m², cleanups, total_cleaning_time s, clean_records = start times as Unix time); Roborock_Get_DND_Mode(int $InstanceID): array (start, end as HH:MM). Roborock_Update(int $InstanceID): void reads all enabled values now, as the update timer does.'
+                'caption' => 'For scripts and AI assistants - diagnosis and reading: Roborock_RunSelfTest(int $InstanceID): string checks configuration, token, Xiaomi account, I/O instance, reachability and model, updates and map without any effect and returns a text (✔ OK, ✘ problem with the next step, – note); use it first when something does not work. The following read the vacuum cleaner (some seconds each) and also update the matching status variables: Roborock_Get_State(int $InstanceID): array (battery %, clean_area m², clean_time s, error_code, fan_power, map_status, state, water box; state is the raw value - the status variable shows 100 = fully charged when the vacuum cleaner reports 8 = charging at 100 % battery); Roborock_GetDeviceInfo(int $InstanceID): array (model, firmware_version, hardware_version, ip, mac, rssi dBm, ssid); Roborock_Get_Serial_Number(int $InstanceID): string; Roborock_Get_Consumables(int $InstanceID): array (remaining life in % per part); Roborock_GetCleanSummary(int $InstanceID): array (area_cleaned m², cleanups, total_cleaning_time s, clean_records = start times as Unix time); Roborock_Get_DND_Mode(int $InstanceID): array (enabled true/false, start, end as HH:MM); Roborock_Get_SoundVolume(int $InstanceID): int|false (volume 0 to 100 as set on the vacuum cleaner). Roborock_Update(int $InstanceID): void reads all enabled values now, as the update timer does.'
             ],
             [
                 'type'    => 'Label',
                 'visible' => false,
-                'caption' => 'For scripts and AI assistants - cleaning: Roborock_Start, Roborock_Stop, Roborock_Pause, Roborock_Charge (back to the dock), Roborock_Locate (plays a sound) and Roborock_CleanSpot (cleans around its position), each (int $InstanceID): void, do the same as the values of the status variable command, but report no error - prefer RequestAction on command. Roborock_Toggle_State(int $InstanceID, bool $startCleaning): void - true = Start, false = Stop. Roborock_StartCleaning(int $InstanceID): void starts cleaning the rooms selected in roomselection with cleaning_cycles. Roborock_Start_Segment_Clean(int $InstanceID, int $segmentId): void cleans one room; Roborock_Start_Segment_Clean_Ex(int $InstanceID, string $segmentIdsJson): void cleans several, JSON like [16,17] or [{"segments":[16,17],"repeat":2}]. Roborock_Get_Room_Mapping(int $InstanceID): array returns the rooms of the active map as pairs [segment ID, room ID of the Xiaomi cloud]; the vacuum cleaner provides no room names - they are assigned in the configuration and appear as options of roomselection. Roborock_LoadMap(int $InstanceID, int $mapStatusValue): bool loads a saved map (floor); the values are the options of map_status.'
+                'caption' => 'For scripts and AI assistants - cleaning: Roborock_Start, Roborock_Stop, Roborock_Pause, Roborock_Charge (back to the dock), Roborock_Locate (plays a sound) and Roborock_CleanSpot (cleans around its position), each (int $InstanceID): void, do the same as the values of the status variable command, but report no error - prefer RequestAction on command. Roborock_Toggle_State(int $InstanceID, bool $startCleaning): void - true = Start, false = Stop. Roborock_StartCleaning(int $InstanceID): void starts cleaning the rooms selected in roomselection with cleaning_cycles. Roborock_Start_Segment_Clean(int $InstanceID, int $segmentId): void cleans one room; Roborock_Start_Segment_Clean_Ex(int $InstanceID, string $segmentIdsJson): void cleans several, JSON like [16,17] or [{"segments":[16,17],"repeat":2}]. Roborock_Get_Room_Mapping(int $InstanceID): array returns the rooms of the active map as pairs [segment ID, room ID of the Xiaomi cloud]; the vacuum cleaner provides no room names - they are assigned in the configuration and appear as options of roomselection. Segment IDs belong to one map: the same room has another ID on another floor, and roomselection offers only the rooms of the active map (map_status). Roborock_LoadMap(int $InstanceID, int $mapStatusValue): bool loads a saved map (floor); the values are the options of map_status.'
             ],
             [
                 'type'    => 'Label',
@@ -5353,6 +5352,7 @@ EOF;
 
             // return values
             return [
+                'enabled'        => $dnd_state,
                 'start'          => $start_time,
                 'start_unixtime' => $start_unixtime,
                 'end'            => $end_time,
@@ -5362,6 +5362,7 @@ EOF;
 
         // fallback
         return [
+            'enabled'        => null,
             'start'          => null,
             'start_unixtime' => null,
             'end'            => null,

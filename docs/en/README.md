@@ -373,11 +373,17 @@ Returns:
        
  Parameter _$InstanceID_ __*ObjectID*__ from the Roborock instance
   
- _**Get State of Do Not Disturb Mode**_
+ _**Get State of Do Not Disturb Mode**_ (returns `enabled`, `start`, `end`)
           
  ```php
  Roborock_Get_DND_Mode($InstanceID);
  ```   
+
+ _**Get the volume set on the vacuum cleaner**_ (0 to 100, `false` if the vacuum cleaner does not respond)
+
+ ```php
+ Roborock_Get_SoundVolume($InstanceID): int|false;
+ ```
          
   Parameter _$InstanceID_ __*ObjectID*__ from the Roborock instance     
 
@@ -504,11 +510,17 @@ Parameter _$InstanceID_ __*ObjectID*__ of the Roborock instance
         
   Parameter _$InstanceID_ __*ObjectID*__ from the Roborock instance
    
-  _**Get State of Do Not Disturb Mode**_
+  _**Get State of Do Not Disturb Mode**_ (returns `enabled`, `start`, `end`)
            
   ```php
   Roborock_Get_DND_Mode($InstanceID);
   ```   
+
+ _**Get the volume set on the vacuum cleaner**_ (0 to 100, `false` if the vacuum cleaner does not respond)
+
+ ```php
+ Roborock_Get_SoundVolume($InstanceID): int|false;
+ ```
           
    Parameter _$InstanceID_ __*ObjectID*__ from the Roborock instance     
 

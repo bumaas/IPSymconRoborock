@@ -84,6 +84,11 @@ Zeichen. Grund: Das Debug liest jede KI mit Lesezugriff über den MCP-Server. Ne
 brauchen deshalb keine eigene Maskierung; neue Geheimnisse gehören in die Schlüsselliste bzw. in
 `DebugSecrets()`. Die Karten-URL bleibt bewusst unmaskiert (signiert, verfällt, zum Testen nützlich).
 
+**Auch Rückgaben sind ein Ausgang** (Blindtest 04.10.2026): `RequestData()` gibt bei sofortigen Anfragen
+Auftrag und Antwort zusammen zurück — ohne das Token (`unset($data['token'])`), denn die Rückgabe vieler
+`Roborock_*`-Funktionen liest eine KI direkt. Geheimnisse aus `DebugSecrets()` können im Reload-Fenster `false`
+sein; der Trait prüft deshalb `is_string()`. Test: `tests/check-return-values.php`, `tests/check-debug-secrets.php`.
+
 ## Besonderheiten
 
 - Die DND-Zeiten (`dnd_starttime`/`dnd_endtime`) sind Unix-Timestamps mit

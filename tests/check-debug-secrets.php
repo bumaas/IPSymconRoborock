@@ -74,4 +74,22 @@ $debug = debugText($ioId);
 pruefe(str_contains($debug, 'miIO.info'), 'IO-Debug enthält den Auftrag (Prüfung greift)');
 pruefe(!str_contains($debug, TOKEN) && !str_contains($debug, str_repeat('0', 32)), 'IO: Token nirgends im Klartext');
 
+echo "\nGeheimnis noch nicht lesbar (Reload-Fenster)\n";
+// Blindtest 04.10.2026: Im Log stand „strlen(): Argument #1 must be of type string, false given“ in
+// DebugMaskTrait — im Reload-Fenster liefert ReadAttributeString false (mit Warning statt Exception),
+// das catch in DebugSecrets() greift nicht. Nachgestellt: DebugSecrets() liefert false bzw. null.
+eval('final class RoborockOhneGeheimnis extends Roborock { protected function DebugSecrets(): array { return [false, null, ""]; } protected function getTime(): int { return 1_790_000_000; } }');
+$id = IPS\ObjectManager::registerObject(1);
+try {
+    // schon das Anlegen schreibt ins Debug
+    IPS\InstanceManager::createInstance($id, ['ModuleID' => RoborockHarness::MODULE_ID, 'ModuleName' => 'Roborock', 'ModuleType' => 3, 'Class' => 'RoborockOhneGeheimnis']);
+    $ohne = IPS\InstanceManager::getInstanceInterface($id);
+    $maske->invoke($ohne, 'forwarded data', json_encode(['token' => TOKEN, 'method' => 'miIO.info']), 0);
+    $abbruch = '';
+} catch (Throwable $e) {
+    $abbruch = $e->getMessage();
+}
+pruefe($abbruch === '', 'kein Abbruch, wenn ein Geheimnis kein Text ist: ' . $abbruch);
+pruefe(!str_contains(debugText($id), TOKEN), 'Token unter dem Schlüssel token trotzdem maskiert');
+
 ergebnis();

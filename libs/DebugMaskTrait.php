@@ -31,7 +31,8 @@ trait DebugMaskTrait
             $data
         );
         foreach ($this->DebugSecrets() as $secret) {
-            if (strlen($secret) >= 8) {
+            // im Reload-Fenster liefert ReadAttributeString false (mit Warning statt Exception)
+            if (is_string($secret) && strlen($secret) >= 8) {
                 $data = str_replace($secret, self::MaskValue($secret), $data);
             }
         }
