@@ -4681,7 +4681,7 @@ EOF;
             $this->_SetValue('ssid', $ssid);
 
             $rssi = $info['ap']['rssi'];
-            $this->_SetValue('rssi', $rssi);
+            $this->_SetValue('rssi', (string)$rssi); // Variable ist String, miIO liefert eine Zahl
 
             $ip = $info['netif']['localIp'];
             $this->_SetValue('local_ip', $ip);
