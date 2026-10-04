@@ -1157,6 +1157,13 @@ class Roborock extends IPSModuleStrict
      */
     private function RequestData(string $method, array $options = []): array|bool|string|int|null
     {
+        // Ist der Befehl einer Aktion gescheitert, keine Folgeabfragen hinterher — jede hätte ihren eigenen
+        // Timeout samt Wiederholung, und die Aktion stünde ohne Nutzen eine halbe Minute.
+        if ($this->sendImmediately && ($this->deviceRequests[0]['result'] ?? 'ok') !== 'ok') {
+            $this->_debug(__FUNCTION__, sprintf('%s skipped, the command of this action failed', $method));
+            return false;
+        }
+
         $request_id = (int) $this->GetBuffer('request_id');
         $request_id++;
         if ($request_id >= 9999) {
@@ -1202,10 +1209,7 @@ class Roborock extends IPSModuleStrict
             if ($buffer['immediate']) {
                 $io = json_decode($io_json, true, 512, JSON_THROW_ON_ERROR);
                 if ($io) {
-                    $this->deviceRequests[] = [
-                        'method' => $method,
-                        'error'  => isset($io['error']) ? mb_substr(json_encode($io['error'], JSON_UNESCAPED_UNICODE) ?: '?', 0, 200) : null
-                    ];
+                    $this->deviceRequests[] = $this->DeviceRequestResult($method, $io);
 
                     // merge buffer
                     $data = array_merge($buffer, $io);
@@ -1213,7 +1217,7 @@ class Roborock extends IPSModuleStrict
                     // return data
                     return $this->rawResponse ? $data : $this->ExecuteCallback($data);
                 }
-                $this->deviceRequests[] = ['method' => $method, 'error' => ''];
+                $this->deviceRequests[] = ['method' => $method, 'result' => 'silent', 'error' => ''];
                 return false;
             }
 
@@ -1221,9 +1225,29 @@ class Roborock extends IPSModuleStrict
         }
 
         if ($buffer['immediate']) {
-            $this->deviceRequests[] = ['method' => $method, 'error' => ''];
+            $this->deviceRequests[] = ['method' => $method, 'result' => 'silent', 'error' => ''];
         }
         return false;
+    }
+
+    /**
+     * Ordnet die Antwort der IO auf eine sofortige Anfrage ein: ok, vom Sauger abgelehnt oder unklar.
+     * Eine Ablehnung trägt das Fehlerobjekt des Saugers (code, message); jede andere Antwort mit "error"
+     * hat die IO selbst verpackt (_validateResponse, z. B. bei falscher Message-ID) — ob der Befehl
+     * ausgeführt wurde, ist dann offen.
+     */
+    private function DeviceRequestResult(string $method, array $io): array
+    {
+        if (!isset($io['error'])) {
+            return ['method' => $method, 'result' => 'ok', 'error' => null];
+        }
+        $rejected = is_array($io['error']) && isset($io['error']['error']);
+        $detail   = $rejected ? $io['error']['error'] : $io['error'];
+        return [
+            'method' => $method,
+            'result' => $rejected ? 'rejected' : 'unclear',
+            'error'  => mb_substr(json_encode($detail, JSON_UNESCAPED_UNICODE) ?: '?', 0, 200)
+        ];
     }
 
     /**
@@ -1601,7 +1625,7 @@ class Roborock extends IPSModuleStrict
                 $count++;
             } while ((!$mapName || ((string)$mapName === 'retry')) && $count < 3);
 
-            if ($mapName === 'retry') {
+            if (!$mapName || $mapName === 'retry') {
                 //SetValueInteger(24034, GetValueInteger(24034) - 1);
                 return false;
             }
@@ -2388,6 +2412,9 @@ class Roborock extends IPSModuleStrict
             return;
         }
 
+        // die Aktionen setzen ihre Variable vor dem Befehl; scheitert er, zählt wieder der bestätigte Wert
+        $confirmedValue = $this->GetValue($Ident);
+
         $this->sendImmediately = true;
         $this->deviceRequests  = [];
         try {
@@ -2398,10 +2425,24 @@ class Roborock extends IPSModuleStrict
 
         // maßgeblich ist der erste Befehl der Aktion; danach folgen nur Statusabfragen
         $first = $this->deviceRequests[0] ?? null;
-        if ($first === null || $first['error'] === null) {
+        if ($first === null || $first['result'] === 'ok') {
             return;
         }
-        if ($first['error'] === '') {
+        $this->SetValue($Ident, $confirmedValue);
+
+        if ($first['result'] === 'unclear') {
+            trigger_error(
+                sprintf(
+                    $this->Translate('"%s": the vacuum cleaner at %s gave no matching answer (%s), so it is unknown whether the command was executed. Check its state before repeating.'),
+                    $Ident,
+                    $this->ReadPropertyString(self::PROPERTY_IP),
+                    $first['error']
+                ),
+                E_USER_WARNING
+            );
+            return;
+        }
+        if ($first['result'] === 'silent') {
             trigger_error(
                 sprintf(
                     $this->Translate('"%s" was not executed: the vacuum cleaner at %s does not respond. Try again later.'),

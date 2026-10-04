@@ -196,6 +196,7 @@
       "inactive": "inaktiv",
       "\"%s\" was not executed: the vacuum cleaner at %s does not respond. Try again later.": "„%s“ wurde nicht ausgeführt: Der Sauger unter %s antwortet nicht. Später erneut versuchen.",
       "\"%s\" was rejected by the vacuum cleaner (%s). Check the value and the state of the vacuum cleaner.": "„%s“ wurde vom Sauger abgelehnt (%s). Wert und Zustand des Saugers prüfen.",
+      "\"%s\": the vacuum cleaner at %s gave no matching answer (%s), so it is unknown whether the command was executed. Check its state before repeating.": "„%s“: Der Sauger unter %s hat keine passende Antwort gegeben (%s), ob der Befehl ausgeführt wurde, ist unbekannt. Vor einer Wiederholung seinen Zustand prüfen.",
       "\"%s\" is not available: the status variable is not enabled in the configuration of this instance.": "„%s“ ist nicht verfügbar: Die Statusvariable ist in der Konfiguration dieser Instanz nicht aktiviert.",
       "Value %s for \"%s\" is not allowed (allowed: true, false). Do not repeat with this value.": "Der Wert %s für „%s“ ist nicht erlaubt (erlaubt: true, false). Nicht mit diesem Wert wiederholen.",
       "Value %s for \"%s\" is not a whole number. Do not repeat with this value.": "Der Wert %s für „%s“ ist keine ganze Zahl. Nicht mit diesem Wert wiederholen.",
