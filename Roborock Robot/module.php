@@ -269,6 +269,8 @@ class Roborock extends IPSModuleStrict
     private const IDENT_FAN_POWER                 = 'fan_power';
     private const IDENT_WATER_QUANTITY            = 'water_quantity';
     private const IDENT_CONSUMABLES               = 'consumables';
+    private const IDENT_CONSUMABLES_TEXT          = 'consumables_text';
+    private const IDENT_CLEANING_RECORDS_TEXT     = 'cleaning_records_text';
     private const IDENT_WATER_BOX_STATUS          = 'water_box_status';
     private const IDENT_WATER_BOX_CARRIAGE_STATUS = 'water_box_carriage_status'; //Anmerkung: Der Unterschied zwischen 'water_box_status' und 'water_box_carriage_status' ist unklar
     private const IDENT_MAP_STATUS                = 'map_status';
@@ -333,6 +335,7 @@ class Roborock extends IPSModuleStrict
     private const DEFAULT_VALUE_UPDATE_INTERVAL = 60;
     private const MIN_VALUE_UPDATE_INTERVAL     = 10; // 0 = deaktiviert; kleinere positive Werte werden angehoben
     private const MAX_NUMBER_OF_CLEAN_RECORDS   = 5;
+    private const MAX_LENGTH_FOREIGN_NAME       = 40; // Kartennamen aus der App (MCP-Regel 17)
 
     // helper properties
     private int             $position = 0;
@@ -492,6 +495,34 @@ class Roborock extends IPSModuleStrict
         $this->SetUpdateInterval();
     }
 
+    /**
+     * Text aus fremder Quelle (App des Herstellers) für Namen und Optionen: Steuerzeichen und
+     * mehrfache Leerzeichen entfernen, auf $maxLength Zeichen kürzen. Er landet sonst unverändert
+     * im Kontext jeder KI, die die Variable findet (MCP-Regel 17).
+     */
+    private static function CleanForeignText(string $text, int $maxLength): string
+    {
+        $text = trim((string)preg_replace(['/\p{C}+/u', '/\s+/u'], [' ', ' '], $text));
+        return mb_strlen($text) > $maxLength ? rtrim(mb_substr($text, 0, $maxLength - 1)) . '…' : $text;
+    }
+
+    /**
+     * Variable, die das Modul nicht mehr versorgt, als veraltet kennzeichnen (MCP-Regel 14) — sie
+     * bleibt erhalten, löschen muss der Anwender. Eine KI erkennt sonst nicht, dass der Wert tot ist.
+     */
+    private function MarkObsoleteVariable(string $ident): void
+    {
+        $id = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+        if (!$id) {
+            return;
+        }
+        $suffix = $this->Translate('(obsolete)');
+        $name   = IPS_GetName($id);
+        if (!str_ends_with($name, $suffix)) {
+            IPS_SetName($id, $name . ' ' . $suffix);
+        }
+    }
+
     private function UnregisterLegacyProfiles(): void
     {
         $this->UnregisterProfile(sprintf('%s.%s', self::PROFILE_ROOMSELECTION, $this->InstanceID));
@@ -625,9 +656,13 @@ class Roborock extends IPSModuleStrict
 
         // consumables
         if ($this->ReadPropertyBoolean(self::PROPERTY_CONSUMABLES)) {
-            $this->RegisterVariableString(self::IDENT_CONSUMABLES, $this->Translate('Consumables'), VariablePresentations::webContent(), $this->_getPosition());
+            // Klartext neben der HTML-Tabelle (MCP-Regel 9), gleiche Position — die übrigen rücken nicht nach
+            $position = $this->_getPosition();
+            $this->RegisterVariableString(self::IDENT_CONSUMABLES, $this->Translate('Consumables'), VariablePresentations::webContent(), $position);
+            $this->RegisterVariableString(self::IDENT_CONSUMABLES_TEXT, $this->Translate('Consumables (Text)'), '', $position);
         } else {
             $this->UnregisterVariable(self::IDENT_CONSUMABLES);
+            $this->UnregisterVariable(self::IDENT_CONSUMABLES_TEXT);
         }
 
         // consumables separate
@@ -673,12 +708,18 @@ class Roborock extends IPSModuleStrict
         if ($this->ReadPropertyBoolean(self::PROPERTY_CLEAN_TIME)) {
             $this->RegisterVariableInteger('clean_time', $this->Translate('Clean Time'), VariablePresentations::value(0, 0, ' s', 0), $this->_getPosition());
             $this->RegisterVariableInteger('total_clean_time', $this->Translate('Total Clean Time'), VariablePresentations::value(0, 0, ' s', 0), $this->_getPosition());
-            $this->RegisterVariableString('cleaning_records', $this->Translate('Cleaning Records'), VariablePresentations::webContent(), $this->_getPosition());
+            $position = $this->_getPosition();
+            $this->RegisterVariableString('cleaning_records', $this->Translate('Cleaning Records'), VariablePresentations::webContent(), $position);
+            $this->RegisterVariableString(self::IDENT_CLEANING_RECORDS_TEXT, $this->Translate('Cleaning Records (Text)'), '', $position);
         } else {
             $this->UnregisterVariable('clean_time');
             $this->UnregisterVariable('total_clean_time');
             $this->UnregisterVariable('cleaning_records');
+            $this->UnregisterVariable(self::IDENT_CLEANING_RECORDS_TEXT);
         }
+
+        // Altlast: „Aktuelle Koordinaten“ füllte nur der alte Karten-Upload für gerootete Geräte
+        $this->MarkObsoleteVariable('coordinates');
 
         // total cleans
         if ($this->ReadPropertyBoolean('total_cleans')) {
@@ -4892,6 +4933,10 @@ EOF;
                 ]);
 
                 $this->_SetValue(self::IDENT_CONSUMABLES, $html);
+                $this->_SetValue(
+                    self::IDENT_CONSUMABLES_TEXT,
+                    implode(', ', array_map(static fn(array $row): string => $row[0] . ' ' . rtrim($row[1], '%') . ' %', $consumables))
+                );
             }
 
             return $ret;
@@ -4993,10 +5038,11 @@ EOF;
         $result = $data['result'][0];
         foreach ($result['map_info'] as $mapInfo) {
             $index = $mapInfo['mapFlag'];
-            if ($mapInfo['name']) {
+            $mapName = self::CleanForeignText((string)($mapInfo['name'] ?? ''), self::MAX_LENGTH_FOREIGN_NAME);
+            if ($mapName !== '') {
                 $maps_list[$index] = [
                     'mapFlag' => $index,
-                    'MapName' => $mapInfo['name']
+                    'MapName' => $mapName
                 ];
             } else {
                 $maps_list[$index] = [
@@ -5123,7 +5169,8 @@ EOF;
                 $this->WriteAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, json_encode($cleaning_records, JSON_THROW_ON_ERROR));
 
                 // build HTML
-                $body_data = [];
+                $body_data  = [];
+                $text_lines = [];
                 foreach ($cleaning_records as $clean_record) {
                     $start_time        = $clean_record['starttime'];
                     $start_hour        = date('H', $start_time);
@@ -5146,6 +5193,19 @@ EOF;
                         ($errors ? '<span class="unicode red">✖</span>' : '-'),
                         ($completed ? '<span class="unicode green">✔</span>' : '<span class="unicode red">✖</span>')
                     ];
+                    $text_lines[] = sprintf(
+                        '%s %s %s:%s - %s:%s, %s, %s m², %s%s',
+                        $this->Translate($clean_day),
+                        $clean_date,
+                        $start_hour,
+                        $start_minutes,
+                        $end_hour,
+                        $end_minutes,
+                        $cleaning_duration,
+                        $area,
+                        $completed ? $this->Translate('completed') : $this->Translate('not completed'),
+                        $errors ? ', ' . $this->Translate('with error') : ''
+                    );
                 }
 
                 // build HTML table
@@ -5167,6 +5227,7 @@ EOF;
 
                 // save HTML table
                 $this->_SetValue('cleaning_records', $html);
+                $this->_SetValue(self::IDENT_CLEANING_RECORDS_TEXT, implode("\n", $text_lines));
             }
 
             return $data;

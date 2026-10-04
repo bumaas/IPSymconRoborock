@@ -242,6 +242,8 @@ Every change into an error status is written once as a warning to the message lo
 
 When a status variable is switched (visualization, script with `RequestAction`), the command is sent to the vacuum cleaner immediately and switching waits for its answer (usually a few seconds). An invalid value is rejected with the allowed values and nothing is sent; if the vacuum cleaner does not respond or rejects the command, an error message is returned.
 
+Next to the HTML tables "Consumables" and "Cleaning Records" the module creates a plain text variable each ("Consumables (Text)", "Cleaning Records (Text)") — easier to read for scripts, voice assistants and AI assistants. The variable "Current Coordinates" of earlier versions is no longer updated and is therefore marked "(obsolete)"; it can be deleted. Map names from the app are shortened to 40 characters.
+
 If the status variable _Map Picture_ is selected, the form offers buttons to get and show the map. _Download Map (Picture)_ and _Download Map (Raw Data)_ save the most recently fetched map as PNG or as raw file (`.gz`, exactly as delivered by the Xiaomi cloud). The raw file helps with troubleshooting, e.g. when a new model or firmware delivers map elements the module does not know yet — please attach both files to the bug report.
 
 Map elements unknown to the module are reported once per instance as a warning in the message log, afterwards only in the debug output.

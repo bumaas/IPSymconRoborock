@@ -1,0 +1,12 @@
+{
+    "id": 306,
+    "result": [
+        {
+            "filter_element_work_time": 225471,
+            "filter_work_time": 197113,
+            "main_brush_work_time": 197113,
+            "sensor_dirty_time": 63815,
+            "side_brush_work_time": 197113
+        }
+    ]
+}

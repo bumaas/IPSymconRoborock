@@ -164,3 +164,16 @@ function neueIO(): RoborockIO
     ]);
     return IPS\InstanceManager::getInstanceInterface($id);
 }
+
+/**
+ * Antwort des Saugers so einspielen, wie die Roborock IO sie aus ihrer Warteschlange weiterreicht
+ * (Roborock IO/module.php: Buffer = Antwort + method + token, DataID {36FF43CE-…}).
+ */
+function empfange(RoborockHarness $m, string $methode, array $antwort, string $token = '0123456789abcdef0123456789abcdef'): void
+{
+    $m->ReceiveData(json_encode([
+        'DataID'     => '{36FF43CE-F065-DD20-F1A8-A7C99C25D7A2}',
+        'InstanceID' => $m->id(),
+        'Buffer'     => $antwort + ['method' => $methode, 'token' => $token],
+    ], JSON_THROW_ON_ERROR));
+}

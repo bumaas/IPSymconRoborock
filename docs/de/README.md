@@ -83,6 +83,8 @@ Jeder Wechsel in einen Fehlerstatus steht einmal als Warnung im Meldungsfenster,
 
 Wird eine Statusvariable geschaltet (Visualisierung, Skript mit `RequestAction`), geht der Befehl sofort an den Sauger, und das Schalten wartet auf seine Antwort (meist wenige Sekunden). Ein ungültiger Wert wird mit den erlaubten Werten abgelehnt, ohne dass etwas an den Sauger geht; antwortet der Sauger nicht oder lehnt er den Befehl ab, kommt eine Fehlermeldung zurück.
 
+Neben den HTML-Tabellen „Wartung“ und „Reinigungsaufzeichnungen“ legt das Modul je eine Klartext-Variable an („Wartung (Text)“, „Reinigungsaufzeichnungen (Text)“) — besser lesbar für Skripte, Sprachassistenten und KI-Assistenten. Die Variable „Aktuelle Koordinaten“ früherer Versionen wird nicht mehr versorgt und deshalb mit „(veraltet)“ gekennzeichnet; sie kann gelöscht werden. Kartennamen aus der App werden auf 40 Zeichen gekürzt.
+
 Im Aktionsbereich des Formulars können die Statusvariablen getestet werden ("Testbereich"). 
 
 Unter "Raumnamen ändern" (sichtbar, wenn die Statusvariablen für einen _Reinigungsauftrag_ ausgewählt wurden) können die in der Xiaomi App definierten Räume übernommen und anschließend die Räume mit Namen versehen werden. Leider gibt es bislang keinen (mir) bekannten Weg, die Namen auszulesen.
