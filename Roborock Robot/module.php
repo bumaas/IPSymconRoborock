@@ -399,7 +399,6 @@ class Roborock extends IPSModuleStrict
         $this->RegisterPropertyBoolean(self::PROPERTY_CLEAN_TIME, false);
         $this->RegisterPropertyBoolean('total_cleans', false);
         $this->RegisterPropertyBoolean('serial_number', false);
-        $this->RegisterPropertyBoolean('timer_details', false);
         $this->RegisterPropertyBoolean('extended_info', false);
         $this->RegisterPropertyBoolean(self::PROPERTY_VOLUME, false);
         $this->RegisterPropertyBoolean('timezone', false);
@@ -697,14 +696,8 @@ class Roborock extends IPSModuleStrict
             $this->UnregisterVariable(self::IDENT_SERIAL_NUMBER);
         }
 
-        // timer details
-        if ($this->ReadPropertyBoolean('timer_details')) {
-            if ($this->RegisterVariableString('timer_details', $this->Translate('Timer Details'), VariablePresentations::webContent(), $this->_getPosition())) {
-                IPS_SetIcon($this->GetIDForIdent('timer_details'), 'Clock');
-            }
-        } else {
-            $this->UnregisterVariable('timer_details');
-        }
+        // Option „Timer Details“ ist in 2.4 build 100 entfallen (Variable seit 2.2 #65 nicht mehr befüllt)
+        $this->UnregisterVariable('timer_details');
 
         // extended info
         if ($this->ReadPropertyBoolean('extended_info')) {
@@ -1011,11 +1004,6 @@ class Roborock extends IPSModuleStrict
             // update extended info
             if ($this->ReadPropertyBoolean('extended_info')) {
                 $this->GetDeviceInfo();
-            }
-
-            // update timer details
-            if ($this->ReadPropertyBoolean('timer_details')) {
-                $this->Get_Timer_Details();
             }
 
             // update volume
@@ -1917,83 +1905,10 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * Set Timer.
-     *
-     * @param int    $hour       two digits
-     * @param int    $minute     two digits
-     * @param string $repetition once|weekdays|weekends|every day
-     *
-     * @return array|bool
+     * Zeitzone abfragen; füllt über get_timezone_callback die Variable „Zeitzone“ (Update-Zyklus).
+     * Intern: als Skriptfunktion seit 2.2 #59 defekt, entfallen in 2.4 build 100.
      */
-    public function Set_Timer(int $hour, int $minute, string $repetition): array|bool
-    {
-        $timerid = time();
-        return $this->RequestData('set_timer', [
-            'params' => [[$timerid, [$minute . ' ' . $hour . ' * * ' . $this->_getTimerRepetition($repetition), ['start_clean', '']]]]
-        ]);
-    }
-
-    /**
-     * enable timer.
-     *
-     * @param string $timerid
-     *
-     * @return array|bool
-     * @throws \JsonException
-     */
-    public function EnableTimer(string $timerid): array|bool
-    {
-        return $this->RequestData('upd_timer', [
-            'params' => [$timerid, 'on']
-        ]);
-    }
-
-    /**
-     * disable timer.
-     *
-     * @param string $timerid
-     *
-     * @return array|bool
-     * @throws \JsonException
-     */
-    public function DisableTimer(string $timerid): array|bool
-    {
-        return $this->RequestData('upd_timer', [
-            'params' => [$timerid, 'off']
-        ]);
-    }
-
-    /**
-     * get timer details.
-     *
-     * @return array|bool
-     * @throws \JsonException
-     */
-    public function Get_Timer_Details(): array|bool
-    {
-        return $this->RequestData('get_timer');
-    }
-
-    /**
-     * delete a timer.
-     *
-     * @param string $timerid
-     *
-     * @return array|bool
-     * @throws \JsonException
-     */
-    public function DeleteTimer(string $timerid): array|bool
-    {
-        return $this->RequestData('del_timer', [$timerid]);
-    }
-
-    /**
-     * get timezone.
-     *
-     * @return array|bool
-     * @throws \JsonException
-     */
-    public function GetTimezone(): array|bool
+    private function GetTimezone(): string|bool
     {
         return $this->RequestData('get_timezone');
     }
@@ -2025,31 +1940,6 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * set sound level.
-     *
-     * @param int $level
-     *
-     * @return array|bool
-     * @throws \JsonException
-     */
-    public function SetSoundLevel(int $level): array|bool
-    {
-        return $this->RequestData('get_current_sound', [
-            'params' => [$level]
-        ]);
-    }
-
-    /**
-     * Get fan power.
-     *
-     * @return array|bool
-     */
-    public function Get_Fan_Power(): array|bool
-    {
-        return $this->RequestData('get_custom_mode');
-    }
-
-    /**
      * set fan power (Quiet=38, Balanced=60, Turbo=77, Full Speed=90).
      *
      * @param int $power
@@ -2063,16 +1953,6 @@ class Roborock extends IPSModuleStrict
         $this->RequestData('set_custom_mode', [
             'params' => [$power]
         ]);
-    }
-
-    /**
-     * Get the water quantity control during the cleaning process.
-     *
-     * @return array|bool
-     */
-    public function Get_Water_Quantity_Control(): array|bool
-    {
-        return $this->RequestData('get_water_box_custom_mode');
     }
 
     /**
@@ -3142,11 +3022,6 @@ class Roborock extends IPSModuleStrict
                         'caption' => 'Serial Number'
                     ],
                     [
-                        'name'    => 'timer_details',
-                        'type'    => 'CheckBox',
-                        'caption' => 'Timer Details'
-                    ],
-                    [
                         'name'    => 'extended_info',
                         'type'    => 'CheckBox',
                         'caption' => 'Extended Information (WLAN SSID, RSSI, firmware version, ip, model, mac)'
@@ -3961,29 +3836,6 @@ EOF;
         $html .= '</table>';
 
         return $html;
-    }
-
-    /**
-     * Get repetition for timer.
-     *
-     * @param $repetitionstring
-     *
-     * @return string
-     */
-    private function _getTimerRepetition($repetitionstring): string
-    {
-        if ($repetitionstring === 'once') {
-            $repetition = '*';
-        } elseif ($repetitionstring === 'weekdays') {
-            $repetition = '1,2,3,4,5';
-        } elseif ($repetitionstring === 'weekends') {
-            $repetition = '0,6';
-        } elseif ($repetitionstring === 'every day') {
-            $repetition = '0,1,2,3,4,5,6';
-        } else {
-            $repetition = '*';
-        }
-        return $repetition;
     }
 
     // Xiaomi App Login Test
@@ -5340,48 +5192,6 @@ EOF;
             'end'            => null,
             'end_unixtime'   => null
         ];
-    }
-
-    /**
-     * Callback: Fan Power.
-     *
-     * @param array $data
-     *
-     * @return int
-     * @noinspection PhpUnusedPrivateMethodInspection
-     */
-    private function get_custom_mode_callback(array $data): int
-    {
-        if (isset($data['result'][0])) {
-            $fan_power = $data['result'][0];
-            $this->_SetValue(self::IDENT_FAN_POWER, $fan_power);
-
-            return $fan_power;
-        }
-
-        // fallback
-        return 0;
-    }
-
-    /**
-     * Callback: Water Box Custom Mode.
-     *
-     * @param array $data
-     *
-     * @return int
-     * @noinspection PhpUnusedPrivateMethodInspection
-     */
-    private function get_water_box_custom_mode_callback(array $data): int
-    {
-        if (isset($data['result'][0])) {
-            $water_flow_mode = $data['result'][0];
-            $this->_SetValue(self::IDENT_WATER_QUANTITY, $water_flow_mode);
-
-            return $water_flow_mode;
-        }
-
-        // fallback
-        return 0;
     }
 
     /**

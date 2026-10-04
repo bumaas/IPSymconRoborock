@@ -412,6 +412,8 @@ Parameter _$InstanceID_ __*ObjectID*__ of the Roborock instance
 
 #### Roborock vacuum cleaner:
 
+**Removed in version 2.4** (they had been broken for a long time): `Roborock_Get_Fan_Power`, `Roborock_Get_Water_Quantity_Control` — read the status variables "Fan Power" and "Water Quantity" instead or switch them with `RequestAction`; `Roborock_SetSoundLevel` — use the status variable "Volume"; `Roborock_GetTimezone` — the status variable "Timezone"; the timer functions `Roborock_Set_Timer`, `Roborock_EnableTimer`, `Roborock_DisableTimer`, `Roborock_DeleteTimer`, `Roborock_Get_Timer_Details` including the option "Timer Details" — please set up schedules in the Xiaomi or Roborock app.
+
   _**Starts the cleaning process**_
    
   ```php
