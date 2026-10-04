@@ -186,6 +186,11 @@ class Roborock extends IPSModuleStrict
     private const BUFFER_VERIFICATION_URL  = 'notification_url';
     private const BUFFER_VERIFICATION_FLAG = 'flag';
     private const BUFFER_IDENTITY_SESSION  = 'identity_session';
+    private const BUFFER_LAST_MAP_RAW      = 'last_map_raw'; // zuletzt geladene Karte (gz, base64) für den Download
+    private const BUFFER_REPORTED_MAP_BLOCK_TYPES = 'reported_map_block_types'; // bereits gemeldete unbekannte Blocktypen (JSON-Liste)
+
+    // Instanz-Buffer werden beim Speichern auf 512 KB gekürzt; größere Karten nicht ablegen
+    private const MAX_MAP_RAW_BUFFER_LENGTH = 400 * 1024;
 
     private const PROPERTY_IP                   = 'ip';
     private const PROPERTY_MODEL                = 'model';
@@ -1411,6 +1416,7 @@ class Roborock extends IPSModuleStrict
                 $this->LogMessage($message . ': ' . $data, KL_WARNING);
             }
         );
+        $this->ReportUnknownMapBlockTypes($pic->getUnknownBlockTypes());
         if (!$pic->isValid()) {
             $this->_debug(__FUNCTION__, sprintf('pic is invalid: %s', $filename));
             return false;
@@ -1455,9 +1461,13 @@ class Roborock extends IPSModuleStrict
             return '';
         }
 
-        //$fp = fopen('data1.gz', 'wb');
-        //fwrite($fp, $result);
-        //fclose($fp);
+        $rawBase64 = base64_encode($result);
+        if (strlen($rawBase64) <= self::MAX_MAP_RAW_BUFFER_LENGTH) {
+            $this->SetBuffer(self::BUFFER_LAST_MAP_RAW, $rawBase64);
+        } else {
+            $this->SetBuffer(self::BUFFER_LAST_MAP_RAW, '');
+            $this->_debug(__FUNCTION__, sprintf('map too large for download buffer: %s bytes', strlen($result)));
+        }
 
         return gzdecode($result);
     }
@@ -1532,6 +1542,7 @@ class Roborock extends IPSModuleStrict
                 $this->LogMessage($message . ': ' . $data, KL_WARNING);
             }
         );
+        $this->ReportUnknownMapBlockTypes($pic->getUnknownBlockTypes());
         if (!$pic->isValid()) {
             return false;
         }
@@ -1550,6 +1561,44 @@ class Roborock extends IPSModuleStrict
         IPS_SetMediaContent(IPS_GetObjectIDByIdent(self::IDENT_MAP_PICTURE, $this->InstanceID), base64_encode($picture));
 
         return true;
+    }
+
+    /**
+     * Unbekannte Blocktypen der Karte melden: je Typ und Instanz einmal als Warnung, danach nur im
+     * Debug — während einer Reinigung wird die Karte alle 10 s geholt (Forum t/46511/853, Block 34).
+     *
+     * @param array<int, array{headerLength: int, dataLength: int}> $unknownBlockTypes
+     */
+    private function ReportUnknownMapBlockTypes(array $unknownBlockTypes): void
+    {
+        if ($unknownBlockTypes === []) {
+            return;
+        }
+        $reported = json_decode($this->GetBuffer(self::BUFFER_REPORTED_MAP_BLOCK_TYPES) ?: '[]', true) ?: [];
+        foreach ($unknownBlockTypes as $type => $lengths) {
+            $text = sprintf(
+                'The map blocktype %s is not yet supported. (header length: %s, data length: %s)',
+                $type,
+                $lengths['headerLength'],
+                $lengths['dataLength']
+            );
+            if (in_array($type, $reported, true)) {
+                $this->_debug(__FUNCTION__, $text);
+                continue;
+            }
+            $this->LogMessage($text, KL_WARNING);
+            $reported[] = $type;
+        }
+        $this->SetBuffer(self::BUFFER_REPORTED_MAP_BLOCK_TYPES, json_encode($reported, JSON_THROW_ON_ERROR));
+    }
+
+    /**
+     * Rohdaten der zuletzt geladenen Karte (gz, base64-kodiert) — für Fehleranalysen, z. B. bei
+     * unbekannten Blocktypen. Leer, solange seit dem letzten Laden des Moduls keine Karte geholt wurde.
+     */
+    public function GetMapRawData(): string
+    {
+        return $this->GetBuffer(self::BUFFER_LAST_MAP_RAW);
     }
 
     /**
@@ -3213,6 +3262,27 @@ class Roborock extends IPSModuleStrict
                                 ]
                             ]
                         ]
+                    ],
+                    // 'download': enthält die onClick-Ausgabe eine Data-URL, lädt die Konsole sie als Datei herunter.
+                    // Das echo muss im onClick stehen — ein echo im Modul käme dort als "Warning: …" an.
+                    [
+                        'type'     => 'Button',
+                        'caption'  => 'Download Map (Raw Data)',
+                        'download' => sprintf('Roborock_Map_%s.gz', $this->InstanceID),
+                        'onClick'  => '
+                            $raw = Roborock_GetMapRawData($id);
+                            echo $raw !== \'\' ? \'data:application/gzip;base64,\' . $raw : (new IPSModule($id))->Translate(\'No map available yet. Please get the map first.\');
+                        '
+                    ],
+                    [
+                        'type'     => 'Button',
+                        'caption'  => 'Download Map (Picture)',
+                        'download' => sprintf('Roborock_Map_%s.png', $this->InstanceID),
+                        'onClick'  => '
+                            $mediaId = @IPS_GetObjectIDByIdent(\'' . self::IDENT_MAP_PICTURE . '\', $id);
+                            $picture = $mediaId ? IPS_GetMediaContent($mediaId) : \'\';
+                            echo $picture !== \'\' ? \'data:image/png;base64,\' . $picture : (new IPSModule($id))->Translate(\'No map available yet. Please get the map first.\');
+                        '
                     ]
                 ]
             ],

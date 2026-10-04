@@ -238,6 +238,10 @@ Note: If Xiaomi requires two-factor authentication, a verification popup appears
 
 If the vacuum cleaner does not respond when the configuration is applied or after a restart of Symcon (e.g. because its WiFi is asleep), the instance shows the status _No Roborock found_ (206). The module keeps retrying on every update and switches back to active by itself as soon as the vacuum cleaner responds again.
 
+If the status variable _Map Picture_ is selected, the form offers buttons to get and show the map. _Download Map (Picture)_ and _Download Map (Raw Data)_ save the most recently fetched map as PNG or as raw file (`.gz`, exactly as delivered by the Xiaomi cloud). The raw file helps with troubleshooting, e.g. when a new model or firmware delivers map elements the module does not know yet — please attach both files to the bug report.
+
+Map elements unknown to the module are reported once per instance as a warning in the message log, afterwards only in the debug output.
+
 ### d. Setup of the map upload (ONLY for rooted devices!)
 At the moment you can not read the map view from the outside.
 For **rooted** devices you can use the following workaround. Here, however, only the created map is currently synchronized, without the already sucked surfaces or the position of the vaccum cleaner, it is still being worked on.
@@ -370,6 +374,14 @@ Returns:
  ```   
          
   Parameter _$InstanceID_ __*ObjectID*__ from the Roborock instance     
+
+_**Returns the raw data of the most recently fetched map**_ (gz file, base64 encoded; empty as long as no map has been fetched since the module was loaded)
+
+ ```php
+ Roborock_GetMapRawData(integer $InstanceID): string;
+ ```
+
+Parameter _$InstanceID_ __*ObjectID*__ of the Roborock instance
 
 ## 5. Configuration:
 

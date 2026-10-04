@@ -87,6 +87,9 @@ Unter "Raumnamen ändern" (sichtbar, wenn die Statusvariablen für einen _Reinig
 Hinweis: beim Einlesen werden immer die Räume der aktuell geladenen Karte eingelesen.
 
 Falls die Statusvariable _Kartenbild_ ausgewählt wurde, werden zusätzliche Funktionen zum Holen der Karte und zum Anzeigen angeboten.
+Mit _Karte herunterladen (Bild)_ und _Karte herunterladen (Rohdaten)_ lässt sich die zuletzt geholte Karte als PNG bzw. als Rohdatei (`.gz`, so wie sie die Xiaomi-Cloud liefert) speichern. Die Rohdatei hilft bei der Fehlersuche, etwa wenn ein neues Modell oder eine neue Firmware Kartenbestandteile liefert, die das Modul noch nicht kennt — bitte dann beide Dateien an den Fehlerbericht hängen.
+
+Neue, dem Modul unbekannte Kartenbestandteile werden je Instanz einmal als Warnung ins Meldungsfenster geschrieben, danach nur noch im Debug.
 
 **Reinigungsauftrag definieren**
 
@@ -422,6 +425,14 @@ _**Holt die Karte**_
 
  ```php
  Roborock_GetMap(integer $InstanceID): bool;
+ ```   
+
+Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
+
+_**Liefert die Rohdaten der zuletzt geholten Karte**_ (gz-Datei, base64-kodiert; leer, solange seit dem Laden des Moduls keine Karte geholt wurde)
+
+ ```php
+ Roborock_GetMapRawData(integer $InstanceID): string;
  ```   
 
 Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz

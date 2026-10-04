@@ -43,6 +43,7 @@ class RRMapFileParser
     public const SMART_DS                 = 31; //smartds, smart door sill no-go, since S8 Ultra
     public const UNKNOWN_32              = 32; //flDirec (segment material directions), since S8 Ultra
     public const DATE                     = 33; //map timestamp (UInt32LE unix time), since S8 Ultra
+    public const NONCE_DATA               = 34; //list of {type, unixTime}, metadata only (ioBroker.roborock: NONCEDATA)
     public const DIGEST                  = 1024;
     public const HEADER                  = 0x7272;
 
@@ -103,6 +104,9 @@ class RRMapFileParser
     private int    $roboA        = 0; //angle
 
     private bool   $isValid      = false;
+
+    /** @var array<int, array{headerLength: int, dataLength: int}> */
+    private array  $unknownBlockTypes = [];
 
     /**
      * @var callable
@@ -337,6 +341,7 @@ class RRMapFileParser
                 case self::DOCK_TYPE:
                 case self::ENEMIES:
                 case self::UNKNOWN_32:
+                case self::NONCE_DATA:
                     // known blocktype, not yet decoded
                     break;
 
@@ -346,17 +351,9 @@ class RRMapFileParser
                     break;
 
                 default:
+                    // nicht melden, nur sammeln: der Aufrufer entscheidet, wie oft er warnt (Karte kommt alle 10 s)
                     if ($blockDataLength > 0) {
-                        call_user_func(
-                            $this->Logger_Log,
-                            __CLASS__ . '::' . __FUNCTION__,
-                            sprintf(
-                                'The blocktype %s is not yet supported. (header length: %s, data length: %s)',
-                                $blocktype,
-                                $blockHeaderLength,
-                                $blockDataLength
-                            )
-                        );
+                        $this->unknownBlockTypes[$blocktype] = ['headerLength' => $blockHeaderLength, 'dataLength' => $blockDataLength];
                     }
             }
             $blockStartPos += $blockDataLength + $blockHeaderLength;
@@ -371,6 +368,16 @@ class RRMapFileParser
     private function getUInt32LE(string $bytes, int $i): int
     {
         return ord($bytes[$i++]) | (ord($bytes[$i++]) << 8) | (ord($bytes[$i++]) << 16) | (ord($bytes[$i++]) << 24);
+    }
+
+    /**
+     * Blocktypen, die der Parser nicht kennt, mit Kopf- und Datenlänge.
+     *
+     * @return array<int, array{headerLength: int, dataLength: int}>
+     */
+    public function getUnknownBlockTypes(): array
+    {
+        return $this->unknownBlockTypes;
     }
 
     public function getImage(): string
