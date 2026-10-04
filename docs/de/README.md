@@ -109,7 +109,7 @@ Beispiel einer Darstellung im Webfront:
 
 Für alle Funktionen gilt: der Parameter _$InstanceID_ ist die __*ObjektID*__ der Roborock Instanz
 
-**Entfallen mit Version 2.4** (waren seit Langem defekt): `Roborock_Get_Fan_Power`, `Roborock_Get_Water_Quantity_Control` — stattdessen die Statusvariablen „Saugleistung“ und „Wassermenge“ lesen bzw. per `RequestAction` schalten; `Roborock_SetSoundLevel` — stattdessen die Statusvariable „Lautstärke“; `Roborock_GetTimezone` — die Statusvariable „Zeitzone“; die Timer-Funktionen `Roborock_Set_Timer`, `Roborock_EnableTimer`, `Roborock_DisableTimer`, `Roborock_DeleteTimer`, `Roborock_Get_Timer_Details` samt der Option „Timer Details“ — Zeitpläne bitte in der Xiaomi- bzw. Roborock-App einrichten.
+**Entfallen mit Version 2.4** (waren seit Langem defekt): `Roborock_Get_Fan_Power`, `Roborock_Get_Water_Quantity_Control` — stattdessen die Statusvariablen „Saugleistung“ und „Wassermenge“ lesen bzw. per `RequestAction` schalten; `Roborock_SetSoundLevel` — stattdessen die Statusvariable „Lautstärke“; `Roborock_GetTimezone` — die Statusvariable „Zeitzone“; `Roborock_GetCleanRecordMap` und `Roborock_SetTimezoneEurope` ersatzlos (funktionierten nicht); die Timer-Funktionen `Roborock_Set_Timer`, `Roborock_EnableTimer`, `Roborock_DisableTimer`, `Roborock_DeleteTimer`, `Roborock_Get_Timer_Details` samt der Option „Timer Details“ — Zeitpläne bitte in der Xiaomi- bzw. Roborock-App einrichten.
 
  _**Startet den Reinigungsvorgang**_
   

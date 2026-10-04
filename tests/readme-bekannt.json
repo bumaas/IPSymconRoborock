@@ -2,7 +2,6 @@
     "hinweis": "Doku-Lücken bei Einführung von tests/check-readme.php. Nur streichen, nie ergänzen - neue Felder und Funktionen gehören in die Doku.",
     "offen": [
         "funktion:Roborock_DisableDND",
-        "funktion:Roborock_GetCleanRecordMap",
         "funktion:Roborock_GetDeviceInfo",
         "funktion:Roborock_GetTokenFromXiaomi",
         "funktion:Roborock_GetZoneCoordinatesByName",
@@ -15,7 +14,6 @@
         "funktion:Roborock_SetDNDTimer",
         "funktion:Roborock_SetDeviceToken",
         "funktion:Roborock_SetJoystickHtml",
-        "funktion:Roborock_SetTimezoneEurope",
         "funktion:Roborock_Set_DND",
         "funktion:Roborock_Set_DND_End",
         "funktion:Roborock_Set_DND_Start",

@@ -1446,17 +1446,6 @@ class Roborock extends IPSModuleStrict
         ]);
     }
 
-    /**
-     * get a clean record map.
-     *
-     * @return array|bool
-     * @throws \JsonException
-     */
-    public function GetCleanRecordMap(): array|bool
-    {
-        return $this->RequestData('get_clean_record_map');
-    }
-
     private function loadMapFileFromFile(string $filename): bool
     {
         if (file_exists($filename)) {
@@ -1911,17 +1900,6 @@ class Roborock extends IPSModuleStrict
     private function GetTimezone(): string|bool
     {
         return $this->RequestData('get_timezone');
-    }
-
-    /**
-     * set timezone to europe.
-     *
-     * @return array|bool
-     * @throws \JsonException
-     */
-    public function SetTimezoneEurope(): array|bool
-    {
-        return $this->RequestData('set_timezone', ['Europe/Amsterdam']);
     }
 
     /**
@@ -2935,12 +2913,12 @@ class Roborock extends IPSModuleStrict
             [
                 'type'    => 'Label',
                 'visible' => false,
-                'caption' => 'For scripts and AI assistants - map (needs the Xiaomi account): Roborock_GetMap(int $InstanceID): bool fetches the current map from the Xiaomi cloud (some seconds) and updates the media object Map; Roborock_GetMapRawData(int $InstanceID): string returns the last fetched map as base64-encoded gz file (empty if none was fetched since the module was loaded), for bug reports. Roborock_GetCleanRecordMap(int $InstanceID): array|bool currently returns false. Roborock_SetJoystickHtml(int $InstanceID): void rewrites the HTML of the remote control variable.'
+                'caption' => 'For scripts and AI assistants - map (needs the Xiaomi account): Roborock_GetMap(int $InstanceID): bool fetches the current map from the Xiaomi cloud (some seconds) and updates the media object Map; Roborock_GetMapRawData(int $InstanceID): string returns the last fetched map as base64-encoded gz file (empty if none was fetched since the module was loaded), for bug reports. Roborock_SetJoystickHtml(int $InstanceID): void rewrites the HTML of the remote control variable.'
             ],
             [
                 'type'    => 'Label',
                 'visible' => false,
-                'caption' => 'For scripts and AI assistants - setup: the device token is fetched from the Xiaomi cloud with the account data of the configuration when the configuration is applied, or with Roborock_GetTokenFromXiaomi(int $InstanceID): bool|int (true = token found, false = failed, 16 = Xiaomi asks for a two-factor verification). Then Roborock_SendVerificationCode(int $InstanceID): string requests the code and Roborock_SubmitVerificationCode(int $InstanceID, string $verificationCode): string submits it - normally done in the popup of the configuration form; both return a message. Roborock_SetDeviceToken(int $InstanceID, string $deviceToken): void sets a token (32 hex characters) directly and checks the connection. Roborock_SetTimezoneEurope(int $InstanceID): array|bool currently has no effect. Roborock_RequestRawData(int $InstanceID, string $method, array $options): array|bool sends any miIO command unchecked and returns the raw answer - experts only, it can change settings and the answer can contain the device token.'
+                'caption' => 'For scripts and AI assistants - setup: the device token is fetched from the Xiaomi cloud with the account data of the configuration when the configuration is applied, or with Roborock_GetTokenFromXiaomi(int $InstanceID): bool|int (true = token found, false = failed, 16 = Xiaomi asks for a two-factor verification). Then Roborock_SendVerificationCode(int $InstanceID): string requests the code and Roborock_SubmitVerificationCode(int $InstanceID, string $verificationCode): string submits it - normally done in the popup of the configuration form; both return a message. Roborock_SetDeviceToken(int $InstanceID, string $deviceToken): void sets a token (32 hex characters) directly and checks the connection. Roborock_RequestRawData(int $InstanceID, string $method, array $options): array|bool sends any miIO command unchecked and returns the raw answer - experts only, it can change settings and the answer can contain the device token.'
             ]
         ];
     }

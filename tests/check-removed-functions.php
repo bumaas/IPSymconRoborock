@@ -16,6 +16,8 @@ declare(strict_types=1);
  *     internen Auftrag samt Geräte-Token zurück, die Variable wird seit 2.2 #65 (02/2026) nie
  *     befüllt. Zeitpläne richtet man in der Xiaomi-App ein.
  *   - GetTimezone: aus Skripten seit 2.2 #59 Fatal; bleibt intern für die Variable „Zeitzone“.
+ *   - GetCleanRecordMap: schickte get_clean_record_map ohne Parameter, am nuc nach 11 s false;
+ *     SetTimezoneEurope: übergab die Zeitzone seit RC1 nicht als Parameter (entfallen in build 102).
  *
  * Fixture: keine — geprüft werden die öffentliche Schnittstelle und das Aufräumen beim Übernehmen.
  *
@@ -25,7 +27,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/harness.php';
 
 echo "nicht mehr öffentlich\n";
-foreach (['Get_Fan_Power', 'Get_Water_Quantity_Control', 'SetSoundLevel', 'Set_Timer', 'EnableTimer', 'DisableTimer', 'DeleteTimer', 'Get_Timer_Details', 'GetTimezone'] as $funktion) {
+foreach (['Get_Fan_Power', 'Get_Water_Quantity_Control', 'SetSoundLevel', 'GetCleanRecordMap', 'SetTimezoneEurope', 'Set_Timer', 'EnableTimer', 'DisableTimer', 'DeleteTimer', 'Get_Timer_Details', 'GetTimezone'] as $funktion) {
     $oeffentlich = method_exists(Roborock::class, $funktion) && (new ReflectionMethod(Roborock::class, $funktion))->isPublic();
     pruefe(!$oeffentlich, 'Roborock_' . $funktion . ' ist keine Skriptfunktion mehr');
 }
