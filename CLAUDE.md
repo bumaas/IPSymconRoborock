@@ -94,7 +94,7 @@ brauchen deshalb keine eigene Maskierung; neue Geheimnisse gehören in die Schl�
 - Gerätebefehle aus `RequestAction` gehen sofort an den Sauger (`sendImmediately`); maßgeblich ist
   der erste Befehl (`deviceRequests[0]['result']`: `ok`, `rejected`, `silent`, `unclear`). Scheitert
   er, setzt `RequestAction` die Variable auf den Wert vor der Aktion zurück, und `RequestData`
-  schickt keine Folgeabfragen mehr hinterher. **Abgelehnt ist nur, was das Fehlerobjekt des Saugers
+  schickt keine Folgeabfragen mehr hinterher (auch der Karten-Timer bleibt aus, `ActionCommandFailed()`). **Abgelehnt ist nur, was das Fehlerobjekt des Saugers
   trägt** (`{"error":{"error":{"code":…}}}`); andere `error`-Antworten verpackt die IO selbst
   (`_validateResponse`, z. B. falsche Message-ID) — dann ist offen, ob der Befehl ausgeführt wurde.
   Test: `tests/check-action-failure.php`.

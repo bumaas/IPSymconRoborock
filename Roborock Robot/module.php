@@ -1159,7 +1159,7 @@ class Roborock extends IPSModuleStrict
     {
         // Ist der Befehl einer Aktion gescheitert, keine Folgeabfragen hinterher — jede hätte ihren eigenen
         // Timeout samt Wiederholung, und die Aktion stünde ohne Nutzen eine halbe Minute.
-        if ($this->sendImmediately && ($this->deviceRequests[0]['result'] ?? 'ok') !== 'ok') {
+        if ($this->ActionCommandFailed()) {
             $this->_debug(__FUNCTION__, sprintf('%s skipped, the command of this action failed', $method));
             return false;
         }
@@ -1228,6 +1228,14 @@ class Roborock extends IPSModuleStrict
             $this->deviceRequests[] = ['method' => $method, 'result' => 'silent', 'error' => ''];
         }
         return false;
+    }
+
+    /**
+     * Läuft gerade eine Aktion aus RequestAction, deren Befehl (die erste Anfrage) gescheitert ist?
+     */
+    private function ActionCommandFailed(): bool
+    {
+        return $this->sendImmediately && ($this->deviceRequests[0]['result'] ?? 'ok') !== 'ok';
     }
 
     /**
@@ -1878,6 +1886,10 @@ class Roborock extends IPSModuleStrict
      */
     private function StartMapUpdates(): void
     {
+        // nach einem gescheiterten Start keine Kartenabfrage alle 10 s bis zum nächsten Update
+        if ($this->ActionCommandFailed()) {
+            return;
+        }
         $this->SetTimerInterval(self::TIMER_UPDATE_MAP, 10000);
         $this->GetMap();
     }

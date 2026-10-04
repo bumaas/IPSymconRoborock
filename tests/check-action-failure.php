@@ -85,6 +85,9 @@ foreach (['ohne Antwort' => 'false', 'Ablehnung' => $abgelehnt, 'falsche ID' => 
     $m->anfragen  = [];
     aktion($m, 'command', 0);
     pruefe($m->anfragen === ['app_start'], "Start ($fall): nur app_start gesendet: " . json_encode($m->anfragen));
+    // am nuc gesehen (build 104): der Karten-Timer lief nach einem gescheiterten Start alle 10 s an,
+    // bis das nächste Update (5 min) ihn wieder abschaltete
+    pruefe($m->timerIntervall('RoborockTimerUpdate_Map') === 0, "Start ($fall): Karten-Timer bleibt aus: " . $m->timerIntervall('RoborockTimerUpdate_Map'));
 }
 
 echo "\nGegenprobe: bestätigter Start fragt den Status nach\n";
