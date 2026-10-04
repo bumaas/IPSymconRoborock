@@ -120,25 +120,25 @@ Für alle Funktionen gilt: der Parameter _$InstanceID_ ist die __*ObjektID*__ de
  _**Startet die Reinigung eines Raumes**_
   
  ```php
- Roborock_Start_Segment_Clean(int $InstanceID, int $segmentid);
+ Roborock_Start_Segment_Clean(int $InstanceID, int $segmentId);
  ```   
   
- $segmentid: ID des zu reinigenden Raumes
+ $segmentId: ID des zu reinigenden Raumes
 
 _**Startet die Reinigung einer Liste von Räumen**_
 
  ```php
- Roborock_Start_Segment_Clean_ex(int $InstanceID, string $segmentIds);
+ Roborock_Start_Segment_Clean_Ex(int $InstanceID, string $segmentIdsJson);
  ```   
 
 Es kann entweder eine JSON kodierte Liste der zu reinigenden Räume (Segmente) angegeben werden
 ```
-$segmentIDs = json_encode ([16, 17, 18]);
+$segmentIdsJson = json_encode ([16, 17, 18]);
 ```
 
 oder es kann zusätzlich eine Anzahl an Wiederholungen mitgegeben werden
 ```php
-$segmentIds = json_encode ([['segments' => [16, 17, 18], 'repeat' => 2]]);
+$segmentIdsJson = json_encode ([['segments' => [16, 17, 18], 'repeat' => 2]]);
 ```
 
 Die vorhandenen Räume lassen sich über die Funktion Roborock_Get_Room_Mapping ermitteln.
@@ -342,17 +342,17 @@ Roborock_Reset_Sensors($InstanceID);
  _**Stellt die Saugleistung des Staubsaugerroboters ein**_
           
  ```php
- Roborock_Set_Fan_Power(integer $InstanceID, integer $power);
+ Roborock_Set_Fan_Power(integer $InstanceID, integer $fanPowerValue);
  ```   
          
  Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
 
- Parameter _$power_ Wert von 0 - 100 zum Einstellen der Leistung     
+ Parameter _$fanPowerValue_ ein Wert aus den Optionen der Statusvariable „Saugleistung“; die Stufen hängen vom Modell ab (beim S6 MaxV etwa 101 bis 105). Besser die Statusvariable per `RequestAction` schalten: Dort wird der Wert geprüft.
 
 _**Reinigt in der Zone der angegebenen Koordinaten**_
           
  ```php
- Roborock_ZoneClean(integer $InstanceID, integer $lower_left_corner_x, integer $lower_left_corner_y, integer $upper_right_corner_x, integer $upper_right_corner_y, integer $number);
+ Roborock_ZoneClean(integer $InstanceID, integer $lower_left_corner_x, integer $lower_left_corner_y, integer $upper_right_corner_x, integer $upper_right_corner_y, integer $passes);
  ```   
          
  Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz 
@@ -370,12 +370,12 @@ _**Reinigt in der Zone der angegebenen Koordinaten**_
  _**Reinigt mehrere Zonen mit den angegebenen Koordinaten**_
  
   ```php
-  Roborock_ZoneCleanMulti(integer $InstanceID, string $multizone);
+  Roborock_ZoneCleanMulti(integer $InstanceID, string $zonesJson);
   ```   
           
   Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz 
   
-  Parameter _$multizone_ __JSON String__ mit mehreren Zonen
+  Parameter _$zonesJson_ __JSON String__ mit mehreren Zonen
   
   Beispiel:
   
@@ -405,27 +405,27 @@ _**Reinigt in der Zone der angegebenen Koordinaten**_
  
    ```php
    $InstanceID = 12345;
-   $multizone = [
-   [$lower_left_corner_x, $lower_left_corner_y, $upper_right_corner_x, $upper_right_corner_y, $number],
-   [$lower_left_corner_x1, $lower_left_corner_y1, $upper_right_corner_x1, $upper_right_corner_y1, $number1]
+   $zonesJson = [
+   [$lower_left_corner_x, $lower_left_corner_y, $upper_right_corner_x, $upper_right_corner_y, $passes],
+   [$lower_left_corner_x1, $lower_left_corner_y1, $upper_right_corner_x1, $upper_right_corner_y1, $passes1]
    ];
-   $multizone = json_encode($multizone);
-   Roborock_ZoneCleanMulti($InstanceID, $multizone);
+   $zonesJson = json_encode($zonesJson);
+   Roborock_ZoneCleanMulti($InstanceID, $zonesJson);
    ```   
   
 _**Fährt zu den angegebenen Koordinaten**_
           
  ```php
- Roborock_GotoTarget(integer $InstanceID, integer $x, integer $y);
+ Roborock_GotoTarget(integer $InstanceID, integer $xMillimeter, integer $yMillimeter);
  ```   
          
  Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
  
- Parameter _$x_ __*X-Koordinate*__ der Zielposition
+ Parameter _$xMillimeter_ __*X-Koordinate*__ der Zielposition
  
- Parameter _$y_ __*Y-Koordinate*__ der Zielposition 
+ Parameter _$yMillimeter_ __*Y-Koordinate*__ der Zielposition 
 
-Hinweis: die Basisstation hat die Koordinaten 2550, 2550. Eine Einheit entspricht ungefähr einem Millimeter.
+Hinweis: Eine Einheit entspricht etwa einem Millimeter. Die Ladestation liegt meist nahe 25500/25500 (in der Karte eines S6 MaxV etwa bei 25212/25589).
 
 _**Holt die Karte**_
 

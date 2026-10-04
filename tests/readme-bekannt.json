@@ -21,7 +21,6 @@
         "funktion:Roborock_Set_DND_Start",
         "funktion:Roborock_Set_Water_Quantity_Control",
         "funktion:Roborock_StartCleaning",
-        "funktion:Roborock_Start_Segment_Clean_Ex",
         "funktion:Roborock_Toggle_State",
         "funktion:Roborock_ZoneCleanMultiName",
         "funktion:Roborock_ZoneCleanRoomname",

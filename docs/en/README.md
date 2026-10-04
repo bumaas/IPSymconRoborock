@@ -511,38 +511,14 @@ Parameter _$InstanceID_ __*ObjectID*__ of the Roborock instance
    Parameter _$InstanceID_ __*ObjectID*__ from the Roborock instance     
 
  _**Set Fan Power**_
-          
- ```php
- Roborock_Fan_Power(integer $InstanceID, integer $power);
- ```   
-         
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz     
- Parameter _$power_ Wert von 0 - 100 zum Einstellen der Leistung     
 
-_**Get area cleaned**_
-          
  ```php
- Roborock_Get_Area_Cleaned(integer $InstanceID);
- ```   
-         
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz     
+ Roborock_Set_Fan_Power(integer $InstanceID, integer $fanPowerValue);
+ ```
 
-_**Get Time Cleaned**_
-          
- ```php
- Roborock_Get_Time_Cleaned(integer $InstanceID);
- ```   
-         
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz     
+ Parameter _$InstanceID_ __*ObjectID*__ of the Roborock instance
 
-_**Get cleaning cycles**_
-          
- ```php
- Roborock_Get_Cleaning_Cycles(integer $InstanceID);
- ```   
-         
- Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz     
-
+ Parameter _$fanPowerValue_ one of the values in the options of the status variable "Fan Power"; the levels depend on the model (e.g. 101 to 105 for the S6 MaxV). Better switch the status variable with `RequestAction`, which checks the value.
 
 ###  b. GUIDs and data transfer:
 

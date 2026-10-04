@@ -940,9 +940,9 @@ class Roborock extends IPSModuleStrict
         }
     }
 
-    public function SetDeviceToken(string $token): void
+    public function SetDeviceToken(string $deviceToken): void
     {
-        $this->WriteAttributeString(self::ATTRIBUTE_TOKEN, $token);
+        $this->WriteAttributeString(self::ATTRIBUTE_TOKEN, $deviceToken);
 
         // validate configuration
         $this->ValidateConfiguration();
@@ -1370,15 +1370,15 @@ class Roborock extends IPSModuleStrict
     /**
      * reset conmsumables.
      *
-     * @param string $part filter|mainbrush|sidebrush|sensors
+     * @param string $consumableKey filter|mainbrush|sidebrush|sensors
      *
      * @return array|bool
      * @throws \JsonException
      */
-    public function Reset_Consumable(string $part): array|bool
+    public function Reset_Consumable(string $consumableKey): array|bool
     {
         return $this->RequestData('reset_consumable', [
-            'params' => [$part]
+            'params' => [$consumableKey]
         ]);
     }
 
@@ -1942,53 +1942,53 @@ class Roborock extends IPSModuleStrict
     /**
      * set fan power (Quiet=38, Balanced=60, Turbo=77, Full Speed=90).
      *
-     * @param int $power
+     * @param int $fanPowerValue
      *
      * @return void
      * @throws \JsonException
      */
-    public function Set_Fan_Power(int $power): void
+    public function Set_Fan_Power(int $fanPowerValue): void
     {
-        $this->_SetValue(self::IDENT_FAN_POWER, $power);
+        $this->_SetValue(self::IDENT_FAN_POWER, $fanPowerValue);
         $this->RequestData('set_custom_mode', [
-            'params' => [$power]
+            'params' => [$fanPowerValue]
         ]);
     }
 
     /**
      * set the water quantity control during the cleaning process. (Quiet=38, Balanced=60, Turbo=77, Full Speed=90).
      *
-     * @param int $mode
+     * @param int $waterQuantityValue
      *
      * @return array|bool
      */
-    public function Set_Water_Quantity_Control(int $mode): array|bool
+    public function Set_Water_Quantity_Control(int $waterQuantityValue): array|bool
     {
-        $this->_SetValue(self::IDENT_WATER_QUANTITY, $mode);
+        $this->_SetValue(self::IDENT_WATER_QUANTITY, $waterQuantityValue);
         return $this->RequestData('set_water_box_custom_mode', [
-            'params' => [$mode]
+            'params' => [$waterQuantityValue]
         ]);
     }
 
     /**
      * move robot to a direction.
      *
-     * @param int $direction -100..100
+     * @param int $rotation -100..100
      * @param int $velocity  0..100
-     * @param int $time      in ms
+     * @param int $durationMs      in ms
      *
      * @return array|bool
      * @throws \JsonException
      */
-    public function Move_Direction(int $direction, int $velocity, int $time = 1000): array|bool
+    public function Move_Direction(int $rotation, int $velocity, int $durationMs = 1000): array|bool
     {
         $this->StartRemoteControl();
         $result = $this->RequestData('app_rc_move', [
             'params' => [
-                'omega'    => $direction,
+                'omega'    => $rotation,
                 'velocity' => $velocity,
                 'seqnum'   => 'sequence',
-                'duration' => $time
+                'duration' => $durationMs
             ]
         ]);
         $this->StopRemoteControl();
@@ -1999,13 +1999,13 @@ class Roborock extends IPSModuleStrict
     /**
      * load map
      *
-     * @param int $mapIndex
+     * @param int $mapStatusValue
      *
      * @return bool
      */
-    public function LoadMap(int $mapIndex): bool
+    public function LoadMap(int $mapStatusValue): bool
     {
-        if ($this->RequestData('load_multi_map', ['params' => [$mapIndex]])) {
+        if ($this->RequestData('load_multi_map', ['params' => [$mapStatusValue]])) {
             $this->ProcessSelectedRoom(0); //Auswahl auf 'alle' setzen
 
             return true;
@@ -2041,7 +2041,7 @@ class Roborock extends IPSModuleStrict
      * @param int $lower_left_corner_y
      * @param int $upper_right_corner_x
      * @param int $upper_right_corner_y
-     * @param int $number
+     * @param int $passes
      *
      * @return array|bool
      * @throws \JsonException
@@ -2051,7 +2051,7 @@ class Roborock extends IPSModuleStrict
         int $lower_left_corner_y,
         int $upper_right_corner_x,
         int $upper_right_corner_y,
-        int $number
+        int $passes
     ): array|bool {
         return $this->RequestData('app_zoned_clean', [
             'params' => [
@@ -2060,18 +2060,18 @@ class Roborock extends IPSModuleStrict
                     $lower_left_corner_y,
                     $upper_right_corner_x,
                     $upper_right_corner_y,
-                    $number
+                    $passes
                 ]
             ]
         ]);
     }
 
-    public function ZoneCleanRoomname(string $roomname, int $number): array|bool
+    public function ZoneCleanRoomname(string $zoneName, int $passes): array|bool
     {
         $zones  = $this->GetZones();
         $zoneid = -1;
         foreach ($zones as $key => $zone) {
-            if ($zone['roomname'] === $roomname) {
+            if ($zone['roomname'] === $zoneName) {
                 $zoneid = $key;
             }
         }
@@ -2087,7 +2087,7 @@ class Roborock extends IPSModuleStrict
                 'left x: ' . $lower_left_corner_x . ', left y: ' . $lower_left_corner_y . ', right x: ' . $upper_right_corner_x . ', right y: '
                 . $upper_right_corner_y
             );
-            $result = $this->ZoneClean($lower_left_corner_x, $lower_left_corner_y, $upper_right_corner_x, $upper_right_corner_y, $number);
+            $result = $this->ZoneClean($lower_left_corner_x, $lower_left_corner_y, $upper_right_corner_x, $upper_right_corner_y, $passes);
         } else {
             $this->_debug('ZoneClean', 'could not find roomname');
             $result = false;
@@ -2095,10 +2095,10 @@ class Roborock extends IPSModuleStrict
         return $result;
     }
 
-    public function ZoneCleanRoomnumber(int $roomnumber, int $number): array|bool
+    public function ZoneCleanRoomnumber(int $zoneNumber, int $passes): array|bool
     {
         $zones      = $this->GetZones();
-        $zoneid     = $roomnumber - 1;
+        $zoneid     = $zoneNumber - 1;
         $zonenumber = $this->GetNumberZones() - 1;
         if ($zoneid <= $zonenumber) {
             $zone = $zones[$zoneid];
@@ -2112,7 +2112,7 @@ class Roborock extends IPSModuleStrict
                 'left x: ' . $lower_left_corner_x . ', left y: ' . $lower_left_corner_y . ', right x: ' . $upper_right_corner_x . ', right y: '
                 . $upper_right_corner_y
             );
-            $result = $this->ZoneClean($lower_left_corner_x, $lower_left_corner_y, $upper_right_corner_x, $upper_right_corner_y, $number);
+            $result = $this->ZoneClean($lower_left_corner_x, $lower_left_corner_y, $upper_right_corner_x, $upper_right_corner_y, $passes);
         } else {
             $this->_debug('ZoneClean', 'could not find roomnumber');
             $result = false;
@@ -2121,32 +2121,32 @@ class Roborock extends IPSModuleStrict
     }
 
     /** Roborock Vacuum 2 clean multiple zone with coordinates for area, use a rectangle with values for the lower left corner and the upper right corner
-     * $multizone = '[['.$lower_left_corner_x.','. $lower_left_corner_y.','. $upper_right_corner_x.','. $upper_right_corner_y.','. $number.'],['.
+     * $zonesJson = '[['.$lower_left_corner_x.','. $lower_left_corner_y.','. $upper_right_corner_x.','. $upper_right_corner_y.','. $number.'],['.
      * $lower_left_corner_x1.','. $lower_left_corner_y1.','.    $upper_right_corner_x1.','. $upper_right_corner_y1.','. $number.']]';.
      *
-     * @param string $multizone
+     * @param string $zonesJson
      *
      * @return array|bool
      */
-    public function ZoneCleanMulti(string $multizone): array|bool
+    public function ZoneCleanMulti(string $zonesJson): array|bool
     {
-        $multizone = json_decode($multizone, true, 512, JSON_THROW_ON_ERROR);
+        $zonesJson = json_decode($zonesJson, true, 512, JSON_THROW_ON_ERROR);
         return $this->RequestData('app_zoned_clean', [
-            'params' => $multizone
+            'params' => $zonesJson
         ]);
     }
 
     /** Roborock Vacuum 2 clean multiple zone with coordinates for area, use a rectangle with values for the lower left corner and the upper right corner
      *
-     * @param string $multizone
+     * @param string $zonesJson
      *
      * @return array|bool
      */
-    public function ZoneCleanMultiName(string $multizone): array|bool
+    public function ZoneCleanMultiName(string $zonesJson): array|bool
     {
-        $multizone     = json_decode($multizone, true, 512, JSON_THROW_ON_ERROR);
+        $zonesJson     = json_decode($zonesJson, true, 512, JSON_THROW_ON_ERROR);
         $command_zones = [];
-        foreach ($multizone as $zone) {
+        foreach ($zonesJson as $zone) {
             $command_zones[] = [$zone[0][0], $zone[0][1], $zone[0][2], $zone[0][3], $zone[1]];
         }
         return $this->RequestData('app_zoned_clean', [
@@ -2157,18 +2157,18 @@ class Roborock extends IPSModuleStrict
     /**
      * Roborock Vacuum 2 go-to coordinates.
      *
-     * @param int $x
-     * @param int $y
+     * @param int $xMillimeter
+     * @param int $yMillimeter
      *
      * @return void
      * @throws \JsonException
      */
-    public function GotoTarget(int $x, int $y): void
+    public function GotoTarget(int $xMillimeter, int $yMillimeter): void
     {
         $this->RequestData('app_goto_target', [
             'params' => [
-                $x,
-                $y
+                $xMillimeter,
+                $yMillimeter
             ]
         ]);
     }
@@ -2187,11 +2187,11 @@ class Roborock extends IPSModuleStrict
     /**
      * toggle remote control.
      *
-     * @param bool $state
+     * @param bool $startCleaning
      */
-    public function Toggle_State(bool $state): void
+    public function Toggle_State(bool $startCleaning): void
     {
-        if ($state) {
+        if ($startCleaning) {
             $this->Start();
         } else {
             $this->Stop();
@@ -2201,13 +2201,13 @@ class Roborock extends IPSModuleStrict
     /**
      * enable / disable dnd mode.
      *
-     * @param bool $state
+     * @param bool $enable
      */
-    public function Set_DND(bool $state): void
+    public function Set_DND(bool $enable): void
     {
-        $this->_SetValue('dnd_mode', $state);
+        $this->_SetValue('dnd_mode', $enable);
 
-        if ($state) {
+        if ($enable) {
             $start_time_string = GetValueFormatted($this->GetIDForIdent('dnd_starttime'));
             $time              = explode(':', $start_time_string);
             $start_hour        = (int)$time[0];
@@ -2225,11 +2225,11 @@ class Roborock extends IPSModuleStrict
     /**
      * set dnd start time.
      *
-     * @param string $starttime
+     * @param string $startTimeHHMM
      */
-    public function Set_DND_Start(string $starttime): void
+    public function Set_DND_Start(string $startTimeHHMM): void
     {
-        $unixtime = strtotime($starttime);
+        $unixtime = strtotime($startTimeHHMM);
         $this->Set_DND_StartInt($unixtime);
     }
 
@@ -2248,11 +2248,11 @@ class Roborock extends IPSModuleStrict
     /**
      * set dnd end time.
      *
-     * @param string $endtime
+     * @param string $endTimeHHMM
      */
-    public function Set_DND_End(string $endtime): void
+    public function Set_DND_End(string $endTimeHHMM): void
     {
-        $unixtime = strtotime($endtime);
+        $unixtime = strtotime($endTimeHHMM);
         $this->Set_DND_EndInt($unixtime);
     }
 
@@ -2298,16 +2298,16 @@ class Roborock extends IPSModuleStrict
     /**
      * Roborock Vacuum 1S segment clean.
      *
-     * @param int $segmentid
+     * @param int $segmentId
      *
      * @return void
      * @throws \JsonException
      */
-    public function Start_Segment_Clean(int $segmentid): void
+    public function Start_Segment_Clean(int $segmentId): void
     {
         $this->RequestData('app_segment_clean', [
             'params' => [
-                $segmentid
+                $segmentId
             ]
         ]);
     }
@@ -2315,15 +2315,15 @@ class Roborock extends IPSModuleStrict
     /**
      * segment clean Ex
      *
-     * @param string $segmentIds json encoded array of segmentids
+     * @param string $segmentIdsJson json encoded array of segmentids
      *
      * @return void
      * @throws \JsonException
      */
-    public function Start_Segment_Clean_Ex(string $segmentIds): void
+    public function Start_Segment_Clean_Ex(string $segmentIdsJson): void
     {
         $this->RequestData('app_segment_clean', [
-            'params' => json_decode($segmentIds, true, 512, JSON_THROW_ON_ERROR)
+            'params' => json_decode($segmentIdsJson, true, 512, JSON_THROW_ON_ERROR)
         ]);
     }
 
@@ -2883,7 +2883,7 @@ class Roborock extends IPSModuleStrict
     {
         $form = json_encode([
             'elements' => $this->FormElements(),
-            'actions'  => $this->FormActions(),
+            'actions'  => array_merge($this->FormActions(), $this->FormHints()),
             'status'   => $this->FormStatus()
         ], JSON_THROW_ON_ERROR);
 
@@ -2897,6 +2897,54 @@ class Roborock extends IPSModuleStrict
      *
      * @return array
      */
+    /**
+     * Unsichtbare Hinweise für Skripte und KI-Assistenten (MCP-Regel 6): je Aufgabe die passenden
+     * Skriptfunktionen mit Wirkung, Parametern und Rückgabe. In der Konsole erscheinen sie nicht
+     * (Vorgabe Burkhard); eine KI liest sie über IPS_GetConfigurationForm. Inhalte an der Anlage
+     * geprüft (nuc, 04.10.2026) — beim Ändern einer Skriptfunktion hier mitziehen
+     * (tests/check-form-hints.php prüft, dass jede genannt ist).
+     */
+    private function FormHints(): array
+    {
+        return [
+            [
+                'type'    => 'Label',
+                'visible' => false,
+                'caption' => 'For scripts and AI assistants: switch the vacuum cleaner via its status variables with RequestAction(VariableID, value) or IPS_RequestAction(InstanceID, ident, value). The value is checked against the options or the range of the variable\'s presentation; an invalid value is rejected with the allowed values and nothing is sent, a vacuum cleaner that does not respond is reported as an error. Idents (command always, the others only if enabled in the configuration): command (0 = Start, 1 = Pause, 2 = Stop, 3 = Spot, 4 = Charge, 5 = Locate), fan_power, water_quantity, volume (0 to 100), map_status (active map), dnd_mode (true/false), dnd_starttime and dnd_endtime (Unix time, only hour and minute count). Cleaning selected rooms: write the rooms one after another to roomselection (0 clears the selection), set cleaning_cycles (1 to 3), then write 1 to start_cleaning. Roborock_Set_Fan_Power(int $InstanceID, int $fanPowerValue): void and Roborock_Set_Water_Quantity_Control(int $InstanceID, int $waterQuantityValue): array|bool set the same values as fan_power and water_quantity, but without any check - prefer RequestAction.'
+            ],
+            [
+                'type'    => 'Label',
+                'visible' => false,
+                'caption' => 'For scripts and AI assistants - diagnosis and reading: Roborock_RunSelfTest(int $InstanceID): string checks configuration, token, Xiaomi account, I/O instance, reachability and model, updates and map without any effect and returns a text (✔ OK, ✘ problem with the next step, – note); use it first when something does not work. The following read the vacuum cleaner (some seconds each) and also update the matching status variables: Roborock_Get_State(int $InstanceID): array (battery %, clean_area m², clean_time s, error_code, fan_power, map_status, state, water box); Roborock_GetDeviceInfo(int $InstanceID): array (model, firmware_version, hardware_version, ip, mac, rssi dBm, ssid); Roborock_Get_Serial_Number(int $InstanceID): string; Roborock_Get_Consumables(int $InstanceID): array (remaining life in % per part); Roborock_GetCleanSummary(int $InstanceID): array (area_cleaned m², cleanups, total_cleaning_time s, clean_records = start times as Unix time); Roborock_Get_DND_Mode(int $InstanceID): array (start, end as HH:MM). Roborock_Update(int $InstanceID): void reads all enabled values now, as the update timer does.'
+            ],
+            [
+                'type'    => 'Label',
+                'visible' => false,
+                'caption' => 'For scripts and AI assistants - cleaning: Roborock_Start, Roborock_Stop, Roborock_Pause, Roborock_Charge (back to the dock), Roborock_Locate (plays a sound) and Roborock_CleanSpot (cleans around its position), each (int $InstanceID): void, do the same as the values of the status variable command, but report no error - prefer RequestAction on command. Roborock_Toggle_State(int $InstanceID, bool $startCleaning): void - true = Start, false = Stop. Roborock_StartCleaning(int $InstanceID): void starts cleaning the rooms selected in roomselection with cleaning_cycles. Roborock_Start_Segment_Clean(int $InstanceID, int $segmentId): void cleans one room; Roborock_Start_Segment_Clean_Ex(int $InstanceID, string $segmentIdsJson): void cleans several, JSON like [16,17] or [{"segments":[16,17],"repeat":2}]. Roborock_Get_Room_Mapping(int $InstanceID): array returns the rooms of the active map as pairs [segment ID, room ID of the Xiaomi cloud]; the vacuum cleaner provides no room names - they are assigned in the configuration and appear as options of roomselection. Roborock_LoadMap(int $InstanceID, int $mapStatusValue): bool loads a saved map (floor); the values are the options of map_status.'
+            ],
+            [
+                'type'    => 'Label',
+                'visible' => false,
+                'caption' => 'For scripts and AI assistants - zones and position (map coordinates, 1 unit is about 1 mm; the charging station is usually near 25500/25500): Roborock_ZoneClean(int $InstanceID, int $lower_left_corner_x, int $lower_left_corner_y, int $upper_right_corner_x, int $upper_right_corner_y, int $passes): array|bool cleans a rectangle. Roborock_ZoneCleanMulti(int $InstanceID, string $zonesJson) takes JSON [[x1,y1,x2,y2,passes], ...]; Roborock_ZoneCleanMultiName(int $InstanceID, string $zonesJson) takes JSON [[[x1,y1,x2,y2],passes], ...] - despite its name it takes coordinates, not names. Roborock_ZoneCleanRoomname(int $InstanceID, string $zoneName, int $passes) and Roborock_ZoneCleanRoomnumber(int $InstanceID, int $zoneNumber, int $passes) clean a zone of the configuration property zonecoordinates (JSON list of {roomname, lx, ly, ux, uy}, numbers count from 1) and return false if it does not exist; Roborock_GetZones(int $InstanceID): array returns that list, Roborock_GetZoneCoordinatesByName(int $InstanceID, string $zoneName) and Roborock_GetZoneCoordinatesByNumber(int $InstanceID, int $zoneNumber): array|false return [lx, ly, ux, uy]. Roborock_GotoTarget(int $InstanceID, int $xMillimeter, int $yMillimeter): void drives to a point. Roborock_Move_Direction(int $InstanceID, int $rotation, int $velocity, int $durationMs): array|bool moves the vacuum cleaner by remote control, the values are passed on unchanged - only with someone watching.'
+            ],
+            [
+                'type'    => 'Label',
+                'visible' => false,
+                'caption' => 'For scripts and AI assistants - maintenance and do not disturb: after replacing or cleaning a part, reset its counter with Roborock_Reset_Filter, Roborock_Reset_Mainbrush, Roborock_Reset_Sidebrush or Roborock_Reset_Sensors, each (int $InstanceID): array|bool; Roborock_Reset_Consumable(int $InstanceID, string $consumableKey) needs the model-specific key (e.g. filter or filter_work_time) - prefer the four functions above. Roborock_Set_DND(int $InstanceID, bool $enable): void switches do not disturb with the times of dnd_starttime and dnd_endtime; Roborock_SetDNDTimer(int $InstanceID, int $starthour, int $startminutes, int $endhour, int $endminutes): array|bool sets the times and switches it on; Roborock_DisableDND(int $InstanceID): array|bool switches it off; Roborock_Set_DND_Start(int $InstanceID, string $startTimeHHMM) and Roborock_Set_DND_End(int $InstanceID, string $endTimeHHMM): void set one time, e.g. "23:00".'
+            ],
+            [
+                'type'    => 'Label',
+                'visible' => false,
+                'caption' => 'For scripts and AI assistants - map (needs the Xiaomi account): Roborock_GetMap(int $InstanceID): bool fetches the current map from the Xiaomi cloud (some seconds) and updates the media object Map; Roborock_GetMapRawData(int $InstanceID): string returns the last fetched map as base64-encoded gz file (empty if none was fetched since the module was loaded), for bug reports. Roborock_GetCleanRecordMap(int $InstanceID): array|bool currently returns false. Roborock_SetJoystickHtml(int $InstanceID): void rewrites the HTML of the remote control variable.'
+            ],
+            [
+                'type'    => 'Label',
+                'visible' => false,
+                'caption' => 'For scripts and AI assistants - setup: the device token is fetched from the Xiaomi cloud with the account data of the configuration when the configuration is applied, or with Roborock_GetTokenFromXiaomi(int $InstanceID): bool|int (true = token found, false = failed, 16 = Xiaomi asks for a two-factor verification). Then Roborock_SendVerificationCode(int $InstanceID): string requests the code and Roborock_SubmitVerificationCode(int $InstanceID, string $verificationCode): string submits it - normally done in the popup of the configuration form; both return a message. Roborock_SetDeviceToken(int $InstanceID, string $deviceToken): void sets a token (32 hex characters) directly and checks the connection. Roborock_SetTimezoneEurope(int $InstanceID): array|bool currently has no effect. Roborock_RequestRawData(int $InstanceID, string $method, array $options): array|bool sends any miIO command unchecked and returns the raw answer - experts only, it can change settings and the answer can contain the device token.'
+            ]
+        ];
+    }
+
     private function FormElements(): array
     {
         $model = $this->ReadAttributeString(self::ATTRIBUTE_MODEL);
@@ -3302,10 +3350,10 @@ class Roborock extends IPSModuleStrict
         return $zones;
     }
 
-    public function GetZoneCoordinatesByNumber(int $roomnumber): false|array
+    public function GetZoneCoordinatesByNumber(int $zoneNumber): false|array
     {
         $zones      = $this->GetZones();
-        $zoneid     = $roomnumber - 1;
+        $zoneid     = $zoneNumber - 1;
         $zonenumber = $this->GetNumberZones() - 1;
         if ($zoneid <= $zonenumber) {
             $zone = $zones[$zoneid];
@@ -3327,12 +3375,12 @@ class Roborock extends IPSModuleStrict
         return $result;
     }
 
-    public function GetZoneCoordinatesByName(string $roomname): false|array
+    public function GetZoneCoordinatesByName(string $zoneName): false|array
     {
         $zones  = $this->GetZones();
         $zoneid = -1;
         foreach ($zones as $key => $zone) {
-            if ($zone['roomname'] === $roomname) {
+            if ($zone['roomname'] === $zoneName) {
                 $zoneid = $key;
             }
         }
@@ -4108,13 +4156,13 @@ EOF;
     /**
      * SubmitVerificationCode
      *
-     * @param string $Code
+     * @param string $verificationCode
      *
      * @return string
      */
-    public function SubmitVerificationCode(string $Code): string
+    public function SubmitVerificationCode(string $verificationCode): string
     {
-        $this->SendDebug(__FUNCTION__, $Code, 0);
+        $this->SendDebug(__FUNCTION__, $verificationCode, 0);
         $headers   = [
             'Content-Type: application/x-www-form-urlencoded',
             'User-Agent: Android-7.1.1-1.0.0-ONEPLUS A3010-136-' . $this->ReadAttributeString(self::ATTRIBUTE_AGENTID)
@@ -4130,7 +4178,7 @@ EOF;
         $form      = [
             '_flag'  => (int)$this->GetBuffer(self::BUFFER_VERIFICATION_FLAG),
             '_json'  => 'true',
-            'ticket' => $Code,
+            'ticket' => $verificationCode,
             'trust'  => 'true'
         ];
         $ch        = curl_init($VerifyUrl);
