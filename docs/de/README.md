@@ -81,6 +81,8 @@ Antwortet der Sauger beim Speichern oder nach einem Neustart von Symcon nicht (z
 
 Jeder Wechsel in einen Fehlerstatus steht einmal als Warnung im Meldungsfenster, mit der Ursache und dem nächsten Schritt (etwa die falsche IP-Adresse oder fehlende Xiaomi-Kontodaten); die Rückkehr auf „aktiv“ wird als Meldung vermerkt.
 
+Wird eine Statusvariable geschaltet (Visualisierung, Skript mit `RequestAction`), geht der Befehl sofort an den Sauger, und das Schalten wartet auf seine Antwort (meist wenige Sekunden). Ein ungültiger Wert wird mit den erlaubten Werten abgelehnt, ohne dass etwas an den Sauger geht; antwortet der Sauger nicht oder lehnt er den Befehl ab, kommt eine Fehlermeldung zurück.
+
 Im Aktionsbereich des Formulars können die Statusvariablen getestet werden ("Testbereich"). 
 
 Unter "Raumnamen ändern" (sichtbar, wenn die Statusvariablen für einen _Reinigungsauftrag_ ausgewählt wurden) können die in der Xiaomi App definierten Räume übernommen und anschließend die Räume mit Namen versehen werden. Leider gibt es bislang keinen (mir) bekannten Weg, die Namen auszulesen.

@@ -42,6 +42,8 @@ final class RoborockHarness extends Roborock
     public array $ioAntworten = [];
     /** @var list<string> Methoden aller an die IO gesendeten Anfragen */
     public array $anfragen = [];
+    /** @var list<bool> je Anfrage: sofort gesendet (immediate) oder in die Warteschlange */
+    public array $sofort = [];
 
     public function id(): int
     {
@@ -53,6 +55,7 @@ final class RoborockHarness extends Roborock
         $buffer           = json_decode($Data, true, 512, JSON_THROW_ON_ERROR)['Buffer'];
         $methode          = $buffer['method'];
         $this->anfragen[] = $methode;
+        $this->sofort[]   = (bool)$buffer['immediate'];
         if (!$buffer['immediate']) {
             return ''; // wie die echte IO: Auftrag in die Warteschlange, Antwort kommt später über ReceiveData
         }
@@ -80,7 +83,7 @@ final class RoborockHarness extends Roborock
  * Instanz anlegen und konfigurieren wie über das Formular: IP, Token, ggf. Zugangsdaten,
  * danach ApplyChanges.
  */
-function neueInstanz(string $ip = '192.168.178.144', string $token = '0123456789abcdef0123456789abcdef', string $ioAntwort = 'false'): RoborockHarness
+function neueInstanz(string $ip = '192.168.178.144', string $token = '0123456789abcdef0123456789abcdef', string $ioAntwort = 'false', array $ioAntworten = []): RoborockHarness
 {
     $id = IPS\ObjectManager::registerObject(1 /* Instance */);
     IPS\InstanceManager::createInstance($id, [
@@ -92,6 +95,7 @@ function neueInstanz(string $ip = '192.168.178.144', string $token = '0123456789
     /** @var RoborockHarness $m */
     $m            = IPS\InstanceManager::getInstanceInterface($id);
     $m->ioAntwort = $ioAntwort;
+    $m->ioAntworten = $ioAntworten;
     IPS_SetProperty($id, 'ip', $ip);
     $m->tokenSetzen($token);
     IPS_ApplyChanges($id);

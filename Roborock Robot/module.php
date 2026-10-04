@@ -334,6 +334,15 @@ class Roborock extends IPSModuleStrict
     // helper properties
     private int             $position = 0;
 
+    // RequestAction: Gerätebefehle sofort senden und ihr Ergebnis festhalten (MCP-Regel 8)
+    private bool  $sendImmediately = false;
+    /** @var list<array{method: string, error: ?string}> error: null = bestätigt, '' = keine Antwort, sonst Ablehnung */
+    private array $deviceRequests = [];
+
+    // Statusvariablen mit Aktion; die ersten senden einen Befehl an den Sauger
+    private const ACTION_IDENTS_DEVICE   = ['command', 'volume', 'fan_power', 'water_quantity', 'map_status', 'start_cleaning', 'dnd_mode', 'dnd_starttime', 'dnd_endtime'];
+    private const ACTION_IDENTS_VARIABLE = ['roomselection', 'cleaning_cycles'];
+
     private roborock_vacuum $device;
 
     public function __construct($InstanceID)
@@ -1140,7 +1149,8 @@ class Roborock extends IPSModuleStrict
         $self   = $_IPS['SELF'] ?? 0;   // $_IPS gibt es nur in Symcon, nicht im CLI-PHP der Tests
         $sender = $_IPS['SENDER'] ?? '';
         if (($self > 0 && $self !== $this->InstanceID)
-            || in_array($sender, ['Execute', 'Variable', 'RunScript', 'PHPModule'])) {
+            || in_array($sender, ['Execute', 'Variable', 'RunScript', 'PHPModule'])
+            || $this->sendImmediately) {
             $payload['immediate'] = true;
         }
 
@@ -1158,18 +1168,27 @@ class Roborock extends IPSModuleStrict
             if ($buffer['immediate']) {
                 $io = json_decode($io_json, true, 512, JSON_THROW_ON_ERROR);
                 if ($io) {
+                    $this->deviceRequests[] = [
+                        'method' => $method,
+                        'error'  => isset($io['error']) ? mb_substr(json_encode($io['error'], JSON_UNESCAPED_UNICODE) ?: '?', 0, 200) : null
+                    ];
+
                     // merge buffer
                     $data = array_merge($buffer, $io);
 
                     // return data
                     return $this->ExecuteCallback($data);
                 }
+                $this->deviceRequests[] = ['method' => $method, 'error' => ''];
                 return false;
             }
 
             return true;
         }
 
+        if ($buffer['immediate']) {
+            $this->deviceRequests[] = ['method' => $method, 'error' => ''];
+        }
         return false;
     }
 
@@ -2295,7 +2314,130 @@ class Roborock extends IPSModuleStrict
      * @return void
      * @throws \JsonException
      */
+    /**
+     * Prüft Ident und Wert, sendet Gerätebefehle sofort und meldet jeden Fehlschlag per trigger_error —
+     * das Einzige, was beim Aufrufer (Skript, Visualisierung, KI über MCP) ankommt (MCP-Regel 8).
+     */
     public function RequestAction(string $Ident, mixed $Value): void
+    {
+        $isDeviceAction = in_array($Ident, self::ACTION_IDENTS_DEVICE, true);
+        if ($isDeviceAction || in_array($Ident, self::ACTION_IDENTS_VARIABLE, true)) {
+            $Value = $this->ValidateActionValue($Ident, $Value);
+            if ($Value === null) {
+                return; // Grund wurde per trigger_error gemeldet
+            }
+        }
+
+        if (!$isDeviceAction) {
+            $this->ExecuteAction($Ident, $Value);
+            return;
+        }
+
+        $this->sendImmediately = true;
+        $this->deviceRequests  = [];
+        try {
+            $this->ExecuteAction($Ident, $Value);
+        } finally {
+            $this->sendImmediately = false;
+        }
+
+        // maßgeblich ist der erste Befehl der Aktion; danach folgen nur Statusabfragen
+        $first = $this->deviceRequests[0] ?? null;
+        if ($first === null || $first['error'] === null) {
+            return;
+        }
+        if ($first['error'] === '') {
+            trigger_error(
+                sprintf(
+                    $this->Translate('"%s" was not executed: the vacuum cleaner at %s does not respond. Try again later.'),
+                    $Ident,
+                    $this->ReadPropertyString(self::PROPERTY_IP)
+                ),
+                E_USER_WARNING
+            );
+            return;
+        }
+        trigger_error(
+            sprintf(
+                $this->Translate('"%s" was rejected by the vacuum cleaner (%s). Check the value and the state of the vacuum cleaner.'),
+                $Ident,
+                $first['error']
+            ),
+            E_USER_WARNING
+        );
+    }
+
+    /**
+     * Prüft einen Wert für eine Statusvariable gegen deren Darstellung (Optionen bzw. Minimum/Maximum).
+     * Liefert den Wert im Typ der Variable oder null, nachdem der Grund per trigger_error gemeldet wurde.
+     */
+    private function ValidateActionValue(string $ident, mixed $value): int|bool|null
+    {
+        $variableId = @$this->GetIDForIdent($ident);
+        if (!$variableId) {
+            trigger_error(
+                sprintf($this->Translate('"%s" is not available: the status variable is not enabled in the configuration of this instance.'), $ident),
+                E_USER_WARNING
+            );
+            return null;
+        }
+        $variable = IPS_GetVariable($variableId);
+        $shown    = is_scalar($value) ? var_export($value, true) : (json_encode($value) ?: '?');
+
+        if ($variable['VariableType'] === VARIABLETYPE_BOOLEAN) {
+            if (is_bool($value) || $value === 0 || $value === 1) {
+                return (bool)$value;
+            }
+            trigger_error(
+                sprintf($this->Translate('Value %s for "%s" is not allowed (allowed: true, false). Do not repeat with this value.'), $shown, $ident),
+                E_USER_WARNING
+            );
+            return null;
+        }
+
+        if (!is_int($value) && !(is_string($value) && preg_match('/^-?\d+$/', $value)) && !(is_float($value) && floor($value) === $value)) {
+            trigger_error(
+                sprintf($this->Translate('Value %s for "%s" is not a whole number. Do not repeat with this value.'), $shown, $ident),
+                E_USER_WARNING
+            );
+            return null;
+        }
+        $value        = (int)$value;
+        $presentation = $variable['VariablePresentation'] ?? [];
+
+        if (isset($presentation['OPTIONS'])) {
+            $options = json_decode((string)$presentation['OPTIONS'], true) ?: [];
+            $allowed = [];
+            foreach ($options as $option) {
+                if ((int)$option['Value'] === $value) {
+                    return $value;
+                }
+                $allowed[] = $option['Value'] . ' = ' . $option['Caption'];
+            }
+            trigger_error(
+                sprintf($this->Translate('Value %s for "%s" is not allowed (allowed: %s). Do not repeat with this value.'), $shown, $ident, implode(', ', $allowed)),
+                E_USER_WARNING
+            );
+            return null;
+        }
+
+        if (isset($presentation['MIN'], $presentation['MAX']) && ($value < $presentation['MIN'] || $value > $presentation['MAX'])) {
+            trigger_error(
+                sprintf(
+                    $this->Translate('Value %s for "%s" is out of range (allowed: %s to %s). Do not repeat with this value.'),
+                    $shown,
+                    $ident,
+                    $presentation['MIN'],
+                    $presentation['MAX']
+                ),
+                E_USER_WARNING
+            );
+            return null;
+        }
+        return $value;
+    }
+
+    private function ExecuteAction(string $Ident, mixed $Value): void
     {
         $this->_debug(__FUNCTION__, sprintf('Ident: %s, Value: %s', $Ident, $Value));
         switch ($Ident) {
@@ -2408,7 +2550,14 @@ class Roborock extends IPSModuleStrict
 
                 break;
             default:
-                $this->_debug('request action', sprintf('Invalid Ident <%s>, Value: %s', $Ident, $Value));
+                trigger_error(
+                    sprintf(
+                        $this->Translate('"%s" is not an action of this instance. Switchable status variables: %s.'),
+                        $Ident,
+                        implode(', ', array_merge(self::ACTION_IDENTS_DEVICE, self::ACTION_IDENTS_VARIABLE))
+                    ),
+                    E_USER_WARNING
+                );
         }
     }
 
