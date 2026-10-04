@@ -762,6 +762,12 @@ class RoborockIO extends IPSModuleStrict
         return trim($ret);
     }
 
+    /** Token des laufenden Auftrags: im Debug auch außerhalb von JSON maskieren (DebugMaskTrait) */
+    protected function DebugSecrets(): array
+    {
+        return isset($this->token) ? [$this->token] : [];
+    }
+
     /**
      * send debug log.
      *
@@ -769,12 +775,6 @@ class RoborockIO extends IPSModuleStrict
      * @param string $message
      * @param int    $format 0 = Text, 1 = Hex
      */
-    /** Token des laufenden Auftrags: im Debug auch außerhalb von JSON maskieren (DebugMaskTrait) */
-    protected function DebugSecrets(): array
-    {
-        return isset($this->token) ? [$this->token] : [];
-    }
-
     private function _debug(string $notification = '', string $message = '', int $format = 0): void
     {
         $this->SendDebug($notification, $message, $format);

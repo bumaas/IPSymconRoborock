@@ -81,6 +81,17 @@ final class RoborockHarness extends Roborock
         $this->WriteAttributeString('token', $token);
     }
 
+    /** gespeichertes Attribut lesen bzw. setzen — für Stände, die eine ältere Modulversion hinterlassen hat */
+    public function attribut(string $name): string
+    {
+        return $this->ReadAttributeString($name);
+    }
+
+    public function attributSetzen(string $name, string $wert): void
+    {
+        $this->WriteAttributeString($name, $wert);
+    }
+
     public function timerIntervall(string $name): int
     {
         return $this->GetTimerInterval($name);

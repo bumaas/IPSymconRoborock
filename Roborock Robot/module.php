@@ -348,8 +348,11 @@ class Roborock extends IPSModuleStrict
     private array $deviceRequests = [];
 
     // Statusvariablen mit Aktion; die ersten senden einen Befehl an den Sauger
-    private const ACTION_IDENTS_DEVICE   = ['command', 'volume', 'fan_power', 'water_quantity', 'map_status', 'start_cleaning', 'dnd_mode', 'dnd_starttime', 'dnd_endtime'];
-    private const ACTION_IDENTS_VARIABLE = ['roomselection', 'cleaning_cycles'];
+    private const ACTION_IDENTS_DEVICE   = [
+        self::IDENT_COMMAND, self::IDENT_VOLUME, self::IDENT_FAN_POWER, self::IDENT_WATER_QUANTITY, self::IDENT_MAP_STATUS,
+        self::IDENT_START_CLEANING, 'dnd_mode', 'dnd_starttime', 'dnd_endtime'
+    ];
+    private const ACTION_IDENTS_VARIABLE = [self::IDENT_ROOMSELECTION, self::IDENT_CLEANING_CYCLES];
 
     private roborock_vacuum $device;
 
@@ -711,6 +714,11 @@ class Roborock extends IPSModuleStrict
             $position = $this->_getPosition();
             $this->RegisterVariableString('cleaning_records', $this->Translate('Cleaning Records'), VariablePresentations::webContent(), $position);
             $this->RegisterVariableString(self::IDENT_CLEANING_RECORDS_TEXT, $this->Translate('Cleaning Records (Text)'), '', $position);
+            // aus den gespeicherten Reinigungen füllen — sonst bliebe der mit 2.4 neue Klartext bis zur nächsten Reinigung leer
+            $records = $this->SafeJsonDecode($this->ReadAttributeString(self::ATTRIBUTE_CLEANING_RECORDS), __FUNCTION__ . ' cleaning_records');
+            if (is_array($records) && $records !== []) {
+                $this->WriteCleaningRecordVariables($records);
+            }
         } else {
             $this->UnregisterVariable('clean_time');
             $this->UnregisterVariable('total_clean_time');
@@ -849,7 +857,7 @@ class Roborock extends IPSModuleStrict
             // ohne IP ist die Instanz noch nicht eingerichtet (frisch angelegt) — dann keine Warnung
             $this->SetStatusAndLog(
                 self::STATUS_INST_IP_ADDRESS_IS_INVALID,
-                $ip === '' ? '' : sprintf($this->Translate("The IP address '%s' is not valid. Please enter the IP address of the vacuum cleaner in the configuration."), $ip)
+                $ip === '' ? '' : $this->InvalidIpText($ip)
             );
             $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
             return false;
@@ -869,10 +877,7 @@ class Roborock extends IPSModuleStrict
         if (!$this->ValidateToken()) {
             $this->SetStatusAndLog(
                 self::STATUS_INST_TOKEN_IS_INVALID,
-                sprintf(
-                    $this->Translate('The device token is invalid (32 characters expected, %d found). Please set a valid token with Roborock_SetDeviceToken.'),
-                    strlen($this->ReadAttributeString(self::ATTRIBUTE_TOKEN))
-                )
+                $this->InvalidTokenText(strlen($this->ReadAttributeString(self::ATTRIBUTE_TOKEN)))
             );
             $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
             return false;
@@ -922,6 +927,20 @@ class Roborock extends IPSModuleStrict
         return true;
     }
 
+    /** Störungstexte, die Statusprüfung und Selbsttest gleich formulieren */
+    private function InvalidIpText(string $ip): string
+    {
+        return sprintf($this->Translate("The IP address '%s' is not valid. Please enter the IP address of the vacuum cleaner in the configuration."), $ip);
+    }
+
+    private function InvalidTokenText(int $length): string
+    {
+        return sprintf(
+            $this->Translate('The device token is invalid (32 characters expected, %d found). Please set a valid token with Roborock_SetDeviceToken.'),
+            $length
+        );
+    }
+
     /**
      * Status setzen; beim Wechsel in einen Fehlerstatus die Ursache samt nächstem Schritt als Warnung
      * ins Log, bei der Rückkehr auf „aktiv" eine Meldung. Bleibt der Status gleich, kein Eintrag —
@@ -936,13 +955,23 @@ class Roborock extends IPSModuleStrict
                 $this->LogMessage($message, KL_WARNING);
             }
         } elseif ($status === IS_ACTIVE && $previous >= IS_EBASE) {
-            $this->LogMessage($this->Translate('The vacuum cleaner responds again, the instance is active.'), KL_MESSAGE);
+            // „antwortet wieder" nur nach 206 — nach einem Konfigurationsfehler war er nie unerreichbar
+            $this->LogMessage(
+                $previous === self::STATUS_INST_NO_ROBOROCK_FOUND
+                    ? $this->Translate('The vacuum cleaner responds again, the instance is active.')
+                    : $this->Translate('The configuration is complete and the vacuum cleaner responds, the instance is active.'),
+                KL_MESSAGE
+            );
         }
         $this->SetBuffer(self::BUFFER_LAST_STATUS_MESSAGE, $message);
         $this->SetStatus($status);
     }
 
-    /** wirksames Aktualisierungsintervall in Sekunden (0 = deaktiviert, sonst mindestens MIN_VALUE_UPDATE_INTERVAL) */
+    /**
+     * wirksames Aktualisierungsintervall in Sekunden (0 = deaktiviert, sonst mindestens MIN_VALUE_UPDATE_INTERVAL).
+     * Zu kurze Werte stauen bei langsamer (Cloud-)Verbindung die Warteschlange, da ein kompletter
+     * Update-Zyklus deutlich länger dauern kann als das Intervall.
+     */
     private function UpdateIntervalSeconds(): int
     {
         $interval = $this->ReadPropertyInteger(self::PROPERTY_UPDATE_INTERVAL);
@@ -959,16 +988,12 @@ class Roborock extends IPSModuleStrict
         // und holt die Instanz zurück. Ohne Timer bliebe sie nach einem einzigen Aussetzer beim
         // ApplyChanges (Kernel-Neustart, Modul-Update) dauerhaft auf 206.
         if (in_array($this->GetStatus(), [IS_ACTIVE, self::STATUS_INST_NO_ROBOROCK_FOUND], true)) {
-            $interval = $this->ReadPropertyInteger(self::PROPERTY_UPDATE_INTERVAL);
-            // Mindest-Intervall erzwingen (0 = deaktiviert bleibt erlaubt). Zu kurze Werte
-            // stauen bei langsamer (Cloud-)Verbindung die Warteschlange, da ein kompletter
-            // Update-Zyklus deutlich länger dauern kann als das Intervall.
-            if ($interval > 0 && $interval < self::MIN_VALUE_UPDATE_INTERVAL) {
+            $interval = $this->UpdateIntervalSeconds();
+            if ($interval !== $this->ReadPropertyInteger(self::PROPERTY_UPDATE_INTERVAL)) {
                 $this->_debug(
                     __FUNCTION__,
-                    sprintf('Update-Intervall %ds zu kurz - auf %ds angehoben.', $interval, self::MIN_VALUE_UPDATE_INTERVAL)
+                    sprintf('Update-Intervall %ds zu kurz - auf %ds angehoben.', $this->ReadPropertyInteger(self::PROPERTY_UPDATE_INTERVAL), $interval)
                 );
-                $interval = self::MIN_VALUE_UPDATE_INTERVAL;
             }
             $interval *= 1000;
         } else {
@@ -1317,14 +1342,19 @@ class Roborock extends IPSModuleStrict
      *
      * @return bool
      */
+    /** Token in der verschlüsselten Form (96 Zeichen) entschlüsseln; '' bei Fehler */
+    private static function DecryptToken(string $token): string
+    {
+        return (string)openssl_decrypt((string)hex2bin($token), 'aes-128-ecb', str_repeat("\0", 16), OPENSSL_RAW_DATA);
+    }
+
     private function ValidateToken(): bool
     {
         $token = $this->ReadAttributeString(self::ATTRIBUTE_TOKEN);
 
         // convert token on 96 byte length
         if (strlen($token) === 96) {
-            $secret = str_repeat("\0", 16);
-            $token  = openssl_decrypt(hex2bin($token), 'aes-128-ecb', $secret, OPENSSL_RAW_DATA);
+            $token = self::DecryptToken($token);
 
             // save attribute
             $this->WriteAttributeString(self::ATTRIBUTE_TOKEN, $token);
@@ -1757,13 +1787,16 @@ class Roborock extends IPSModuleStrict
 
         $ipValid = $ip !== '' && filter_var(gethostbyname($ip), FILTER_VALIDATE_IP);
         if (!$ipValid) {
-            $bad(sprintf($this->Translate("The IP address '%s' is not valid. Please enter the IP address of the vacuum cleaner in the configuration."), $ip));
+            $bad($this->InvalidIpText($ip));
         }
 
         $user        = $this->ReadPropertyString(self::PROPERTY_XIAOMI_USER);
         $hasAccount  = $user !== '' && $this->ReadPropertyString(self::PROPERTY_XIAOMI_PASSWORD) !== '';
-        $tokenLength = strlen($this->ReadAttributeString(self::ATTRIBUTE_TOKEN));
-        $tokenValid  = in_array($tokenLength, [32, 96], true); // 96 = verschlüsselt, wird beim nächsten Übernehmen umgewandelt
+        $token       = $this->ReadAttributeString(self::ATTRIBUTE_TOKEN);
+        $tokenLength = strlen($token);
+        // 96 = verschlüsselt, wird beim nächsten Übernehmen umgewandelt; geprüft wird mit der entschlüsselten Form
+        $probeToken  = $tokenLength === 96 ? self::DecryptToken($token) : $token;
+        $tokenValid  = strlen($probeToken) === 32;
         if ($tokenLength === 0) {
             if ($hasAccount) {
                 $hint($this->Translate('There is no device token yet; it is fetched from the Xiaomi cloud when the configuration is applied.'));
@@ -1771,9 +1804,12 @@ class Roborock extends IPSModuleStrict
                 $bad($this->Translate('There is no device token and no Xiaomi account data. Please enter the Xiaomi account data in the configuration (the token is fetched from the Xiaomi cloud) or set the token with Roborock_SetDeviceToken.'));
             }
         } elseif (!$tokenValid) {
-            $bad(sprintf($this->Translate('The device token is invalid (32 characters expected, %d found). Please set a valid token with Roborock_SetDeviceToken.'), $tokenLength));
+            $bad($this->InvalidTokenText($tokenLength));
         } else {
             $good($this->Translate('A device token is set.'));
+            if ($tokenLength === 96) {
+                $hint($this->Translate('The device token is stored encrypted; it is converted when the configuration is applied.'));
+            }
         }
 
         if ($hasAccount) {
@@ -1787,10 +1823,10 @@ class Roborock extends IPSModuleStrict
             $bad($this->Translate('The Roborock IO (parent instance) is not active. Please check the I/O instance.'));
         }
 
-        if ($ipValid && $tokenValid && $tokenLength === 32 && $parentActive) {
+        if ($ipValid && $tokenValid && $parentActive) {
             $this->rawResponse = true;
             try {
-                $info = $this->RequestData('miIO.info', ['immediate' => true]);
+                $info = $this->RequestData('miIO.info', ['immediate' => true, 'token' => $probeToken]);
             } finally {
                 $this->rawResponse = false;
             }
@@ -2397,15 +2433,6 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * webfront request actions.
-     *
-     * @param string $Ident
-     * @param mixed  $Value
-     *
-     * @return void
-     * @throws \JsonException
-     */
-    /**
      * Prüft Ident und Wert, sendet Gerätebefehle sofort und meldet jeden Fehlschlag per trigger_error —
      * das Einzige, was beim Aufrufer (Skript, Visualisierung, KI über MCP) ankommt (MCP-Regel 8).
      */
@@ -2743,7 +2770,10 @@ class Roborock extends IPSModuleStrict
         foreach ($mapsList as $mapFlag => $map) {
             $options[] = [
                 'Value'   => (int)$mapFlag,
-                'Caption' => (string)($map['MapName'] ?? ($this->Translate('Map') . ((int)$mapFlag + 1)))
+                // auch beim Lesen reinigen: Namen, die eine ältere Version gespeichert hat, sind ungeprüft
+                'Caption' => isset($map['MapName'])
+                    ? self::CleanForeignText((string)$map['MapName'], self::MAX_LENGTH_FOREIGN_NAME)
+                    : $this->Translate('Map') . ((int)$mapFlag + 1)
             ];
         }
 
@@ -2965,11 +2995,6 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * return form configurations on the configuration step.
-     *
-     * @return array
-     */
-    /**
      * Unsichtbare Hinweise für Skripte und KI-Assistenten (MCP-Regel 6): je Aufgabe die passenden
      * Skriptfunktionen mit Wirkung, Parametern und Rückgabe. In der Konsole erscheinen sie nicht
      * (Vorgabe Burkhard); eine KI liest sie über IPS_GetConfigurationForm. Inhalte an der Anlage
@@ -3017,6 +3042,11 @@ class Roborock extends IPSModuleStrict
         ];
     }
 
+    /**
+     * return form configurations on the configuration step.
+     *
+     * @return array
+     */
     private function FormElements(): array
     {
         $model = $this->ReadAttributeString(self::ATTRIBUTE_MODEL);
@@ -5220,73 +5250,78 @@ EOF;
                 }
 
                 $this->WriteAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, json_encode($cleaning_records, JSON_THROW_ON_ERROR));
-
-                // build HTML
-                $body_data  = [];
-                $text_lines = [];
-                foreach ($cleaning_records as $clean_record) {
-                    $start_time        = $clean_record['starttime'];
-                    $start_hour        = date('H', $start_time);
-                    $clean_day         = date('l', $start_time);
-                    $clean_date        = date('d.m.', $start_time);
-                    $start_minutes     = date('i', $start_time);
-                    $end_time          = $clean_record['endtime'];
-                    $end_hour          = date('H', $end_time);
-                    $end_minutes       = date('i', $end_time);
-                    $cleaning_duration = $this->_convertSecondsToTime($clean_record['cleaningduration']);
-                    $area              = number_format($clean_record['area'], 1, ',', '.');
-                    $errors            = $clean_record['errors'];
-                    $completed         = $clean_record['completed'];
-
-                    $body_data[] = [
-                        $this->Translate($clean_day),
-                        $clean_date . ' ' . $start_hour . ':' . $start_minutes . ' - ' . $end_hour . ':' . $end_minutes,
-                        $cleaning_duration,
-                        $area . ' m<sup>2</sup>',
-                        ($errors ? '<span class="unicode red">✖</span>' : '-'),
-                        ($completed ? '<span class="unicode green">✔</span>' : '<span class="unicode red">✖</span>')
-                    ];
-                    $text_lines[] = sprintf(
-                        '%s %s %s:%s - %s:%s, %s, %s m², %s%s',
-                        $this->Translate($clean_day),
-                        $clean_date,
-                        $start_hour,
-                        $start_minutes,
-                        $end_hour,
-                        $end_minutes,
-                        $cleaning_duration,
-                        $area,
-                        $completed ? $this->Translate('completed') : $this->Translate('not completed'),
-                        $errors ? ', ' . $this->Translate('with error') : ''
-                    );
-                }
-
-                // build HTML table
-                $head = [
-                    $this->Translate('Day'),
-                    $this->Translate('Date'),
-                    $this->Translate('Cleaning Duration'),
-                    $this->Translate('Area'),
-                    $this->Translate('Errors'),
-                    $this->Translate('Completed'),
-                ];
-
-                $html = $this->_convertDataToTable([
-                    'table' => [
-                        'head' => $head,
-                        'body' => $body_data
-                    ]
-                ]);
-
-                // save HTML table
-                $this->_SetValue('cleaning_records', $html);
-                $this->_SetValue(self::IDENT_CLEANING_RECORDS_TEXT, implode("\n", $text_lines));
+                $this->WriteCleaningRecordVariables($cleaning_records);
             }
 
             return $data;
         }
 
         return [];
+    }
+
+    /** Tabelle (HTML) und Klartext der letzten Reinigungen schreiben */
+    private function WriteCleaningRecordVariables(array $cleaning_records): void
+    {
+        // build HTML
+        $body_data  = [];
+        $text_lines = [];
+        foreach ($cleaning_records as $clean_record) {
+            $start_time        = $clean_record['starttime'];
+            $start_hour        = date('H', $start_time);
+            $clean_day         = date('l', $start_time);
+            $clean_date        = date('d.m.', $start_time);
+            $start_minutes     = date('i', $start_time);
+            $end_time          = $clean_record['endtime'];
+            $end_hour          = date('H', $end_time);
+            $end_minutes       = date('i', $end_time);
+            $cleaning_duration = $this->_convertSecondsToTime($clean_record['cleaningduration']);
+            $area              = number_format($clean_record['area'], 1, ',', '.');
+            $errors            = $clean_record['errors'];
+            $completed         = $clean_record['completed'];
+
+            $body_data[] = [
+                $this->Translate($clean_day),
+                $clean_date . ' ' . $start_hour . ':' . $start_minutes . ' - ' . $end_hour . ':' . $end_minutes,
+                $cleaning_duration,
+                $area . ' m<sup>2</sup>',
+                ($errors ? '<span class="unicode red">✖</span>' : '-'),
+                ($completed ? '<span class="unicode green">✔</span>' : '<span class="unicode red">✖</span>')
+            ];
+            $text_lines[] = sprintf(
+                '%s %s %s:%s - %s:%s, %s, %s m², %s%s',
+                $this->Translate($clean_day),
+                $clean_date,
+                $start_hour,
+                $start_minutes,
+                $end_hour,
+                $end_minutes,
+                $cleaning_duration,
+                $area,
+                $completed ? $this->Translate('completed') : $this->Translate('not completed'),
+                $errors ? ', ' . $this->Translate('with error') : ''
+            );
+        }
+
+        // build HTML table
+        $head = [
+            $this->Translate('Day'),
+            $this->Translate('Date'),
+            $this->Translate('Cleaning Duration'),
+            $this->Translate('Area'),
+            $this->Translate('Errors'),
+            $this->Translate('Completed'),
+        ];
+
+        $html = $this->_convertDataToTable([
+            'table' => [
+                'head' => $head,
+                'body' => $body_data
+            ]
+        ]);
+
+        // save HTML table
+        $this->_SetValue('cleaning_records', $html);
+        $this->_SetValue(self::IDENT_CLEANING_RECORDS_TEXT, implode("\n", $text_lines));
     }
 
     /**

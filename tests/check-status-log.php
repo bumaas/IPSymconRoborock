@@ -69,4 +69,24 @@ $m = neueInstanz(token: '');
 $w = $warnungen(logSeit($m, 0));
 pruefe(count($w) === 1 && str_contains($w[0], 'Xiaomi'), 'fehlende Zugangsdaten: eine Warnung, die das Xiaomi-Konto nennt: ' . json_encode($w, JSON_UNESCAPED_UNICODE));
 
+echo "\nKonfigurationsfehler behoben: keine Meldung „antwortet wieder“\n";
+// Code-Review build 103: Die Rückkehr aus 201/203/205 meldete „Der Sauger antwortet wieder“, obwohl er
+// nie unerreichbar war — das passt nur nach 206.
+$miioInfo = file_get_contents(__DIR__ . '/fixtures/miio_info_a10.json');
+$m = neueInstanz(ip: 'keine.ip.invalid', ioAntworten: ['miIO.info' => $miioInfo]);
+$ab = logAnzahl($m);
+IPS_SetProperty($m->id(), 'ip', '192.168.178.144');
+IPS_ApplyChanges($m->id());
+$neu = $meldungen(logSeit($m, $ab));
+pruefe(status($m) === 102, 'IP korrigiert: Status 102, ist ' . status($m));
+pruefe(count($neu) === 1, 'IP korrigiert: genau eine Meldung, sind ' . count($neu) . ': ' . json_encode($neu, JSON_UNESCAPED_UNICODE));
+pruefe(!str_contains(implode(' ', $neu), 'responds again'), 'IP korrigiert: nicht „antwortet wieder“: ' . json_encode($neu, JSON_UNESCAPED_UNICODE));
+
+$m = neueInstanz(token: 'zu-kurz', ioAntworten: ['miIO.info' => $miioInfo]);
+$ab = logAnzahl($m);
+$m->SetDeviceToken('0123456789abcdef0123456789abcdef');
+$neu = $meldungen(logSeit($m, $ab));
+pruefe(status($m) === 102, 'Token gesetzt: Status 102, ist ' . status($m));
+pruefe(!str_contains(implode(' ', $neu), 'responds again'), 'Token gesetzt: nicht „antwortet wieder“: ' . json_encode($neu, JSON_UNESCAPED_UNICODE));
+
 ergebnis();

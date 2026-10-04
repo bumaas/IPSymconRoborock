@@ -98,3 +98,8 @@ brauchen deshalb keine eigene Maskierung; neue Geheimnisse gehören in die Schl�
   trägt** (`{"error":{"error":{"code":…}}}`); andere `error`-Antworten verpackt die IO selbst
   (`_validateResponse`, z. B. falsche Message-ID) — dann ist offen, ob der Befehl ausgeführt wurde.
   Test: `tests/check-action-failure.php`.
+- **Gespeicherten Stand älterer Versionen mitdenken** (Code-Review 2.4): Eine neue, abgeleitete
+  Variable wird in `ApplyChanges` aus dem vorhandenen Attribut gefüllt (sonst bleibt sie nach dem
+  Update leer, z. B. `cleaning_records_text`), und Fremdtext wird **beim Lesen** gereinigt, nicht nur
+  beim Empfang (`GetMapStatusOptions`). Tests stellen den alten Stand mit `attributSetzen()` des
+  Harness nach.

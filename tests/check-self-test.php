@@ -106,4 +106,21 @@ pruefe(zustand($m) === $vorher, 'nichts verändert');
 pruefe(preg_match('/^✘ .*Roborock_SetDeviceToken/m', $text) === 1, 'Störung Token mit nächstem Schritt gemeldet');
 pruefe($m->anfragen === [], 'ohne gültiges Token keine Anfrage an den Sauger: ' . json_encode($m->anfragen));
 
+echo "\nToken noch verschlüsselt (96 Zeichen)\n";
+// Code-Review build 103: Das verschlüsselte Token galt als gesetzt, die Erreichbarkeit wurde aber
+// stillschweigend nicht geprüft — „Ergebnis: OK“, ohne den Sauger je gefragt zu haben.
+// Verschlüsselt wie in ValidateToken() erwartet (AES-128-ECB, Schlüssel aus 16 Nullbytes).
+$verschluesselt = bin2hex(openssl_encrypt('0123456789abcdef0123456789abcdef', 'aes-128-ecb', str_repeat("\0", 16), OPENSSL_RAW_DATA));
+pruefe(strlen($verschluesselt) === 96, 'Testtoken hat 96 Zeichen');
+$m = neueInstanz(ioAntworten: ['miIO.info' => $miioInfo]);
+$m->tokenSetzen($verschluesselt);
+$m->anfragen = [];
+$vorher = zustand($m);
+$text   = $m->RunSelfTest();
+echo preg_replace('/^/m', '        | ', $text), "\n";
+pruefe(zustand($m) === $vorher, 'nichts verändert');
+pruefe($m->attribut('token') === $verschluesselt, 'gespeichertes Token unverändert (umgewandelt wird erst beim Übernehmen)');
+pruefe($m->anfragen === ['miIO.info'], 'Erreichbarkeit wird geprüft: ' . json_encode($m->anfragen));
+pruefe(str_contains($text, 'roborock.vacuum.a10'), 'nennt das Modell aus der Antwort des Saugers');
+
 ergebnis();

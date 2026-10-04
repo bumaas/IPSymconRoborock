@@ -56,6 +56,15 @@ pruefe(count(explode("\n", (string)$text)) === 3, 'eine Zeile je Reinigung (3)')
 pruefe(str_contains((string)$text, '10,1 m²') && str_contains((string)$text, '24,8 m²'), 'Flächen wie in der Tabelle (10,1 m², 24,8 m²)');
 pruefe(substr_count((string)$text, 'not completed') === 1, 'eine Reinigung nicht abgeschlossen (die vom 21.09.)');
 
+echo "\nnach dem Update auf 2.4: Klartext aus den gespeicherten Aufzeichnungen\n";
+// Code-Review build 103: Die Klartext-Variable kam mit 2.4 neu hinzu und wurde nur bei einer neuen
+// Reinigung gefüllt — bis dahin leer, obwohl das Attribut die letzten Reinigungen schon hielt.
+// Nachgestellt: Variable leeren (Stand direkt nach dem Update), dann Übernehmen.
+SetValue(IPS_GetObjectIDByIdent('cleaning_records_text', $m->id()), '');
+IPS_ApplyChanges($m->id());
+$nachUpdate = (string)wert($m, 'cleaning_records_text');
+pruefe($nachUpdate === $text, 'Klartext nach dem Übernehmen wieder da (3 Reinigungen): ' . json_encode($nachUpdate, JSON_UNESCAPED_UNICODE));
+
 echo "\nAltlast „Aktuelle Koordinaten“\n";
 $alt = IPS_CreateVariable(VARIABLETYPE_STRING);
 IPS_SetParent($alt, $m->id());

@@ -45,4 +45,14 @@ pruefe(mb_strlen($name) <= 40, 'höchstens 40 Zeichen, sind ' . mb_strlen($name)
 pruefe(str_starts_with($name, 'Keller'), 'Anfang des Namens bleibt erkennbar');
 pruefe((kartenOptionen($m)[0] ?? '') === 'Erdgeschoss', 'übrige Karten unverändert');
 
+echo "\nNamen aus einer älteren Modulversion (gespeichert, ungereinigt)\n";
+// Code-Review build 103: gereinigt wurde nur beim Empfang der Kartenliste; was 2.3 schon gespeichert
+// hatte, ging ungeprüft in die Optionen. Nachgestellt: der gespeicherte Name wird ersetzt, dann Übernehmen.
+$gespeichert = json_decode($m->attribut('maps_list'), true);
+$gespeichert[1]['MapName'] = $fremd;
+$m->attributSetzen('maps_list', json_encode($gespeichert));
+IPS_ApplyChanges($m->id());
+$name = kartenOptionen($m)[1] ?? '';
+pruefe(!preg_match('/\p{Cc}/u', $name) && mb_strlen($name) <= 40, 'gespeicherter Name gereinigt und gekürzt: ' . json_encode($name, JSON_UNESCAPED_UNICODE));
+
 ergebnis();
