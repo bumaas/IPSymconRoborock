@@ -146,3 +146,21 @@ function logAnzahl(RoborockHarness $m): int
 {
     return count(IPS\LogServer::getLogMessages((string)$m->id()));
 }
+
+/** Roborock IO für Tests: nur getTime() für den Stub; anlegen mit neueIO() */
+function neueIO(): RoborockIO
+{
+    require_once dirname(__DIR__) . '/Roborock IO/module.php';
+    if (!class_exists('RoborockIOHarness', false)) {
+        // RegisterHook: im Stub (bf2950f) als bool deklariert, gibt aber nichts zurück → TypeError
+        eval('final class RoborockIOHarness extends RoborockIO { protected function getTime(): int { return 1_790_000_000; } protected function RegisterHook(string $HookPath): bool { return true; } public function id(): int { return $this->InstanceID; } }');
+    }
+    $id = IPS\ObjectManager::registerObject(1 /* Instance */);
+    IPS\InstanceManager::createInstance($id, [
+        'ModuleID'   => '{4743ED9C-720B-D5EA-9B0C-0585803284F3}', // Roborock IO/module.json
+        'ModuleName' => 'RoborockIO',
+        'ModuleType' => 1,
+        'Class'      => 'RoborockIOHarness',
+    ]);
+    return IPS\InstanceManager::getInstanceInterface($id);
+}

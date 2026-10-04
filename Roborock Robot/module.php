@@ -6,6 +6,7 @@ require_once __DIR__ . '/roborock_vacuum.php';
 require_once __DIR__ . '/RRMapFileParser.php';
 require_once __DIR__ . '/RRMapDraw.php';
 require_once __DIR__ . '/../libs/VariablePresentations.php';
+require_once __DIR__ . '/../libs/DebugMaskTrait.php';
 
 use libs\VariablePresentations;
 
@@ -158,6 +159,8 @@ enum ErrorCode: int
  */
 class Roborock extends IPSModuleStrict
 {
+    use DebugMaskTrait;
+
     private const STATUS_INST_REGISTRATION_INCOMPLETE = 201;
     private const STATUS_INST_IP_ADDRESS_IS_INVALID   = 203;
     private const STATUS_INST_TOKEN_IS_INVALID        = 205;
@@ -1665,6 +1668,16 @@ class Roborock extends IPSModuleStrict
             $reported[] = $type;
         }
         $this->SetBuffer(self::BUFFER_REPORTED_MAP_BLOCK_TYPES, json_encode($reported, JSON_THROW_ON_ERROR));
+    }
+
+    /** Geräte-Token: im Debug auch außerhalb von JSON maskieren (DebugMaskTrait) */
+    protected function DebugSecrets(): array
+    {
+        try {
+            return [$this->ReadAttributeString(self::ATTRIBUTE_TOKEN)];
+        } catch (Throwable) {
+            return []; // vor Create() gibt es das Attribut noch nicht
+        }
     }
 
     /**
@@ -4097,7 +4110,7 @@ EOF;
             );
             if ($device['localip'] === $host) {
                 $this->WriteAttributeString(self::ATTRIBUTE_TOKEN, $device['token']);
-                $this->SendDebug(__FUNCTION__, sprintf('Token \'%s\' found', $device['token']), 0);
+                $this->SendDebug(__FUNCTION__, sprintf('Token \'%s\' found', self::MaskValue($device['token'])), 0);
                 return true;
             }
         }

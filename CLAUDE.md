@@ -75,6 +75,15 @@ Der Stub ist strenger als der Kernel: Lesen einer noch nicht registrierten Prope
 Attributs wirft eine Exception (das `@` fängt sie nicht), `$_IPS` gibt es im CLI-PHP nicht.
 Solche Stellen im Modul robust machen, nicht im Test umgehen.
 
+## Debug: Zugangsdaten werden maskiert
+
+Robot und IO binden `libs/DebugMaskTrait.php` ein: Er überschreibt `SendDebug()` und ersetzt in jeder
+Textausgabe (Format 0) die Werte unter `token`, `ssecurity`, `serviceToken`, `passToken`, `_sign`,
+`password` sowie die Geheimnisse aus `DebugSecrets()` (Geräte-Token) durch `***` plus die letzten vier
+Zeichen. Grund: Das Debug liest jede KI mit Lesezugriff über den MCP-Server. Neue Debug-Ausgaben
+brauchen deshalb keine eigene Maskierung; neue Geheimnisse gehören in die Schlüsselliste bzw. in
+`DebugSecrets()`. Die Karten-URL bleibt bewusst unmaskiert (signiert, verfällt, zum Testen nützlich).
+
 ## Besonderheiten
 
 - Die DND-Zeiten (`dnd_starttime`/`dnd_endtime`) sind Unix-Timestamps mit

@@ -34,4 +34,4 @@ jobs:
         run: php tests/check-map-rendering.php
 
       - name: Modultests
-        run: for t in tests/check-readme.php tests/check-validation-retry.php tests/check-map-blocktypes.php tests/check-status-log.php tests/check-request-action.php tests/check-self-test.php; do echo "== $t"; php "$t" || exit 1; done
+        run: for t in tests/check-readme.php tests/check-validation-retry.php tests/check-map-blocktypes.php tests/check-status-log.php tests/check-request-action.php tests/check-self-test.php tests/check-debug-secrets.php; do echo "== $t"; php "$t" || exit 1; done

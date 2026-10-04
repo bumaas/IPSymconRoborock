@@ -5,6 +5,7 @@ declare(strict_types=1);
 use JetBrains\PhpStorm\NoReturn;
 
 include __DIR__ . '/../libs/picture.php';
+require_once __DIR__ . '/../libs/DebugMaskTrait.php';
 
 /**
  * Class RoborockIO
@@ -12,6 +13,8 @@ include __DIR__ . '/../libs/picture.php';
  */
 class RoborockIO extends IPSModuleStrict
 {
+    use DebugMaskTrait;
+
     // constants
     private const HELLO_MSG        = '21310020ffffffffffffffffffffffffffffffffffffffffffffffffffffffff';
     private const PORT_UDP         = 54321;
@@ -766,6 +769,12 @@ class RoborockIO extends IPSModuleStrict
      * @param string $message
      * @param int    $format 0 = Text, 1 = Hex
      */
+    /** Token des laufenden Auftrags: im Debug auch außerhalb von JSON maskieren (DebugMaskTrait) */
+    protected function DebugSecrets(): array
+    {
+        return isset($this->token) ? [$this->token] : [];
+    }
+
     private function _debug(string $notification = '', string $message = '', int $format = 0): void
     {
         $this->SendDebug($notification, $message, $format);
