@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          submodules: true # .style (Regelwerk), ggf. weitere
+          submodules: true # .style (Regelwerk) und tests/stubs (Kernel-Stub), beide gepinnt
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
@@ -20,11 +20,11 @@ jobs:
 
       - name: PHP-Syntax
         run: |
-          find . -name '*.php' -not -path './.git/*' -print0 |
+          find . -name '*.php' -not -path './.git/*' -not -path './tests/stubs/*' -print0 |
             xargs -0 -n1 php -l
       - name: JSON-Validität
         run: |
-          find . -name '*.json' -not -path './.git/*' -print0 |
+          find . -name '*.json' -not -path './.git/*' -not -path './tests/stubs/*' -print0 |
             xargs -0 -n1 php -r 'json_decode(file_get_contents($argv[1]), false, 512, JSON_THROW_ON_ERROR); echo $argv[1], " ok\n";' --
       - name: Übersetzungen
         run: php tests/check_locale.php

@@ -334,7 +334,13 @@ class Roborock extends IPSModuleStrict
     {
         parent::__construct($InstanceID);
 
-        if (($model = @$this->ReadAttributeString(self::ATTRIBUTE_MODEL)) && ($modelClassName = str_replace('.', '_', $model))
+        // Bei einer neu angelegten Instanz läuft der Konstruktor vor Create(): Das Attribut gibt es dann noch nicht.
+        try {
+            $model = @$this->ReadAttributeString(self::ATTRIBUTE_MODEL);
+        } catch (Throwable) {
+            $model = '';
+        }
+        if ($model && ($modelClassName = str_replace('.', '_', $model))
             && class_exists(
                 $modelClassName
             )) {
@@ -1069,8 +1075,10 @@ class Roborock extends IPSModuleStrict
         //wenn ein Aufruf direkt erfolgt und nicht aus der Instanz heraus, dann soll er sofort ausgeführt werden /** @noinspection PhpUndefinedVariableInspection */
         //$this->SendDebug('IPS', json_encode($_IPS, JSON_THROW_ON_ERROR), 0); /** @noinspection PhpUndefinedVariableInspection */
         /** @global array $_IPS */
-        if (($_IPS['SELF'] > 0 && $_IPS['SELF'] !== $this->InstanceID)
-            || in_array($_IPS['SENDER'], ['Execute', 'Variable', 'RunScript', 'PHPModule'])) {
+        $self   = $_IPS['SELF'] ?? 0;   // $_IPS gibt es nur in Symcon, nicht im CLI-PHP der Tests
+        $sender = $_IPS['SENDER'] ?? '';
+        if (($self > 0 && $self !== $this->InstanceID)
+            || in_array($sender, ['Execute', 'Variable', 'RunScript', 'PHPModule'])) {
             $payload['immediate'] = true;
         }
 
@@ -2534,8 +2542,13 @@ class Roborock extends IPSModuleStrict
         }
         unset ($notification);
 
-        // merge with current settings
-        if ($current_notifications = @$this->ReadPropertyString('notifications')) {
+        // merge with current settings (in Create() ist die Property noch nicht registriert)
+        try {
+            $current_notifications = @$this->ReadPropertyString('notifications');
+        } catch (Throwable) {
+            $current_notifications = '';
+        }
+        if ($current_notifications) {
             $current_notifications = $this->SafeJsonDecode($current_notifications, __FUNCTION__ . ' notifications') ?? [];
             foreach ($current_notifications as $current) {
                 // loop and replace settings
@@ -3438,7 +3451,7 @@ class Roborock extends IPSModuleStrict
      */
     private function _debug(?string $notification = null, ?string $message = null): void
     {
-        $this->SendDebug($notification, $message, 0);
+        $this->SendDebug($notification ?? '', $message ?? '', 0);
     }
 
     /**

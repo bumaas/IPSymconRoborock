@@ -63,6 +63,18 @@ Casts an den GD-Aufruf, nicht an die Berechnung — `drawObstacles` rechnet mit
 der Zeichencode absichtlich, die Karte ansehen und die Sollwerte mit `MAP_HASH_ERMITTELN=1`
 neu ermitteln. Lokal braucht der Lauf GD: `php -d extension=gd tests/check-map-rendering.php`.
 
+## Modultests gegen den Kernel-Stub
+
+`tests/harness.php` bindet das Modul an den offiziellen Kernel-Stub (`symcon/SymconStubs`,
+Submodul `tests/stubs`, gepinnt; nach dem Klonen `git submodule update --init`). Der Harness
+ersetzt nur die Roborock IO: `SendDataToParent()` liefert `$ioAntwort` — `"false"` ist das, was
+die echte IO bei ausbleibender Antwort zurückgibt. Neue Tests als `tests/check-*.php` mit
+`require_once __DIR__ . '/harness.php'` und in die CI (Schritt „Modultests“) eintragen.
+
+Der Stub ist strenger als der Kernel: Lesen einer noch nicht registrierten Property/eines
+Attributs wirft eine Exception (das `@` fängt sie nicht), `$_IPS` gibt es im CLI-PHP nicht.
+Solche Stellen im Modul robust machen, nicht im Test umgehen.
+
 ## Besonderheiten
 
 - Die DND-Zeiten (`dnd_starttime`/`dnd_endtime`) sind Unix-Timestamps mit
