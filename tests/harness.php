@@ -38,6 +38,8 @@ final class RoborockHarness extends Roborock
 
     /** Antwort der nachgebildeten IO auf jede Anfrage; "false" = Roboter antwortet nicht */
     public string $ioAntwort = 'false';
+    /** @var array<string, string> Antwort je Methode (z. B. 'miIO.info'), sonst gilt $ioAntwort */
+    public array $ioAntworten = [];
     /** @var list<string> Methoden aller an die IO gesendeten Anfragen */
     public array $anfragen = [];
 
@@ -48,8 +50,13 @@ final class RoborockHarness extends Roborock
 
     protected function SendDataToParent(string $Data): string
     {
-        $this->anfragen[] = json_decode($Data, true, 512, JSON_THROW_ON_ERROR)['Buffer']['method'];
-        return $this->ioAntwort;
+        $buffer           = json_decode($Data, true, 512, JSON_THROW_ON_ERROR)['Buffer'];
+        $methode          = $buffer['method'];
+        $this->anfragen[] = $methode;
+        if (!$buffer['immediate']) {
+            return ''; // wie die echte IO: Auftrag in die Warteschlange, Antwort kommt später über ReceiveData
+        }
+        return $this->ioAntworten[$methode] ?? $this->ioAntwort;
     }
 
     /** feste Uhrzeit für den Stub (Timer) */
@@ -115,4 +122,15 @@ function ergebnis(): never
 function status(RoborockHarness $m): int
 {
     return IPS_GetInstance($m->id())['InstanceStatus'];
+}
+
+/** @return list<array{Message: string, Type: int}> Logeinträge der Instanz seit $ab */
+function logSeit(RoborockHarness $m, int $ab): array
+{
+    return array_slice(IPS\LogServer::getLogMessages((string)$m->id()), $ab);
+}
+
+function logAnzahl(RoborockHarness $m): int
+{
+    return count(IPS\LogServer::getLogMessages((string)$m->id()));
 }

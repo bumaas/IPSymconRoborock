@@ -77,7 +77,9 @@ Hinweis: Wenn Xiaomi eine Zwei-Faktor-Authentifizierung verlangt, erscheint ein 
 
 Im Expertenbereich kann das Aktualisierungsintervall (Standard ist 60 s, Minimum 10 s) modifiziert werden. Es sollte nicht zu niedrig gesetzt werden, da die Kommunikation mit dem Gerät recht langsam ist; bei Anbindung über die Cloud dauert ein kompletter Aktualisierungszyklus schnell mehrere Sekunden pro Abruf, daher wird dort ein Intervall von mindestens 60 s empfohlen. Zudem kann ein abweichender Server angegeben werden, von dem das Token bezogen werden soll. Für China kann 'cn' angegeben werden, oder er kann leer gelassen werden. Standard ist 'de'.
 
-Antwortet der Sauger beim Speichern oder nach einem Neustart von Symcon nicht (z. B. weil sein WLAN gerade schläft), zeigt die Instanz den Status _No Roborock found_ (206). Das Modul versucht es dann bei jeder Aktualisierung erneut und wechselt von selbst auf „aktiv“, sobald der Sauger wieder antwortet.
+Antwortet der Sauger beim Speichern oder nach einem Neustart von Symcon nicht (z. B. weil sein WLAN gerade schläft), zeigt die Instanz den Status _Der Sauger antwortet nicht_ (206). Das Modul versucht es dann bei jeder Aktualisierung erneut und wechselt von selbst auf „aktiv“, sobald der Sauger wieder antwortet.
+
+Jeder Wechsel in einen Fehlerstatus steht einmal als Warnung im Meldungsfenster, mit der Ursache und dem nächsten Schritt (etwa die falsche IP-Adresse oder fehlende Xiaomi-Kontodaten); die Rückkehr auf „aktiv“ wird als Meldung vermerkt.
 
 Im Aktionsbereich des Formulars können die Statusvariablen getestet werden ("Testbereich"). 
 

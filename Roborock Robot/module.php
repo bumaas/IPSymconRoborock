@@ -187,7 +187,8 @@ class Roborock extends IPSModuleStrict
     private const BUFFER_VERIFICATION_FLAG = 'flag';
     private const BUFFER_IDENTITY_SESSION  = 'identity_session';
     private const BUFFER_LAST_MAP_RAW      = 'last_map_raw'; // zuletzt geladene Karte (gz, base64) für den Download
-    private const BUFFER_REPORTED_MAP_BLOCK_TYPES = 'reported_map_block_types'; // bereits gemeldete unbekannte Blocktypen (JSON-Liste)
+    private const BUFFER_LAST_STATUS_MESSAGE = 'last_status_message'; // zuletzt geloggte Ursache eines Fehlerstatus
+    private const BUFFER_REPORTED_MAP_BLOCK_TYPES ='reported_map_block_types'; // bereits gemeldete unbekannte Blocktypen (JSON-Liste)
 
     // Instanz-Buffer werden beim Speichern auf 512 KB gekürzt; größere Karten nicht ablegen
     private const MAX_MAP_RAW_BUFFER_LENGTH = 400 * 1024;
@@ -797,21 +798,34 @@ class Roborock extends IPSModuleStrict
         // check ip address
         $ip = $this->ReadPropertyString(self::PROPERTY_IP);
         if (!$ip || !filter_var(gethostbyname($ip), FILTER_VALIDATE_IP)) {
-            $this->SetStatus(self::STATUS_INST_IP_ADDRESS_IS_INVALID);
+            // ohne IP ist die Instanz noch nicht eingerichtet (frisch angelegt) — dann keine Warnung
+            $this->SetStatusAndLog(
+                self::STATUS_INST_IP_ADDRESS_IS_INVALID,
+                $ip === '' ? '' : sprintf($this->Translate("The IP address '%s' is not valid. Please enter the IP address of the vacuum cleaner in the configuration."), $ip)
+            );
             $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
             return false;
         }
 
         // check if configuration is complete
         if (!$this->CheckUserAndPassword()) {
-            $this->SetStatus(self::STATUS_INST_REGISTRATION_INCOMPLETE);
+            $this->SetStatusAndLog(
+                self::STATUS_INST_REGISTRATION_INCOMPLETE,
+                $this->Translate('There is no device token and it could not be fetched: Xiaomi user or password are missing, or the login to the Xiaomi cloud failed. Please check the Xiaomi account data in the configuration.')
+            );
             $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
             return false;
         }
 
         // check token
         if (!$this->ValidateToken()) {
-            $this->SetStatus(self::STATUS_INST_TOKEN_IS_INVALID);
+            $this->SetStatusAndLog(
+                self::STATUS_INST_TOKEN_IS_INVALID,
+                sprintf(
+                    $this->Translate('The device token is invalid (32 characters expected, %d found). Please set a valid token with Roborock_SetDeviceToken.'),
+                    strlen($this->ReadAttributeString(self::ATTRIBUTE_TOKEN))
+                )
+            );
             $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
             return false;
         }
@@ -822,7 +836,20 @@ class Roborock extends IPSModuleStrict
         ]);
 
         if (!$info) {
-            $this->SetStatus(self::STATUS_INST_NO_ROBOROCK_FOUND);
+            $interval = $this->UpdateIntervalSeconds();
+            $this->SetStatusAndLog(
+                self::STATUS_INST_NO_ROBOROCK_FOUND,
+                $interval > 0
+                    ? sprintf(
+                        $this->Translate('The vacuum cleaner at %s does not respond. The module tries again at every update (every %d s) and reports when it responds again; if it stays unreachable, check its IP address and WiFi.'),
+                        $ip,
+                        $interval
+                    )
+                    : sprintf(
+                        $this->Translate('The vacuum cleaner at %s does not respond. Automatic updates are disabled, so it is not checked again; apply the configuration to retry.'),
+                        $ip
+                    )
+            );
             $this->SendDebug(__FUNCTION__, (string)$this->GetStatus(), 0);
             return false;
         }
@@ -830,7 +857,7 @@ class Roborock extends IPSModuleStrict
         $this->_debug('info', json_encode($info, JSON_THROW_ON_ERROR));
 
         // yay, the configuration is valid!
-        $this->SetStatus(IS_ACTIVE);
+        $this->SetStatusAndLog(IS_ACTIVE);
 
         if (get_class($this->device) === 'roborock_vacuum') {
             $this->_debug(
@@ -845,6 +872,33 @@ class Roborock extends IPSModuleStrict
         }
 
         return true;
+    }
+
+    /**
+     * Status setzen; beim Wechsel in einen Fehlerstatus die Ursache samt nächstem Schritt als Warnung
+     * ins Log, bei der Rückkehr auf „aktiv" eine Meldung. Bleibt der Status gleich, kein Eintrag —
+     * 206 wird bei jeder Aktualisierung neu geprüft.
+     */
+    private function SetStatusAndLog(int $status, string $message = ''): void
+    {
+        $previous = $this->GetStatus();
+        if ($message !== '') {
+            // neue Ursache (anderer Status oder andere Meldung, z. B. eine andere falsche IP) → Warnung
+            if ($status !== $previous || $message !== $this->GetBuffer(self::BUFFER_LAST_STATUS_MESSAGE)) {
+                $this->LogMessage($message, KL_WARNING);
+            }
+        } elseif ($status === IS_ACTIVE && $previous >= IS_EBASE) {
+            $this->LogMessage($this->Translate('The vacuum cleaner responds again, the instance is active.'), KL_MESSAGE);
+        }
+        $this->SetBuffer(self::BUFFER_LAST_STATUS_MESSAGE, $message);
+        $this->SetStatus($status);
+    }
+
+    /** wirksames Aktualisierungsintervall in Sekunden (0 = deaktiviert, sonst mindestens MIN_VALUE_UPDATE_INTERVAL) */
+    private function UpdateIntervalSeconds(): int
+    {
+        $interval = $this->ReadPropertyInteger(self::PROPERTY_UPDATE_INTERVAL);
+        return ($interval > 0) ? max($interval, self::MIN_VALUE_UPDATE_INTERVAL) : 0;
     }
 
     /**
@@ -3375,12 +3429,12 @@ class Roborock extends IPSModuleStrict
             [
                 'code'    => self::STATUS_INST_TOKEN_IS_INVALID,
                 'icon'    => 'error',
-                'caption' => 'Token is not valid.'
+                'caption' => 'Token is not valid. Set a valid token with Roborock_SetDeviceToken.'
             ],
             [
                 'code'    => self::STATUS_INST_NO_ROBOROCK_FOUND,
                 'icon'    => 'inactive',
-                'caption' => 'No roborock was found on that ip and token.'
+                'caption' => 'The vacuum cleaner does not respond. It is checked again at every update.'
             ]
         ];
     }

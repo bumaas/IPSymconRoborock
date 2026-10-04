@@ -1,0 +1,26 @@
+{
+    "partner_id": "",
+    "id": 7548,
+    "code": 0,
+    "message": "ok",
+    "result": {
+        "hw_ver": "Linux",
+        "fw_ver": "3.5.8_6246",
+        "ap": {
+            "ssid": "WLAN",
+            "bssid": "00:00:00:00:00:00",
+            "rssi": -48
+        },
+        "netif": {
+            "localIp": "192.168.178.144",
+            "mask": "255.255.255.0",
+            "gw": "192.168.178.1"
+        },
+        "miio_ver": "miio-client 3.5.8",
+        "model": "roborock.vacuum.a10",
+        "mac": "00:00:00:00:00:00",
+        "token": "00000000000000000000000000000000",
+        "life": 27213
+    },
+    "request_id": "40962-77"
+}
