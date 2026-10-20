@@ -92,6 +92,12 @@ final class RoborockHarness extends Roborock
         $this->WriteAttributeString($name, $wert);
     }
 
+    /** Statusvariable setzen wie das Modul selbst; ein globales SetValue lehnt der Kernel für IPSModuleStrict ab */
+    public function variableSetzen(string $ident, mixed $wert): void
+    {
+        $this->SetValue($ident, $wert);
+    }
+
     public function timerIntervall(string $name): int
     {
         return $this->GetTimerInterval($name);
@@ -164,7 +170,7 @@ function neueIO(): RoborockIO
     require_once dirname(__DIR__) . '/Roborock IO/module.php';
     if (!class_exists('RoborockIOHarness', false)) {
         // RegisterHook: im Stub (bf2950f) als bool deklariert, gibt aber nichts zurück → TypeError
-        eval('final class RoborockIOHarness extends RoborockIO { protected function getTime(): int { return 1_790_000_000; } protected function RegisterHook(string $HookPath): bool { return true; } public function id(): int { return $this->InstanceID; } }');
+        eval('final class RoborockIOHarness extends RoborockIO { protected function getTime(): int { return 1_790_000_000; } public function id(): int { return $this->InstanceID; } }');
     }
     $id = IPS\ObjectManager::registerObject(1 /* Instance */);
     IPS\InstanceManager::createInstance($id, [

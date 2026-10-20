@@ -54,9 +54,8 @@ if (!$hat) {
 echo "\nSauger antwortet\n";
 // Variablen sollen sich vom Selbsttest unterscheiden lassen: Werte, die miIO.info überschreiben würde
 foreach (['fw_ver', 'ssid', 'local_ip'] as $ident) {
-    $vid = @IPS_GetObjectIDByIdent($ident, $m->id());
-    if ($vid) {
-        SetValue($vid, 'vorher');
+    if (@IPS_GetObjectIDByIdent($ident, $m->id())) {
+        $m->variableSetzen($ident, 'vorher');
     }
 }
 $vorher = zustand($m);

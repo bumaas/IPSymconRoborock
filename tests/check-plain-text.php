@@ -60,7 +60,7 @@ echo "\nnach dem Update auf 2.4: Klartext aus den gespeicherten Aufzeichnungen\n
 // Code-Review build 103: Die Klartext-Variable kam mit 2.4 neu hinzu und wurde nur bei einer neuen
 // Reinigung gefüllt — bis dahin leer, obwohl das Attribut die letzten Reinigungen schon hielt.
 // Nachgestellt: Variable leeren (Stand direkt nach dem Update), dann Übernehmen.
-SetValue(IPS_GetObjectIDByIdent('cleaning_records_text', $m->id()), '');
+$m->variableSetzen('cleaning_records_text', '');
 IPS_ApplyChanges($m->id());
 $nachUpdate = (string)wert($m, 'cleaning_records_text');
 pruefe($nachUpdate === $text, 'Klartext nach dem Übernehmen wieder da (3 Reinigungen): ' . json_encode($nachUpdate, JSON_UNESCAPED_UNICODE));
