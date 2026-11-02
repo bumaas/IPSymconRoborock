@@ -6,7 +6,8 @@ Symcon-Modulbibliothek zur Steuerung von Roborock-/Xiaomi-Saugrobotern
 ## Struktur
 
 - `Roborock IO/module.php` — I/O-Instanz: UDP-Kommunikation (miIO-Protokoll, Port 54321),
-  Cloud-Login (Xiaomi-Konto inkl. 2FA-Verifizierung), Warteschlange, Webhook
+  Cloud-Login (Xiaomi-Konto inkl. 2FA-Verifizierung), Warteschlange, Webhook (nur Fernsteuerung aus
+  `libs/joystick.html`; der Karten-Upload gerooteter Sauger ist entfernt, `tests/check-webhook.php`)
 - `Roborock Robot/module.php` — Geräteinstanz: Variablen, Timer, Karte, Formular
   (das Konfigurationsformular wird **im Code** aufgebaut — `FormElements()`/`FormActions()`,
   keine form.json)

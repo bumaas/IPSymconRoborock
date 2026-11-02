@@ -781,7 +781,7 @@ class RoborockIO extends IPSModuleStrict
     }
 
     /**
-     * Process Webhook Data (Joystick.html or symcon.mapupload.sh
+     * Process Webhook Data (libs/joystick.html, cmd=remote)
      */
     protected function ProcessHookData(): void
     {
@@ -837,108 +837,8 @@ class RoborockIO extends IPSModuleStrict
                 );
             }
         } else {
-            // upload map
-            if (!isset($_FILES['image']['tmp_name']) || $_FILES['image']['name'] !== 'latest.png' || !file_exists($_FILES['image']['tmp_name'])) {
-                die('Image missing!');
-            }
-            if (!isset($_FILES['coordinates']['tmp_name']) || !file_exists($_FILES['coordinates']['tmp_name'])) {
-                die('Coordinates missing!');
-            }
-
-            // validate uploaded image
-            if ($im = @imagecreatefrompng($_FILES['image']['tmp_name'])) {
-                // define transparent color
-                $transparent = imagecolorallocatealpha($im, 0, 0, 0, 127);
-
-                // get image size
-                $s        = getimagesize($_FILES['image']['tmp_name']);
-                $center_x = ($s[0] / 2);
-                $center_y = ($s[1] / 2);
-
-                // rotate image by -90°
-                $im = imagerotate($im, -90, $transparent, true);
-
-                // convert coordinates from file to points
-                $x     = 0;
-                $y     = 0;
-                $img_x = 0;
-                $img_y = 0;
-                foreach (file($_FILES['coordinates']['tmp_name']) as $line) {
-                    if (str_contains($line, 'estimate')) {
-                        $d = explode('estimate', $line);
-                        $d = trim($d[1]);
-
-                        [$y, $x] = explode(' ', $d, 3);
-
-                        // calculate pixel from the center of the image, with offset
-                        $img_x = $center_x + ($x * 20);
-                        $img_y = $center_y + ($y * 20);
-
-                        // draw pixel to image
-                        imagesetpixel($im, $img_x, $img_y, imagecolorallocate($im, 125, 125, 125));
-                    }
-                }
-
-                // draw current position
-                imagefilledellipse($im, $img_x, $img_y - 3, 8, 8, imagecolorallocate($im, 220, 0, 0));
-
-                // rotate image back by 90°
-                $im = imagerotate($im, 90, $transparent, true);
-
-                // save transparency
-                imagesavealpha($im, true);
-
-                // save image
-                imagepng($im, $_FILES['image']['tmp_name']);
-                imagedestroy($im);
-
-                // reopen image
-                $im = @imagecreatefrompng($_FILES['image']['tmp_name']);
-
-                // crop background
-                if ($cropped = imagecropauto($im)) {
-                    imagepng($cropped, $_FILES['image']['tmp_name']);
-                    imagedestroy($cropped);
-                }
-
-                imagedestroy($im);
-
-                // create media image, if not exists
-                $media_file = 'Map.' . $instance_id . '.png';
-
-                if (!$media_id = @IPS_GetMediaIDByFile($media_file)) {
-                    $media_id = IPS_CreateMedia(1);
-                    IPS_SetName($media_id, $this->Translate('Map'));
-                }
-
-                // move to instance
-                IPS_SetParent($media_id, (int)$instance_id);
-
-                // update media content
-                IPS_SetMediaFile($media_id, $media_file, false);
-                IPS_SetMediaContent($media_id, base64_encode(file_get_contents($_FILES['image']['tmp_name'])));
-
-                // send coordinates to children
-                if ($x && $y) {
-                    $this->SendDataToChildren(
-                        json_encode([
-                            'DataID'     => '{36FF43CE-F065-DD20-F1A8-A7C99C25D7A2}',
-                            'InstanceID' => (int)$instance_id,
-                            'Buffer'     => [
-                                'token'  => false,
-                                'method' => 'coordinates',
-                                'x'      => $x,
-                                'y'      => $y
-                            ]
-                        ],
-                            JSON_THROW_ON_ERROR)
-                    );
-                }
-            }
-
-            // unlink temp files
-            unlink($_FILES['image']['tmp_name']);
-            unlink($_FILES['coordinates']['tmp_name']);
+            // der Karten-Upload gerooteter Sauger (symcon.mapupload.sh) ist seit 2.6 build 113 entfernt
+            echo 'Unknown command';
         }
     }
 

@@ -12,7 +12,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: gd # tests/check-map-rendering.php zeichnet eine Karte
+          extensions: gd # tests/check-map-rendering.php und check-webhook.php zeichnen eine Karte
       - name: Code-Stil (gemeinsames Regelwerk, Submodul .style)
         run: |
           wget -q https://cs.symfony.com/download/php-cs-fixer-v3.phar
@@ -38,4 +38,4 @@ jobs:
           language: de
 
       - name: Modultests
-        run: for t in tests/check-readme.php tests/check-validation-retry.php tests/check-map-blocktypes.php tests/check-status-log.php tests/check-request-action.php tests/check-action-failure.php tests/check-self-test.php tests/check-debug-secrets.php tests/check-return-values.php tests/check-removed-functions.php tests/check-form-hints.php tests/check-plain-text.php tests/check-foreign-names.php tests/check-local-files.php; do echo "== $t"; php "$t" || exit 1; done
+        run: for t in tests/check-readme.php tests/check-validation-retry.php tests/check-map-blocktypes.php tests/check-status-log.php tests/check-request-action.php tests/check-action-failure.php tests/check-self-test.php tests/check-debug-secrets.php tests/check-return-values.php tests/check-removed-functions.php tests/check-form-hints.php tests/check-plain-text.php tests/check-foreign-names.php tests/check-local-files.php tests/check-webhook.php; do echo "== $t"; php "$t" || exit 1; done

@@ -50,7 +50,7 @@ With the module it is possible to control a [Roborock](https://www.roborock.com/
     - Model name
     - MAC
     - Time zone
-    - Card (optionally only available for rooted devices)
+    - Map (from the Xiaomi cloud, needs the Xiaomi account)
 	  
 ## 2. Requirements
 
@@ -247,33 +247,6 @@ Next to the HTML tables "Consumables" and "Cleaning Records" the module creates 
 If the status variable _Map Picture_ is selected, the form offers buttons to get and show the map. _Download Map (Picture)_ and _Download Map (Raw Data)_ save the most recently fetched map as PNG or as raw file (`.gz`, exactly as delivered by the Xiaomi cloud). The raw file helps with troubleshooting, e.g. when a new model or firmware delivers map elements the module does not know yet — please attach both files to the bug report.
 
 Carpet zones, as a Qrevo for example keeps them in its map, are drawn in brown. Map elements unknown to the module are reported once per instance as a warning in the message log, afterwards only in the debug output.
-
-### d. Setup of the map upload (ONLY for rooted devices!)
-At the moment you can not read the map view from the outside.
-For **rooted** devices you can use the following workaround. Here, however, only the created map is currently synchronized, without the already sucked surfaces or the position of the vaccum cleaner, it is still being worked on.
-
-1. Log in to the robot via SSH
-2. Run the following command in the console:
-
- ```code 
- curl https://raw.githubusercontent.com/Wolbolar/IPSymconRoborock/master/libs/symcon.mapupload.sh > symcon.mapupload.sh && bash symcon.mapupload.sh
- ```
- 
-Now you have to enter two parameters: The instance id of your Robockrock module and the url to the webhook, which was already created during module installation.
-Afterwards, all required programs will be installed (around 25 MB) and the script configures a cronjob, which checks for new map files frequently and upload them via webhook to Symcon, stored as media file.
-
-Note, that any map data will only created, when your robot is running!
-
-| Parameter | Explanation
-| :-------: | :-----------------------------------------: |
-| ID | Instance ID from the robot in Symcon |
-| Webhook URL | URL of the Webhook, etc. http://10.0.0.1:3777/hook/Roborock <br /> The Webhook _Roborock_ will be created automatically. |
-
-Webfront:
-
-![Map](img/map.png?raw=true "Map")
-
-The red dot represents the current position of the vacuum cleaner.
 
 ### Webfront Screen
 
