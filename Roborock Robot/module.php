@@ -179,6 +179,7 @@ class Roborock extends IPSModuleStrict
     private const ATTRIBUTE_CLEANING_RECORDS        = 'cleaning_records';
     private const ATTRIBUTE_PENDING_CLEAN_SUMMARY   = 'pending_clean_summary';
     private const ATTRIBUTE_MODEL                   = 'model';
+    private const ATTRIBUTE_OBSOLETE_REPORTED       = 'obsolete_reported'; // Idents veralteter Variablen, die schon im Log stehen
     private const ATTRIBUTE_MAPFILE_URL             = 'mapfile_url';
     private const ATTRIBUTE_MAPS_LIST               = 'maps_list'; //hier sind alle Werte der Maps_List abgelegt
     private const ATTRIBUTE_ROOM_NAMES              = 'room_names'; //hier sind alle Texte unter der Referenznummer abgelegt [[referenz => Raumname], ...]
@@ -353,6 +354,10 @@ class Roborock extends IPSModuleStrict
     ];
     private const ACTION_IDENTS_VARIABLE = [self::IDENT_ROOMSELECTION, self::IDENT_CLEANING_CYCLES];
 
+    // Variablen früherer Versionen, die das Modul nicht mehr versorgt. „Aktuelle Koordinaten“ füllte nur
+    // der alte Karten-Upload für gerootete Geräte.
+    private const OBSOLETE_VARIABLES = ['coordinates'];
+
     private roborock_vacuum $device;
 
     public function __construct($InstanceID)
@@ -433,6 +438,7 @@ class Roborock extends IPSModuleStrict
         $this->RegisterAttributeString(self::ATTRIBUTE_CLEANING_RECORDS, '[]');
         $this->RegisterAttributeBoolean(self::ATTRIBUTE_PENDING_CLEAN_SUMMARY, false);
         $this->RegisterAttributeString(self::ATTRIBUTE_MODEL, '');
+        $this->RegisterAttributeString(self::ATTRIBUTE_OBSOLETE_REPORTED, '[]');
         $this->RegisterAttributeString(self::ATTRIBUTE_MAPFILE_URL, '');
         $this->RegisterAttributeString(self::ATTRIBUTE_MAPS_LIST, json_encode([], JSON_THROW_ON_ERROR));
         $this->RegisterAttributeString(self::ATTRIBUTE_ROOM_NAMES, json_encode([], JSON_THROW_ON_ERROR));
@@ -509,20 +515,61 @@ class Roborock extends IPSModuleStrict
     }
 
     /**
-     * Variable, die das Modul nicht mehr versorgt, als veraltet kennzeichnen (MCP-Regel 14) — sie
-     * bleibt erhalten, löschen muss der Anwender. Eine KI erkennt sonst nicht, dass der Wert tot ist.
+     * Vorhandene Variablen, die das Modul nicht mehr versorgt.
+     *
+     * @return array<string, int> Ident => Objekt-ID
      */
-    private function MarkObsoleteVariable(string $ident): void
+    private function ObsoleteVariables(): array
     {
-        $id = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
-        if (!$id) {
-            return;
+        $found = [];
+        foreach (self::OBSOLETE_VARIABLES as $ident) {
+            $id = @IPS_GetObjectIDByIdent($ident, $this->InstanceID);
+            if ($id) {
+                $found[$ident] = $id;
+            }
         }
-        $suffix = $this->Translate('(obsolete)');
-        $name   = IPS_GetName($id);
-        if (!str_ends_with($name, $suffix)) {
-            IPS_SetName($id, $name . ' ' . $suffix);
+        return $found;
+    }
+
+    /**
+     * Veraltete Variablen einmal im Log nennen (MCP-Regel 4). Den Namen ändert das Modul nicht, er gehört
+     * dem Anwender (Store-Review Punkt 11). Dauerhaft nennt sie das Formular, samt Knopf zum Löschen.
+     */
+    private function ReportObsoleteVariables(): void
+    {
+        $stored = $this->ReadAttributeString(self::ATTRIBUTE_OBSOLETE_REPORTED);
+        if (!is_string($stored)) {
+            return; // Reload-Fenster: Attribut noch nicht registriert
         }
+        $reported = json_decode($stored, true);
+        $reported = is_array($reported) ? $reported : [];
+
+        $obsolete = $this->ObsoleteVariables();
+        foreach ($obsolete as $ident => $id) {
+            if (!in_array($ident, $reported, true)) {
+                $this->LogMessage(
+                    sprintf(
+                        $this->Translate('The variable "%s" (ident %s) is no longer updated by the module. It can be deleted in the configuration form.'),
+                        IPS_GetName($id),
+                        $ident
+                    ),
+                    KL_MESSAGE
+                );
+            }
+        }
+        $current = array_keys($obsolete);
+        if ($current !== $reported) {
+            $this->WriteAttributeString(self::ATTRIBUTE_OBSOLETE_REPORTED, json_encode($current, JSON_THROW_ON_ERROR));
+        }
+    }
+
+    private function DeleteObsoleteVariables(): void
+    {
+        foreach (array_keys($this->ObsoleteVariables()) as $ident) {
+            $this->UnregisterVariable($ident);
+        }
+        $this->WriteAttributeString(self::ATTRIBUTE_OBSOLETE_REPORTED, '[]');
+        $this->ReloadForm();
     }
 
     private function UnregisterLegacyProfiles(): void
@@ -725,8 +772,8 @@ class Roborock extends IPSModuleStrict
             $this->UnregisterVariable(self::IDENT_CLEANING_RECORDS_TEXT);
         }
 
-        // Altlast: „Aktuelle Koordinaten“ füllte nur der alte Karten-Upload für gerootete Geräte
-        $this->MarkObsoleteVariable('coordinates');
+        // Altlasten früherer Versionen nennen; gelöscht wird nur per Knopf im Formular
+        $this->ReportObsoleteVariables();
 
         // total cleans
         if ($this->ReadPropertyBoolean('total_cleans')) {
@@ -2582,6 +2629,9 @@ class Roborock extends IPSModuleStrict
             case 'ReloadForm':
                 $this->ReloadForm();
                 break;
+            case 'DeleteObsoleteVariables':
+                $this->DeleteObsoleteVariables();
+                break;
             case 'SendPushNotificationTest':
                 $this->SendPushNotification('state', (int)StateCode::CLEANING); //CLEANING
                 break;
@@ -3460,7 +3510,23 @@ class Roborock extends IPSModuleStrict
      */
     protected function FormActions(): array
     {
+        $obsoleteNames = array_map(static fn(int $id): string => '"' . IPS_GetName($id) . '"', $this->ObsoleteVariables());
+
         return [
+            [
+                'type'    => 'Label',
+                'name'    => 'ObsoleteVariablesHint',
+                'caption' => $obsoleteNames === [] ? '' : sprintf($this->Translate('No longer updated by the module and can be deleted: %s'), implode(', ', $obsoleteNames)),
+                'visible' => $obsoleteNames !== []
+            ],
+            [
+                'type'    => 'Button',
+                'name'    => 'DeleteObsoleteVariables',
+                'caption' => 'Delete obsolete variables',
+                'confirm' => $this->Translate('The listed variables and their logged values will be deleted. Continue?'),
+                'onClick' => 'IPS_RequestAction($id, "DeleteObsoleteVariables", true);',
+                'visible' => $obsoleteNames !== []
+            ],
             [
                 'type'    => 'ExpansionPanel',
                 'caption' => 'TestCenter',
