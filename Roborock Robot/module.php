@@ -275,7 +275,6 @@ class Roborock extends IPSModuleStrict
     private const IDENT_WATER_BOX_CARRIAGE_STATUS = 'water_box_carriage_status'; //Anmerkung: Der Unterschied zwischen 'water_box_status' und 'water_box_carriage_status' ist unklar
     private const IDENT_MAP_STATUS                = 'map_status';
     private const IDENT_MAP_PICTURE               = 'map_picture';
-    private const IDENT_MAP_PICTURE_FILE          = 'map_picture_file';
     private const IDENT_MODEL                     = 'model';
     private const IDENT_REMOTE_CONTROL            = 'remote';
     private const IDENT_ROOMSELECTION             = 'roomselection';
@@ -1550,52 +1549,6 @@ class Roborock extends IPSModuleStrict
         ]);
     }
 
-    private function loadMapFileFromFile(string $filename): bool
-    {
-        if (file_exists($filename)) {
-            $result = file_get_contents($filename);
-        } else {
-            $this->_debug(__FUNCTION__, sprintf('File does not exist: %s', $filename));
-            return false;
-        }
-        if ($result) {
-            $data = gzdecode($result);
-        } else {
-            $this->_debug(__FUNCTION__, sprintf('gzdecode failed: %s', $filename));
-            return false;
-        }
-
-        ini_set('memory_limit', '48M');
-        $pic = new RRMapFileParser(
-            $data,
-            function (string $message, string $data): void {
-                $this->_debug($message, $data);
-            },
-            function (string $message, string $data): void {
-                $this->LogMessage($message . ': ' . $data, KL_WARNING);
-            }
-        );
-        $this->ReportUnknownMapBlockTypes($pic->getUnknownBlockTypes());
-        if (!$pic->isValid()) {
-            $this->_debug(__FUNCTION__, sprintf('pic is invalid: %s', $filename));
-            return false;
-        }
-
-        $draw    = new RRMapDraw($pic, function (string $message, string $data): void {
-            $this->LogMessage($message . ': ' . $data, KL_WARNING);
-        });
-        $picture = $draw->getImage($this->ReadPropertyInteger(self::PROPERTY_MAP_PICTURE_SCALE) / 100);
-
-        if ($picture === '') {
-            $this->_debug(__FUNCTION__, sprintf('picture is empty: %s', $filename));
-            return false;
-        }
-        $this->_debug(__FUNCTION__, 'fertig');
-        $this->CreateMapPictureVariable(self::IDENT_MAP_PICTURE_FILE, 'Karte aus Datei', sprintf('Map_File_%s.png', $this->InstanceID));
-
-        return IPS_SetMediaContent(IPS_GetObjectIDByIdent(self::IDENT_MAP_PICTURE_FILE, $this->InstanceID), base64_encode($picture));
-    }
-
     private function getMapdata(string $url): string
     {
         $ch = curl_init($url);
@@ -1688,8 +1641,6 @@ class Roborock extends IPSModuleStrict
         if (!$data) {
             return false;
         }
-
-        //$data = $this->loadMapFileFromFile(IPS_GetKernelDir() . 'logs\s7karte');
 
         ini_set('memory_limit', '48M');
         $pic = new RRMapFileParser(
@@ -2630,9 +2581,6 @@ class Roborock extends IPSModuleStrict
                 break;
             case 'ReloadForm':
                 $this->ReloadForm();
-                break;
-            case 'LoadMapFile':
-                $this->loadMapFileFromFile($Value);
                 break;
             case 'SendPushNotificationTest':
                 $this->SendPushNotification('state', (int)StateCode::CLEANING); //CLEANING

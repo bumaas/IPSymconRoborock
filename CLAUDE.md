@@ -103,6 +103,9 @@ sein; der Trait prüft deshalb `is_string()`. Test: `tests/check-return-values.p
   trägt** (`{"error":{"error":{"code":…}}}`); andere `error`-Antworten verpackt die IO selbst
   (`_validateResponse`, z. B. falsche Message-ID) — dann ist offen, ob der Befehl ausgeführt wurde.
   Test: `tests/check-action-failure.php`.
+- **Keine Aktion liest eine Datei, deren Pfad der Aufrufer bestimmt** (Store-Review Punkt 1). Bis
+  build 110 las der Ident `LoadMapFile` jeden übergebenen Pfad als Karte ein, ein Entwicklungsrest.
+  Lokale Dateien liest das Modul nur aus dem eigenen Modulordner. Test: `tests/check-local-files.php`.
 - **Gespeicherten Stand älterer Versionen mitdenken** (Code-Review 2.4): Eine neue, abgeleitete
   Variable wird in `ApplyChanges` aus dem vorhandenen Attribut gefüllt (sonst bleibt sie nach dem
   Update leer, z. B. `cleaning_records_text`), und Fremdtext wird **beim Lesen** gereinigt, nicht nur
