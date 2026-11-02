@@ -12,7 +12,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: gd # tests/check-map-rendering.php und check-webhook.php zeichnen eine Karte
+          extensions: gd # tests/check-map-rendering.php zeichnet eine Karte
       - name: Code-Stil (gemeinsames Regelwerk, Submodul .style)
         run: |
           wget -q https://cs.symfony.com/download/php-cs-fixer-v3.phar

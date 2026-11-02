@@ -83,7 +83,7 @@ Jeder Wechsel in einen Fehlerstatus steht einmal als Warnung im Meldungsfenster,
 
 Wird eine Statusvariable geschaltet (Visualisierung, Skript mit `RequestAction`), geht der Befehl sofort an den Sauger, und das Schalten wartet auf seine Antwort (meist wenige Sekunden). Ein ungültiger Wert wird mit den erlaubten Werten abgelehnt, ohne dass etwas an den Sauger geht; antwortet der Sauger nicht oder lehnt er den Befehl ab, kommt eine Fehlermeldung zurück.
 
-Neben den HTML-Tabellen „Wartung“ und „Reinigungsaufzeichnungen“ legt das Modul je eine Klartext-Variable an („Wartung (Text)“, „Reinigungsaufzeichnungen (Text)“), die Skripte, Sprachassistenten und KI-Assistenten besser lesen können. Die Variable „Aktuelle Koordinaten“ früherer Versionen versorgt das Modul nicht mehr. Ist sie noch da, nennt das Konfigurationsformular sie, und der Knopf „Veraltete Variablen löschen“ entfernt sie nach einer Rückfrage. Kartennamen aus der App werden auf 40 Zeichen gekürzt.
+Neben den HTML-Tabellen „Wartung“ und „Reinigungsaufzeichnungen“ legt das Modul je eine Klartext-Variable an („Wartung (Text)“, „Reinigungsaufzeichnungen (Text)“), die Skripte, Sprachassistenten und KI-Assistenten besser lesen können. Die Variablen „Aktuelle Koordinaten“ und „Fernbedienung“ (Joystick) früherer Versionen versorgt das Modul nicht mehr. Ist eine davon noch da, nennt das Konfigurationsformular sie, und der Knopf „Veraltete Variablen löschen“ entfernt sie nach einer Rückfrage. Ferngesteuert wird der Sauger per Skript mit `Roborock_Move_Direction`. Kartennamen aus der App werden auf 40 Zeichen gekürzt.
 
 Im Aktionsbereich des Formulars können die Statusvariablen getestet werden ("Testbereich"). 
 

@@ -94,8 +94,11 @@ class RoborockIO extends IPSModuleStrict
             return;
         }
 
-        // register webhook via native IPSModuleStrict handling
-        $this->RegisterHook('Roborock');
+        // den WebHook /hook/Roborock gibt es seit 2.6 build 114 nicht mehr; Hooks sind flüchtig, eine
+        // Registrierung älterer Versionen hielte aber bis zum nächsten Neustart (UnregisterHook ab 8.2)
+        if (method_exists($this, 'UnregisterHook')) {
+            $this->UnregisterHook('Roborock');
+        }
 
         $this->SetTimerInterval('RoborockQueue', 200);
 
@@ -350,65 +353,6 @@ class RoborockIO extends IPSModuleStrict
         }
 
         return false;
-    }
-
-    /**
-     * Send commands and forward response to children.
-     *
-     * @param int          $instance_id
-     * @param array|string $data
-     * @param bool         $doTimeout
-     *
-     * @return void
-     * @throws \JsonException
-     */
-    private function SendData(int $instance_id, array|string $data, bool $doTimeout = true): void
-    {
-        // get instance settings
-        $token = IPS_GetProperty($instance_id, 'token');
-        $ip    = IPS_GetProperty($instance_id, 'ip');
-
-        // check $data
-        if (!is_array($data)) {
-            $data = [
-                'method' => $data
-            ];
-        }
-
-        // build payload
-        $payload = [
-            'token'     => $token,
-            'ip'        => $ip,
-            'method'    => $data['method'],
-            'params'    => $data['params'] ?? [],
-            'immediate' => true
-        ];
-
-        $payload = (object)$payload;
-
-        // send command to robot
-        $buffer = $this->Send($payload);
-
-        // append data
-        if (is_array($buffer)) {
-            $buffer['method'] = $payload->method;
-            $buffer['token']  = $payload->token;
-        }
-
-        // send buffer to children
-        $this->SendDataToChildren(
-            json_encode([
-                'DataID'     => '{36FF43CE-F065-DD20-F1A8-A7C99C25D7A2}',
-                'InstanceID' => $instance_id,
-                'Buffer'     => $buffer
-            ],
-                JSON_THROW_ON_ERROR)
-        );
-
-        // sleep on specific commands
-        if ($doTimeout && (in_array($payload->method, ['app_rc_start', 'app_rc_move']))) {
-            IPS_Sleep(500);
-        }
     }
 
     /**
@@ -779,67 +723,4 @@ class RoborockIO extends IPSModuleStrict
     {
         $this->SendDebug($notification, $message, $format);
     }
-
-    /**
-     * Process Webhook Data (libs/joystick.html, cmd=remote)
-     */
-    protected function ProcessHookData(): void
-    {
-        // set defaults
-        $cmd         = $_GET['cmd'] ?? '';
-        $instance_id = $_GET['id'] ?? '';
-
-        // check instance id
-        if (empty($instance_id)) {
-            die('Instance ID Missing ($_GET[\'id\'])');
-        }
-
-        if (!@IPS_GetObject((int)$instance_id)) {
-            die('Instance ID ' . $instance_id . ' does not exist!');
-        }
-
-        // handle commands
-        if ($cmd === 'remote') {
-            $rotation = (float)($_GET['rotation'] ?? 0);
-            $speed    = (float)($_GET['speed'] ?? 0.1);
-            $start    = isset($_GET['start']);
-            $end      = isset($_GET['end']);
-
-            if ($start) {
-                $this->SendData(
-                    (int)$instance_id,
-                    'app_rc_start'
-                );
-            } elseif ($end) {
-                $this->SendData(
-                    (int)$instance_id,
-                    'app_rc_end'
-                );
-            } elseif ($rotation) {
-                $this->SendData(
-                    (int)$instance_id,
-                    'app_rc_start',
-                    false
-                );
-
-                $this->SendData(
-                    (int)$instance_id, [
-                        'method' => 'app_rc_move',
-                        'params' => [
-                            [
-                                'omega'    => $rotation,
-                                'velocity' => $speed,
-                                'seqnum'   => 1,
-                                'duration' => 1000
-                            ]
-                        ]
-                    ]
-                );
-            }
-        } else {
-            // der Karten-Upload gerooteter Sauger (symcon.mapupload.sh) ist seit 2.6 build 113 entfernt
-            echo 'Unknown command';
-        }
-    }
-
 }

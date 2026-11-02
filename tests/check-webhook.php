@@ -3,79 +3,54 @@
 declare(strict_types=1);
 
 /*
- * Der WebHook /hook/Roborock legt keine Objekte an (Store-Review Punkte 5 und 6).
+ * Kein WebHook, keine Joystick-Fernbedienung (Store-Review Punkte 5, 6 und 8).
  *
- * Bis 2.6 build 112 nahm der Hook der IO einen Karten-Upload gerooteter Sauger an (Skript
- * symcon.mapupload.sh): Bild und Koordinaten als Datei, Ziel-ID aus $_GET['id']. Die IO legte ein
- * Medienobjekt an, benannte es und hängte es unter die übergebene ID, wo immer sie im Objektbaum
- * stand; geprüft wurde nur, dass das Objekt existiert. Ein vorhandenes Medium wurde über den
- * Dateinamen gesucht, verschoben und überschrieben. Der Weg ist entfernt (Burkhard 02.11.2026), am nuc
- * hat ihn seit 12/2021 nichts mehr benutzt.
+ * Bis 2.6 build 113 registrierte die IO den Hook /hook/Roborock. Er nahm bis build 112 einen
+ * Karten-Upload gerooteter Sauger an, der Medienobjekte unter eine beliebige Objekt-ID aus $_GET['id']
+ * hängte, und bis build 113 Fernsteuerbefehle aus libs/joystick.html (Variable „Fernbedienung“ des
+ * Robot). Der Fernsteuerweg nahm Befehle für jede ID ohne Anmeldung an und scheiterte selbst, weil er
+ * das Token per IPS_GetProperty las, das ein Attribut ist. Hook und Joystick sind entfernt (Burkhard
+ * 02.11.2026); ferngesteuert wird per Skript mit Roborock_Move_Direction.
  *
- * Teil 1 prüft den Quelltext der IO, Teil 2 schickt einen Upload an den Hook. Teil 2 braucht GD (der
- * alte Code zeichnete in das Bild); die CI hat GD, lokal: php -d extension=gd tests/check-webhook.php
- *
- * Fixture für Teil 2: tests/fixtures/karte_a10_nuc_2026-10-03.gz, die echte Karte des S6 MaxV, mit
- * RRMapDraw als PNG gezeichnet. Die Koordinatendatei bleibt leer; ihr Format spielt für die Prüfung
- * keine Rolle, denn der Hook darf den Upload gar nicht mehr verarbeiten.
+ * Eine vorhandene Variable „Fernbedienung“ (Ident remote) bleibt mit ihrem Namen stehen, das Formular
+ * nennt sie und löscht sie per Knopf nach Rückfrage (wie check-plain-text.php für „Aktuelle Koordinaten“).
  *
  * Aufruf: php tests/check-webhook.php (Exit-Code 1 bei Fehler)
  */
 
 require_once __DIR__ . '/harness.php';
 
-echo "Quelltext der IO\n";
+echo "IO ohne Hook\n";
+$io = neueIO();
+pruefe(!method_exists($io, 'ProcessHookData') || (new ReflectionMethod($io, 'ProcessHookData'))->getDeclaringClass()->getName() !== 'RoborockIO', 'IO verarbeitet keine Hook-Aufrufe');
 $quelle = file_get_contents(dirname(__DIR__) . '/Roborock IO/module.php');
-foreach (['$_FILES', 'IPS_CreateMedia', 'IPS_SetParent', 'IPS_SetName', 'IPS_SetMediaFile', 'IPS_SetMediaContent', 'IPS_GetMediaIDByFile'] as $aufruf) {
+pruefe(preg_match('/(?<!Un)RegisterHook\(/', $quelle) === 0, 'kein RegisterHook (UnregisterHook für Altbestände ist erlaubt)');
+foreach (['$_GET', '$_FILES', 'IPS_CreateMedia', 'IPS_SetParent', 'IPS_GetProperty('] as $aufruf) {
     pruefe(!str_contains($quelle, $aufruf), 'kein ' . $aufruf);
 }
 
-echo "\nUpload an den Hook\n";
-if (!extension_loaded('gd')) {
-    echo "  --   übersprungen, dem CLI-PHP fehlt GD (die CI prüft es)\n";
-    ergebnis();
-}
+echo "\nRobot ohne Joystick\n";
+pruefe(!file_exists(dirname(__DIR__) . '/libs/joystick.html'), 'libs/joystick.html gibt es nicht mehr');
+$m = neueInstanz();
+pruefe(!method_exists($m, 'SetJoystickHtml'), 'keine Skriptfunktion Roborock_SetJoystickHtml');
+$form = IPS_GetConfigurationForm($m->id());
+pruefe(!str_contains($form, '"name":"remote"'), 'kein Formularfeld remote');
+pruefe(!str_contains($form, 'SetJoystickHtml'), 'Formular-Hinweise nennen SetJoystickHtml nicht');
 
-$karte = new RRMapFileParser(
-    gzdecode(file_get_contents(__DIR__ . '/fixtures/karte_a10_nuc_2026-10-03.gz')),
-    static function (string $m, string $d): void {},
-    static function (string $m, string $d): void {}
-);
-$png = (new RRMapDraw($karte, static function (string $m, string $d): void {}))->getImage(1.0);
-pruefe($png !== '', 'Kartenbild gezeichnet (' . strlen($png) . ' Bytes)');
-
-$verzeichnis = sys_get_temp_dir() . '/roborock-webhook-' . getmypid();
-@mkdir($verzeichnis);
-$bild        = $verzeichnis . '/upload_image';
-$koordinaten = $verzeichnis . '/upload_coordinates';
-file_put_contents($bild, $png);
-file_put_contents($koordinaten, '');
-
-$io     = neueIO();
-$fremd  = IPS_CreateCategory(); // irgendein Objekt im Baum, nicht die Instanz
-$medien = IPS_GetMediaList();
-
-$_GET   = ['id' => (string)$fremd];
-$_FILES = [
-    'image'       => ['name' => 'latest.png', 'tmp_name' => $bild],
-    'coordinates' => ['name' => 'coordinates', 'tmp_name' => $koordinaten],
-];
-ob_start();
+echo "\nvorhandene Variable „Fernbedienung“\n";
+$alt = IPS_CreateVariable(VARIABLETYPE_STRING);
+IPS_SetParent($alt, $m->id());
+IPS_SetIdent($alt, 'remote');
+IPS_SetName($alt, 'Mein Joystick');
+IPS_ApplyChanges($m->id());
+pruefe(IPS_ObjectExists($alt) && IPS_GetName($alt) === 'Mein Joystick', 'bleibt mit ihrem Namen stehen: ' . (IPS_ObjectExists($alt) ? IPS_GetName($alt) : 'gelöscht'));
+$form = IPS_GetConfigurationForm($m->id());
+pruefe(str_contains($form, 'Mein Joystick'), 'Formular nennt sie');
 try {
-    (new ReflectionMethod($io, 'ProcessHookData'))->invoke($io);
+    IPS_RequestAction($m->id(), 'DeleteObsoleteVariables', true);
 } catch (Throwable $e) {
-    echo 'Ausnahme: ' . $e->getMessage();
+    pruefe(false, 'Löschknopf scheitert: ' . $e->getMessage());
 }
-$antwort = (string)ob_get_clean();
-
-$neu = array_values(array_diff(IPS_GetMediaList(), $medien));
-pruefe($neu === [], 'kein Medienobjekt angelegt: ' . json_encode($neu));
-pruefe(IPS_GetChildrenIDs($fremd) === [], 'unter dem fremden Objekt hängt nichts');
-// der alte Weg scheiterte unter PHP 8 schon vor dem Anlegen: imagerotate() mit vier Argumenten
-pruefe($antwort !== '' && !str_starts_with($antwort, 'Ausnahme'), 'Hook antwortet mit einer Meldung, ohne Ausnahme: ' . $antwort);
-
-@unlink($bild);
-@unlink($koordinaten);
-@rmdir($verzeichnis);
+pruefe(!IPS_ObjectExists($alt), 'Löschknopf entfernt sie');
 
 ergebnis();

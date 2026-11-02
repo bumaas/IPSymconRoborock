@@ -209,7 +209,6 @@ class Roborock extends IPSModuleStrict
     private const PROPERTY_CONSUMABLES_SEPARATE = 'consumables_separate';
     private const PROPERTY_XIAOMI_USER          = 'xiaomi_user';
     private const PROPERTY_XIAOMI_PASSWORD      = 'xiaomi_password';
-    private const PROPERTY_REMOTE               = 'remote';
     private const PROPERTY_UPDATE_INTERVAL      = 'UpdateInterval';
     private const PROPERTY_CLEANING_ORDER       = 'CleaningOrder';
     private const PROPERTY_SERVER               = 'Server';
@@ -277,7 +276,6 @@ class Roborock extends IPSModuleStrict
     private const IDENT_MAP_STATUS                = 'map_status';
     private const IDENT_MAP_PICTURE               = 'map_picture';
     private const IDENT_MODEL                     = 'model';
-    private const IDENT_REMOTE_CONTROL            = 'remote';
     private const IDENT_ROOMSELECTION             = 'roomselection';
     private const IDENT_ROOMS_SELECTED            = 'rooms_selected';
     private const IDENT_CLEANING_CYCLES           = 'cleaning_cycles';
@@ -355,8 +353,8 @@ class Roborock extends IPSModuleStrict
     private const ACTION_IDENTS_VARIABLE = [self::IDENT_ROOMSELECTION, self::IDENT_CLEANING_CYCLES];
 
     // Variablen früherer Versionen, die das Modul nicht mehr versorgt. „Aktuelle Koordinaten“ füllte nur
-    // der alte Karten-Upload für gerootete Geräte.
-    private const OBSOLETE_VARIABLES = ['coordinates'];
+    // der alte Karten-Upload für gerootete Geräte, „Fernbedienung“ hielt den Joystick (bis 2.6 build 113).
+    private const OBSOLETE_VARIABLES = ['coordinates', 'remote'];
 
     private roborock_vacuum $device;
 
@@ -412,7 +410,6 @@ class Roborock extends IPSModuleStrict
         $this->RegisterPropertyBoolean('extended_info', false);
         $this->RegisterPropertyBoolean(self::PROPERTY_VOLUME, false);
         $this->RegisterPropertyBoolean('timezone', false);
-        $this->RegisterPropertyBoolean(self::PROPERTY_REMOTE, false);
         $this->RegisterPropertyBoolean(self::PROPERTY_CLEANING_ORDER, false);
 
         $this->RegisterPropertyInteger('notification_instance', 0);
@@ -596,15 +593,6 @@ class Roborock extends IPSModuleStrict
 
     private function RegisterControlVariables(): void
     {
-        // Remote Control
-        if ($this->ReadPropertyBoolean(self::PROPERTY_REMOTE)) {
-            if ($this->RegisterVariableString(self::IDENT_REMOTE_CONTROL, $this->Translate('Remote Control'), VariablePresentations::webContent(), $this->_getPosition())) {
-                IPS_SetIcon($this->GetIDForIdent(self::IDENT_REMOTE_CONTROL), 'Move');
-                $this->SetJoystickHtml();
-            }
-        } else {
-            $this->UnregisterVariable(self::IDENT_REMOTE_CONTROL);
-        }
 
         // command
         $commandPresentation = VariablePresentations::enumeration([
@@ -3029,7 +3017,7 @@ class Roborock extends IPSModuleStrict
             [
                 'type'    => 'Label',
                 'visible' => false,
-                'caption' => 'For scripts and AI assistants - map (needs the Xiaomi account): Roborock_GetMap(int $InstanceID): bool fetches the current map from the Xiaomi cloud (some seconds) and updates the media object Map; Roborock_GetMapRawData(int $InstanceID): string returns the last fetched map as base64-encoded gz file (empty if none was fetched since the module was loaded), for bug reports. Roborock_SetJoystickHtml(int $InstanceID): void rewrites the HTML of the remote control variable.'
+                'caption' => 'For scripts and AI assistants - map (needs the Xiaomi account): Roborock_GetMap(int $InstanceID): bool fetches the current map from the Xiaomi cloud (some seconds) and updates the media object Map; Roborock_GetMapRawData(int $InstanceID): string returns the last fetched map as base64-encoded gz file (empty if none was fetched since the module was loaded), for bug reports.'
             ],
             [
                 'type'    => 'Label',
@@ -3182,12 +3170,6 @@ class Roborock extends IPSModuleStrict
                         'name'    => 'timezone',
                         'type'    => 'CheckBox',
                         'caption' => 'Timezone'
-                    ],
-                    [
-                        'name'    => self::PROPERTY_REMOTE,
-                        'type'    => 'CheckBox',
-                        'caption' => 'Remote Control',
-                        'visible' => false
                     ]
                 ]
             ],
@@ -3827,16 +3809,6 @@ class Roborock extends IPSModuleStrict
     /***********************************************************
      * Helper methods
      ***********************************************************/
-
-    /**
-     * updates remote variable with joystick HTML.
-     */
-    public function SetJoystickHtml(): void
-    {
-        $joystick = file_get_contents(dirname(__FILE__, 2) . '/libs/joystick.html');
-        $joystick = str_replace('[instance_id]', (string)$this->InstanceID, $joystick);
-        $this->SetValue(self::IDENT_REMOTE_CONTROL, $joystick);
-    }
 
     /**
      * check for variable and set a value.
