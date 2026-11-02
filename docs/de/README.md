@@ -83,7 +83,7 @@ Jeder Wechsel in einen Fehlerstatus steht einmal als Warnung im Meldungsfenster,
 
 Wird eine Statusvariable geschaltet (Visualisierung, Skript mit `RequestAction`), geht der Befehl sofort an den Sauger, und das Schalten wartet auf seine Antwort (meist wenige Sekunden). Ein ungültiger Wert wird mit den erlaubten Werten abgelehnt, ohne dass etwas an den Sauger geht; antwortet der Sauger nicht oder lehnt er den Befehl ab, kommt eine Fehlermeldung zurück.
 
-Neben den HTML-Tabellen „Wartung“ und „Reinigungsaufzeichnungen“ legt das Modul je eine Klartext-Variable an („Wartung (Text)“, „Reinigungsaufzeichnungen (Text)“), die Skripte, Sprachassistenten und KI-Assistenten besser lesen können. Die Variablen „Aktuelle Koordinaten“ und „Fernbedienung“ (Joystick) früherer Versionen versorgt das Modul nicht mehr. Ist eine davon noch da, nennt das Konfigurationsformular sie, und der Knopf „Veraltete Variablen löschen“ entfernt sie nach einer Rückfrage. Ferngesteuert wird der Sauger per Skript mit `Roborock_Move_Direction`. Kartennamen aus der App werden auf 40 Zeichen gekürzt.
+Neben den HTML-Tabellen „Wartung“ und „Reinigungsaufzeichnungen“ legt das Modul je eine Klartext-Variable an („Wartung (Text)“, „Reinigungsaufzeichnungen (Text)“), die Skripte, Sprachassistenten und KI-Assistenten besser lesen können. Die Variablen „Aktuelle Koordinaten“ und „Fernbedienung“ (Joystick) früherer Versionen versorgt das Modul nicht mehr. Ist eine davon noch da, nennt das Konfigurationsformular sie, und der Knopf „Veraltete Variablen löschen“ entfernt sie nach einer Rückfrage. Kartennamen aus der App werden auf 40 Zeichen gekürzt.
 
 Im Aktionsbereich des Formulars können die Statusvariablen getestet werden ("Testbereich"). 
 
@@ -440,6 +440,22 @@ _**Fährt zu den angegebenen Koordinaten**_
  Parameter _$yMillimeter_ __*Y-Koordinate*__ der Zielposition 
 
 Hinweis: Eine Einheit entspricht etwa einem Millimeter. Die Ladestation liegt meist nahe 25500/25500 (in der Karte eines S6 MaxV etwa bei 25212/25589).
+
+_**Bewegt den Sauger per Fernsteuerung**_
+
+ ```php
+ Roborock_Move_Direction(integer $InstanceID, integer $rotation, integer $velocity, integer $durationMs = 1000): array|bool;
+ ```
+
+ Parameter _$InstanceID_ __*ObjektID*__ der Roborock Instanz
+
+ Parameter _$rotation_ Drehung von -100 bis 100
+
+ Parameter _$velocity_ Geschwindigkeit von 0 bis 100
+
+ Parameter _$durationMs_ Fahrdauer in Millisekunden
+
+Hinweis: Die Funktion stammt aus älteren Versionen und ist an aktuellen Modellen nicht geprüft.
 
 _**Holt die Karte**_
 

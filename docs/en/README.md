@@ -241,7 +241,7 @@ Every change into an error status is written once as a warning to the message lo
 
 When a status variable is switched (visualization, script with `RequestAction`), the command is sent to the vacuum cleaner immediately and switching waits for its answer (usually a few seconds). An invalid value is rejected with the allowed values and nothing is sent; if the vacuum cleaner does not respond or rejects the command, an error message is returned.
 
-Next to the HTML tables "Consumables" and "Cleaning Records" the module creates a plain text variable each ("Consumables (Text)", "Cleaning Records (Text)"), which are easier to read for scripts, voice assistants and AI assistants. The variables "Current Coordinates" and "Remote Control" (joystick) of earlier versions are no longer updated by the module. If one of them still exists, the configuration form lists it, and the button "Delete obsolete variables" removes it after a confirmation. The vacuum cleaner can be remote-controlled by script with `Roborock_Move_Direction`. Map names from the app are shortened to 40 characters.
+Next to the HTML tables "Consumables" and "Cleaning Records" the module creates a plain text variable each ("Consumables (Text)", "Cleaning Records (Text)"), which are easier to read for scripts, voice assistants and AI assistants. The variables "Current Coordinates" and "Remote Control" (joystick) of earlier versions are no longer updated by the module. If one of them still exists, the configuration form lists it, and the button "Delete obsolete variables" removes it after a confirmation. Map names from the app are shortened to 40 characters.
 
 If the status variable _Map Picture_ is selected, the form offers buttons to get and show the map. _Download Map (Picture)_ and _Download Map (Raw Data)_ save the most recently fetched map as PNG or as raw file (`.gz`, exactly as delivered by the Xiaomi cloud). The raw file helps with troubleshooting, e.g. when a new model or firmware delivers map elements the module does not know yet — please attach both files to the bug report.
 
@@ -505,6 +505,22 @@ Parameter _$InstanceID_ __*ObjectID*__ of the Roborock instance
  Parameter _$InstanceID_ __*ObjectID*__ of the Roborock instance
 
  Parameter _$fanPowerValue_ one of the values in the options of the status variable "Fan Power"; the levels depend on the model (e.g. 101 to 105 for the S6 MaxV). Better switch the status variable with `RequestAction`, which checks the value.
+
+_**Moves the vacuum cleaner by remote control**_
+
+ ```php
+ Roborock_Move_Direction(integer $InstanceID, integer $rotation, integer $velocity, integer $durationMs = 1000): array|bool;
+ ```
+
+ Parameter _$InstanceID_ __*ObjectID*__ of the Roborock instance
+
+ Parameter _$rotation_ rotation from -100 to 100
+
+ Parameter _$velocity_ speed from 0 to 100
+
+ Parameter _$durationMs_ driving time in milliseconds
+
+Note: This function comes from earlier versions and has not been tested with current models.
 
 ###  b. GUIDs and data transfer:
 
